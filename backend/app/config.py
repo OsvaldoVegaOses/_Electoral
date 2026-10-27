@@ -6,6 +6,32 @@ from pydantic_settings import BaseSettings
 logger = logging.getLogger("theogen.config")
 
 
+def _parse_cors_origins(raw_origins: str | None) -> list[str]:
+    """
+    Parsea los orígenes permitidos para CORS (P6).
+    Acepta cadena separada por comas (ej. 'https://votacion.cl,https://admin.cl')
+    o un arreglo JSON (ej. '["https://votacion.cl"]'). Fallback a puertos localhost de desarrollo.
+    """
+    default_origins = [
+        "http://localhost:5173",
+        "http://localhost:3000",
+        "http://127.0.0.1:5173",
+        "http://127.0.0.1:3000",
+    ]
+    if not raw_origins or not raw_origins.strip():
+        return default_origins
+    import json
+    stripped = raw_origins.strip()
+    if stripped.startswith("[") and stripped.endswith("]"):
+        try:
+            parsed = json.loads(stripped)
+            if isinstance(parsed, list):
+                return [str(o).strip() for o in parsed if str(o).strip()]
+        except Exception:
+            pass
+    return [o.strip() for o in stripped.split(",") if o.strip()]
+
+
 class Settings(BaseSettings):
     PROJECT_NAME: str = "TheoGen Electoral"
     PROJECT_SUBTITLE: str = "Participación transparente y verificable"
@@ -24,13 +50,8 @@ class Settings(BaseSettings):
     # HMAC key para hashes de integridad de votos — MED-02
     VOTE_HMAC_KEY: str = os.getenv("VOTE_HMAC_KEY", "")
 
-    # CORS — CRIT-03: Sin wildcard "*"
-    BACKEND_CORS_ORIGINS: list[str] = [
-        "http://localhost:5173",
-        "http://localhost:3000",
-        "http://127.0.0.1:5173",
-        "http://127.0.0.1:3000",
-    ]
+    # CORS — CRIT-03 & P6: Configurable desde variable de entorno BACKEND_CORS_ORIGINS
+    BACKEND_CORS_ORIGINS: list[str] = _parse_cors_origins(os.getenv("BACKEND_CORS_ORIGINS"))
 
     class Config:
         case_sensitive = True
@@ -59,4 +80,12 @@ if not settings.VOTE_HMAC_KEY:
     else:
         settings.VOTE_HMAC_KEY = secrets.token_hex(32)
         logger.warning("VOTE_HMAC_KEY no configurada. Usando clave aleatoria temporal.")
+
+if settings.ENVIRONMENT == "production":
+    if any("localhost" in o or "127.0.0.1" in o for o in settings.BACKEND_CORS_ORIGINS):
+        logger.warning(
+            "⚠️ Producción configurada con orígenes CORS locales (localhost). "
+            "Configure la variable BACKEND_CORS_ORIGINS con los dominios oficiales de producción."
+        )
+
 

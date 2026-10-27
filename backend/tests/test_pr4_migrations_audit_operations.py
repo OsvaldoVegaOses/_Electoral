@@ -291,6 +291,31 @@ class TestPR4OperationsAndBulkUpload(unittest.TestCase):
         self.assertIn("18.***.***-4", audit.detalle)
         self.assertNotIn("18.345.678-4", audit.detalle)
 
+    def test_healthcheck_active_database_ok(self):
+        """P7: /api/health verifica conectividad activa con base de datos (SELECT 1)"""
+        res = self.client.get("/api/health")
+        self.assertEqual(res.status_code, 200)
+        data = res.json()
+        self.assertEqual(data["status"], "ok")
+        self.assertEqual(data["database"], "ok")
+        self.assertIn("timestamp", data)
+        self.assertIn("version", data)
+
+    def test_cors_origins_env_parser(self):
+        """P6: Parser de orígenes CORS soporta comas, JSON array y fallback"""
+        from app.config import _parse_cors_origins
+        # Defaults
+        defaults = _parse_cors_origins(None)
+        self.assertIn("http://localhost:5173", defaults)
+
+        # Comma-separated string
+        custom_csv = _parse_cors_origins("https://votacion.theogen.cl, https://admin.theogen.cl")
+        self.assertEqual(custom_csv, ["https://votacion.theogen.cl", "https://admin.theogen.cl"])
+
+        # JSON array string
+        custom_json = _parse_cors_origins('["https://app.theogen.cl", "https://api.theogen.cl"]')
+        self.assertEqual(custom_json, ["https://app.theogen.cl", "https://api.theogen.cl"])
+
 
 class TestPR4AlembicOnPostgres(unittest.TestCase):
     """

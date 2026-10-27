@@ -114,20 +114,20 @@ Críticos (bloquean completitud)
 #	Pendiente	Esfuerzo
 P1	ADR doc/adr/001-motor-de-votacion.md — Belenios vs. motor propio, matrices de amenazas, recomendación	Alto
 P2	JWT → cookie HttpOnly; Secure; SameSite con CSRF (mencionado 4 veces como residual, nunca hecho)	Medio
-P3	Actualizar README.md — aún muestra tokens en texto plano, dice "bitácora inmutable", enlaza con file:///, menciona .xls	Bajo
+✅ P3	Actualizar README.md — resuelto: sanitización de tokens demo, bitácora atómica, links relativos, bloqueo .xls	Completado
 P4	Informe final consolidado (§9 del mandato) con recomendaciones y decisiones para el dueño	Medio
-Importantes (robustez operacional)
-#	Pendiente
-P5	Escaneo de dependencias en CI (pip-audit, gitleaks)
-P6	CORS desde variable de entorno (hardcodeado a localhost)
-P7	Healthcheck /api/health que verifique la BD
-P8	Hashear token_votacion (sigue en texto plano)
-P9	Tests E2E con Playwright/Cypress
-P10	Validar Docker Compose y Nginx (docker compose config, nginx -t)
-P11	Verificar scripts backup.sh/restore.sh
-P12	Pinnear versiones en requirements.txt (>= → ==)
-P13	Rate limiting persistente (Redis) para múltiples instancias
-P14	Política de retención/eliminación de PII
-P15	Bitácora append-only real (no tabla convencional)
-¿Quieres que empiece con alguno de estos pendientes? Los de esfuerzo bajo (P3, P5, P6, P7, P12) se podrían cerrar rápidamente.
 
+### Importantes (robustez operacional)
+| # | Pendiente | Estado |
+| :---: | :--- | :---: |
+| ✅ P5 | Escaneo de dependencias y secretos en CI (pip-audit, gitleaks) | Completado |
+| ✅ P6 | CORS configurable desde variable de entorno BACKEND_CORS_ORIGINS (fallback localhost) | Completado |
+| ✅ P7 | Healthcheck /api/health con verificación activa de BD (SELECT 1 y HTTP 200/503) | Completado |
+| P8 | Hashear token_votacion (sigue en texto plano) | Pendiente |
+| P9 | Tests E2E con Playwright/Cypress | Pendiente |
+| P10 | Validar Docker Compose y Nginx (docker compose config, nginx -t) | Pendiente |
+| P11 | Verificar scripts backup.sh/restore.sh | Pendiente |
+| ✅ P12 | Pinnear versiones exactas en requirements.txt (>= → ==) | Completado |
+| P13 | Rate limiting persistente (Redis) para múltiples instancias | Pendiente |
+| P14 | Política de retención/eliminación de PII | Pendiente |
+| P15 | Bitácora append-only real (no tabla convencional) | Pendiente |

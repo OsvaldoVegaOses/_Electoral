@@ -2,9 +2,11 @@ import os
 import logging
 from datetime import datetime, timezone
 from contextlib import asynccontextmanager
-from fastapi import FastAPI, Request, Response
+from fastapi import FastAPI, Request, Response, status
+from fastapi.responses import JSONResponse
 from fastapi.middleware.cors import CORSMiddleware
 from starlette.middleware.base import BaseHTTPMiddleware
+from sqlalchemy import text
 from app.config import settings
 from app.database import engine, Base, SessionLocal
 from app.seed_data import seed_initial_data
@@ -103,10 +105,31 @@ def root():
         "estado": "Operacional"
     }
 
-# MED-04: Health check con timestamp dinámico
+# MED-04 & P7: Health check con verificación real de conectividad a Base de Datos
 @app.get("/api/health", tags=["General"])
 def health_check():
-    return {"status": "ok", "timestamp": datetime.now(timezone.utc).isoformat()}
+    db_status = "ok"
+    http_code = status.HTTP_200_OK
+    try:
+        db = SessionLocal()
+        try:
+            db.execute(text("SELECT 1"))
+        finally:
+            db.close()
+    except Exception as exc:
+        logger.error(f"Healthcheck BD fallido: {exc}")
+        db_status = "error"
+        http_code = status.HTTP_503_SERVICE_UNAVAILABLE
+
+    payload = {
+        "status": "ok" if db_status == "ok" else "degraded",
+        "database": db_status,
+        "timestamp": datetime.now(timezone.utc).isoformat(),
+        "version": settings.VERSION,
+        "environment": settings.ENVIRONMENT,
+    }
+    return JSONResponse(status_code=http_code, content=payload)
+
 
 if __name__ == "__main__":
     import uvicorn
