@@ -13,8 +13,8 @@ from typing import List, Optional
 from app.database import get_db
 from app.models import Voter, Election, User
 from app.schemas import VoterCreate, VoterResponse, VoterBulkUploadResult
-from app.auth import get_current_user, log_audit, check_election_access
-from app.rut_validator import validate_rut, format_rut, clean_rut
+from app.auth import get_current_user, log_audit, check_election_access, sanitize_formula_injection
+from app.rut_validator import validate_rut, format_rut, clean_rut, mask_rut
 
 logger = logging.getLogger("theogen.voters")
 
@@ -100,29 +100,33 @@ def create_voter(
     if voter_in.correo and not re.match(EMAIL_REGEX, voter_in.correo):
         raise HTTPException(status_code=400, detail="El formato del correo electrónico es inválido")
 
+    clean_nombre = sanitize_formula_injection(voter_in.nombre.strip())
+    clean_curso = sanitize_formula_injection(voter_in.curso.strip()) if voter_in.curso else None
+    clean_familia = sanitize_formula_injection(voter_in.familia_id.strip()) if voter_in.familia_id else None
+
     token = str(uuid.uuid4())
     voter = Voter(
         rut=formatted,
         rut_normalizado=cleaned,
-        nombre=voter_in.nombre.strip(),
-        curso=voter_in.curso.strip() if voter_in.curso else None,
+        nombre=clean_nombre,
+        curso=clean_curso,
         correo=voter_in.correo.strip().lower() if voter_in.correo else None,
-        familia_id=voter_in.familia_id.strip() if voter_in.familia_id else None,
+        familia_id=clean_familia,
         token_votacion=token,
         estado="Pendiente",
         election_id=election_id
     )
     db.add(voter)
-    db.commit()
-    db.refresh(voter)
-
     log_audit(
         db,
         accion="Agregó elector",
-        detalle=f"Elector {voter.nombre} (RUT: {voter.rut}) añadido al padrón",
+        detalle=f"Elector {voter.nombre} (RUT: {mask_rut(voter.rut)}) añadido al padrón",
         usuario=current_user.email,
-        school_id=election.school_id
+        school_id=election.school_id,
+        commit=False
     )
+    db.commit()
+    db.refresh(voter)
     return voter
 
 
@@ -134,12 +138,16 @@ async def upload_voters_file(
     current_user: User = Depends(get_current_user)
 ):
     """
-    Módulo 2: Carga masiva de padrón desde archivo Excel (.xlsx, .xls) o CSV.
+    Módulo 2: Carga masiva de padrón desde archivo Excel (.xlsx) o CSV.
     Valida:
-    - RUT con Módulo 11
+    - Lectura en streaming por chunks (máx 10 MB) para prevenir saturación de memoria RAM
+    - Rechazo de formato .xls legado por motivos de seguridad
+    - Tipos de datos forzados a string (dtype=str) para evitar pérdida de ceros a la izquierda
+    - Neutralización de inyección de fórmulas CSV/Excel (CSV Formula Injection)
+    - RUT con Módulo 11 chileno
     - Correo electrónico válido
     - Duplicados en el archivo y contra la BD
-    Devuelve lista de errores detallados por fila.
+    - Registro de auditoría atómico con la inserción del lote
     """
     election = db.query(Election).filter(Election.id == election_id).first()
     if not election:
@@ -153,24 +161,40 @@ async def upload_voters_file(
             detail="El padrón electoral se encuentra congelado tras la apertura de la elección."
         )
 
-    contents = await file.read()
+    # MED-02: Streaming de archivo en chunks para evitar saturación de memoria RAM
+    CHUNK_SIZE = 1024 * 1024  # 1 MB por chunk
+    total_bytes = 0
+    buffer = io.BytesIO()
 
-    # MED-02: Validar tamaño máximo del archivo
-    if len(contents) > MAX_UPLOAD_SIZE_BYTES:
+    while True:
+        chunk = await file.read(CHUNK_SIZE)
+        if not chunk:
+            break
+        total_bytes += len(chunk)
+        if total_bytes > MAX_UPLOAD_SIZE_BYTES:
+            raise HTTPException(
+                status_code=status.HTTP_413_REQUEST_ENTITY_TOO_LARGE,
+                detail=f"El archivo excede el tamaño máximo permitido de {MAX_UPLOAD_SIZE_BYTES // (1024*1024)} MB."
+            )
+        buffer.write(chunk)
+
+    buffer.seek(0)
+    filename = file.filename.lower() if file.filename else ""
+
+    # Rechazar explícitamente formato .xls legado por motivos de seguridad e interoperabilidad
+    if filename.endswith(".xls"):
         raise HTTPException(
-            status_code=413,
-            detail=f"El archivo excede el tamaño máximo permitido de {MAX_UPLOAD_SIZE_BYTES // (1024*1024)} MB."
+            status_code=status.HTTP_400_BAD_REQUEST,
+            detail="El formato .xls legado no está permitido por motivos de seguridad e interoperabilidad. Por favor guarde o exporte su archivo en formato .xlsx moderno o .csv."
         )
-
-    filename = file.filename.lower()
 
     try:
         if filename.endswith(".csv"):
-            df = pd.read_csv(io.BytesIO(contents))
-        elif filename.endswith((".xlsx", ".xls")):
-            df = pd.read_excel(io.BytesIO(contents))
+            df = pd.read_csv(buffer, dtype=str)
+        elif filename.endswith(".xlsx"):
+            df = pd.read_excel(buffer, dtype=str)
         else:
-            raise HTTPException(status_code=400, detail="Formato de archivo no soportado. Debe ser .xlsx, .xls o .csv")
+            raise HTTPException(status_code=400, detail="Formato de archivo no soportado. Debe ser .xlsx o .csv")
     except HTTPException:
         raise
     except Exception as e:
@@ -242,32 +266,37 @@ async def upload_voters_file(
         else:
             raw_correo = None
 
+        # Sanitizar inyección de fórmulas CSV en campos alfanuméricos
+        clean_nombre = sanitize_formula_injection(raw_nombre)
+        clean_curso = sanitize_formula_injection(raw_curso) if raw_curso and raw_curso.lower() != 'nan' else None
+        clean_familia = sanitize_formula_injection(raw_familia) if raw_familia and raw_familia.lower() != 'nan' else None
+
         # Preparar voter
         token = str(uuid.uuid4())
         voters_to_insert.append(Voter(
             rut=formatted,
             rut_normalizado=cleaned,
-            nombre=raw_nombre,
-            curso=raw_curso if raw_curso and raw_curso.lower() != 'nan' else None,
+            nombre=clean_nombre,
+            curso=clean_curso,
             correo=raw_correo.lower() if raw_correo else None,
-            familia_id=raw_familia if raw_familia and raw_familia.lower() != 'nan' else None,
+            familia_id=clean_familia,
             token_votacion=token,
             estado="Pendiente",
             election_id=election_id
         ))
 
-    # Guardar en base de datos
+    # Guardar en base de datos con auditoría atómica en la misma transacción
     if voters_to_insert:
         db.add_all(voters_to_insert)
-        db.commit()
-
         log_audit(
             db,
             accion="Subió padrón",
             detalle=f"Se cargaron {len(voters_to_insert)} electores desde archivo '{file.filename}'. {len(errores)} filas con error.",
             usuario=current_user.email,
-            school_id=election.school_id
+            school_id=election.school_id,
+            commit=False
         )
+        db.commit()
 
     return {
         "total_leidos": len(df),
@@ -301,16 +330,18 @@ def generate_all_tokens(
     for v in voters:
         v.token_votacion = str(uuid.uuid4())
         count += 1
-    db.commit()
 
     log_audit(
         db,
         accion="Generó credenciales",
         detalle=f"Generados {count} tokens UUID de votación",
         usuario=current_user.email,
-        school_id=election.school_id
+        school_id=election.school_id,
+        commit=False
     )
+    db.commit()
     return {"mensaje": f"Se generaron {count} credenciales únicas.", "generados": count}
+
 
 @router.get("/simulate-email-dispatch")
 def simulate_email_dispatch(

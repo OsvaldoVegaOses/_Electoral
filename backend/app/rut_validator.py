@@ -57,3 +57,28 @@ def format_rut(rut: str) -> str:
     formatted_body = ".".join(grouped)[::-1]
     
     return f"{formatted_body}-{dv}"
+
+
+def mask_rut(rut: str) -> str:
+    """
+    Enmascara un RUT chileno para registros de auditoría y protección de PII.
+    Ejemplos:
+      - '12.345.678-5' -> '12.***.***-5'
+      - '9.876.543-K'  -> '9.***.***-K'
+      - '12345678-5'   -> '12.***.***-5'
+    """
+    if not rut:
+        return "***"
+    cleaned = clean_rut(rut)
+    if len(cleaned) < 4:
+        return "***"
+        
+    body = cleaned[:-1]
+    dv = cleaned[-1]
+    
+    if len(body) <= 6:
+        return f"{body[0]}***-{dv}"
+    elif len(body) == 7:
+        return f"{body[0]}.***.***-{dv}"
+    else:
+        return f"{body[:2]}.***.***-{dv}"

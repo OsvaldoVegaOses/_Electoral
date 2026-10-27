@@ -39,8 +39,11 @@ class SecurityHeadersMiddleware(BaseHTTPMiddleware):
 
 @asynccontextmanager
 async def lifespan(app: FastAPI):
-    # 1. Crear tablas en base de datos si no existen
-    Base.metadata.create_all(bind=engine)
+    # 1. Crear tablas en base de datos solo en desarrollo/test; en producción el esquema es gobernado por Alembic
+    if settings.ENVIRONMENT != "production":
+        Base.metadata.create_all(bind=engine)
+    else:
+        logger.info("Entorno de producción: DDL automático deshabilitado; el esquema debe gestionarse exclusivamente mediante migraciones Alembic.")
     
     # 2. Cargar datos de demostración solo en desarrollo/test con opt-in explícito (B2: jamás en producción)
     seed_opt_in = os.getenv("SEED_DEMO_DATA", "false").lower() in ("true", "1", "yes")

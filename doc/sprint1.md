@@ -107,3 +107,27 @@ Si una PR depende de una migración estructural de otra, documenta y reajusta se
 9. El ADR de anonimato/verificabilidad está entregado, pero el componente sigue marcado como no apto para elección vinculante hasta aprobación, implementación y auditoría.
 9. Informe final que debes emitir
 Entrega: resumen de vulnerabilidades encontradas y cerradas; listado de commits/PR; tabla hallazgo → corrección → prueba → resultado; migraciones; riesgos que aún bloquean producción; demo operativa verificada (si existe entorno); recomendaciones priorizadas y una lista corta de decisiones que requiere el dueño del proyecto. No confundas código compilable con plataforma electoral certificada.
+
+
+Pendiente
+Críticos (bloquean completitud)
+#	Pendiente	Esfuerzo
+P1	ADR doc/adr/001-motor-de-votacion.md — Belenios vs. motor propio, matrices de amenazas, recomendación	Alto
+P2	JWT → cookie HttpOnly; Secure; SameSite con CSRF (mencionado 4 veces como residual, nunca hecho)	Medio
+P3	Actualizar README.md — aún muestra tokens en texto plano, dice "bitácora inmutable", enlaza con file:///, menciona .xls	Bajo
+P4	Informe final consolidado (§9 del mandato) con recomendaciones y decisiones para el dueño	Medio
+Importantes (robustez operacional)
+#	Pendiente
+P5	Escaneo de dependencias en CI (pip-audit, gitleaks)
+P6	CORS desde variable de entorno (hardcodeado a localhost)
+P7	Healthcheck /api/health que verifique la BD
+P8	Hashear token_votacion (sigue en texto plano)
+P9	Tests E2E con Playwright/Cypress
+P10	Validar Docker Compose y Nginx (docker compose config, nginx -t)
+P11	Verificar scripts backup.sh/restore.sh
+P12	Pinnear versiones en requirements.txt (>= → ==)
+P13	Rate limiting persistente (Redis) para múltiples instancias
+P14	Política de retención/eliminación de PII
+P15	Bitácora append-only real (no tabla convencional)
+¿Quieres que empiece con alguno de estos pendientes? Los de esfuerzo bajo (P3, P5, P6, P7, P12) se podrían cerrar rápidamente.
+

@@ -230,12 +230,58 @@ def require_role(*allowed_roles):
     return _dependency
 
 
-# --- Auditoría ---
+# --- PII Minimization y Sanitización de Inyección de Fórmulas ---
+
+def mask_email(email: Optional[str]) -> str:
+    """
+    Enmascara correos para registros de auditoría y protección de PII.
+    Ejemplo: 'director@colegioa.cl' -> 'd***r@colegioa.cl'
+             'ab@colegiob.cl'       -> 'a***@colegiob.cl'
+    """
+    if not email or "@" not in email:
+        return "***"
+    local, domain = email.split("@", 1)
+    if len(local) <= 2:
+        masked_local = f"{local[0]}***"
+    else:
+        masked_local = f"{local[0]}***{local[-1]}"
+    return f"{masked_local}@{domain}"
+
+
+def sanitize_formula_injection(value: Optional[str]) -> Optional[str]:
+    """
+    Desactiva vectores de inyección de fórmulas CSV/Excel (CSV Formula Injection / DDE).
+    Si el valor comienza con '=', '+', '-', '@', '\t' o '\r' (directamente o tras espacios iniciales),
+    antepone un apóstrofe "'".
+    """
+    if not value or not isinstance(value, str):
+        return value
+    first_char = value[0] if len(value) > 0 else ""
+    first_non_space = value.lstrip(" ")[0] if len(value.lstrip(" ")) > 0 else ""
+    if first_char in ('=', '+', '-', '@', '\t', '\r') or first_non_space in ('=', '+', '-', '@', '\t', '\r'):
+        return f"'{value}"
+    return value
+
+
+# --- Auditoría Atómica y Trazabilidad Multi-Tenant ---
 
 def log_audit(
-    db: Session, accion: str, detalle: str = None, usuario: str = "Sistema", school_id: Optional[int] = None
-):
-    """Registra una acción en la bitácora de auditoría con trazabilidad multi-tenant"""
+    db: Session,
+    accion: str,
+    detalle: Optional[str] = None,
+    usuario: str = "Sistema",
+    school_id: Optional[int] = None,
+    commit: bool = True
+) -> Optional[AuditLog]:
+    """
+    Registra una acción en la bitácora de auditoría con trazabilidad multi-tenant.
+    
+    - Si commit=True (comportamiento por defecto): realiza db.commit() de inmediato.
+    - Si commit=False: añade la entidad AuditLog a la sesión actual (db.add) sin invocar
+      commit() ni rollback(), permitiendo que la mutación de negocio y el registro de
+      auditoría se confirmen o reviertan de forma estrictamente atómica dentro de la
+      misma transacción.
+    """
     try:
         log = AuditLog(
             fecha=datetime.now(timezone.utc),
@@ -245,9 +291,14 @@ def log_audit(
             school_id=school_id
         )
         db.add(log)
-        db.commit()
+        if commit:
+            db.commit()
+        return log
     except Exception as e:
         logger.error("Error al registrar auditoría: %s", e)
-        db.rollback()
+        if commit:
+            db.rollback()
+        else:
+            raise
 
 

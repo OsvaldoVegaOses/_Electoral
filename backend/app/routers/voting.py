@@ -302,16 +302,18 @@ def submit_vote(
         hash_integridad=hash_integridad
     )
     db.add(vote)
-    db.commit()
 
-
-    # 4. Registrar en Auditoría (sin revelar el candidato votado para garantizar voto secreto)
+    # 9. Registrar en Auditoría dentro de la misma transacción atómica (sin revelar el candidato votado)
     log_audit(
         db,
         accion="Emitió voto",
-        detalle=f"Voto verificado con Hash: {hash_integridad[:16]}... para elección '{election.nombre}' (Elector ID: {voter.id})",
-        usuario="Elector Anónimo"
+        detalle=f"Voto verificado con Hash: {hash_integridad[:16]}... para elección '{election.nombre}' (Elector ID: {voter_locked.id})",
+        usuario="Elector Anónimo",
+        school_id=election.school_id,
+        commit=False
     )
+    db.commit()
+
 
     school_nombre = election.school.nombre if election.school else "Institución Organizadora"
     clear_failed_attempts(client_ip)
