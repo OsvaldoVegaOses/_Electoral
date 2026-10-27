@@ -3,6 +3,7 @@ import hashlib
 import uuid
 from datetime import datetime, timezone
 from fastapi import APIRouter, Depends, HTTPException, status, Request
+from sqlalchemy import or_
 from sqlalchemy.orm import Session
 from app.database import get_db
 from app.models import Voter, Election, Candidate, Vote, School, VotingEntitlement
@@ -10,7 +11,10 @@ from app.schemas import (
     TokenValidateRequest, TokenValidateResponse, VoteSubmitRequest,
     VoteReceiptResponse, CandidateResponse
 )
-from app.auth import log_audit, check_rate_limit, record_failed_attempt, clear_failed_attempts, get_client_ip
+from app.auth import (
+    log_audit, check_rate_limit, record_failed_attempt, clear_failed_attempts,
+    get_client_ip, hash_voting_token
+)
 from app.config import settings
 from app.rut_validator import clean_rut
 
@@ -50,7 +54,14 @@ def validate_voting_token(
     check_rate_limit(client_ip)
 
     token_clean = payload.token.strip()
-    voter = db.query(Voter).filter(Voter.token_votacion == token_clean).first()
+    token_hash_computed = hash_voting_token(token_clean)
+    voter = db.query(Voter).filter(
+        or_(
+            Voter.token_hash == token_hash_computed,
+            Voter.token_votacion == token_clean,
+            Voter.token_votacion == token_hash_computed,
+        )
+    ).first()
     
     if not voter:
         record_failed_attempt(client_ip)
@@ -185,10 +196,15 @@ def submit_vote(
     check_rate_limit(client_ip)
 
     token_clean = vote_in.token.strip()
-    
+    token_hash_computed = hash_voting_token(token_clean)
+
     # 1. Obtener votante para identificar la elección
     voter = db.query(Voter).filter(
-        Voter.token_votacion == token_clean
+        or_(
+            Voter.token_hash == token_hash_computed,
+            Voter.token_votacion == token_clean,
+            Voter.token_votacion == token_hash_computed,
+        )
     ).first()
 
     if not voter:
@@ -281,17 +297,19 @@ def submit_vote(
     entitlement.fecha_consumo = now
     entitlement.voter_id_consumidor = voter_locked.id
 
-    # 6. Marcar elector individual
+    # 6. Marcar elector individual y consumir credencial criptográfica (P8)
     voter_locked.estado = "Votó"
     voter_locked.fecha_voto = now
+    voter_locked.token_votacion = None
+    voter_locked.token_hash = None
 
-    # 7. Si rige regla familiar, bloquear a los demás miembros
+    # 7. Si rige regla familiar, bloquear a los demás miembros y revocar credenciales
     if election.regla_votacion == "Un voto por familia" and voter_locked.familia_id:
         db.query(Voter).filter(
             Voter.election_id == election.id,
             Voter.familia_id == voter_locked.familia_id,
             Voter.id != voter_locked.id
-        ).update({"estado": "Bloqueado"}, synchronize_session=False)
+        ).update({"estado": "Bloqueado", "token_votacion": None, "token_hash": None}, synchronize_session=False)
 
     # 8. Registrar voto en la urna
     vote = Vote(

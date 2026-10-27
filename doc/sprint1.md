@@ -124,9 +124,9 @@ P4	Informe final consolidado (§9 del mandato) con recomendaciones y decisiones 
 | ✅ P5 | Escaneo de dependencias y secretos en CI (pip-audit, gitleaks) | Completado |
 | ✅ P6 | CORS configurable desde variable de entorno BACKEND_CORS_ORIGINS (fallback localhost) | Completado |
 | ✅ P7 | Healthcheck /api/health con verificación activa de BD (SELECT 1 y HTTP 200/503) | Completado |
-| P8 | Hashear token_votacion (sigue en texto plano) | Pendiente |
-| P9 | Tests E2E con Playwright/Cypress | Pendiente |
-| P10 | Validar Docker Compose y Nginx (docker compose config, nginx -t) | Pendiente |
+| ✅ P8 | Hashear token_votacion (derivación HMAC-SHA256, canje y consumo seguro) | Completado |
+| ✅ P9 | Tests E2E con Playwright (flujos de votación y autenticación) | Completado |
+| ✅ P10 | Validar Docker Compose y Nginx (docker compose config y directivas de seguridad) | Completado |
 | P11 | Verificar scripts backup.sh/restore.sh | Pendiente |
 | ✅ P12 | Pinnear versiones exactas en requirements.txt (>= → ==) | Completado |
 | P13 | Rate limiting persistente (Redis) para múltiples instancias | Pendiente |

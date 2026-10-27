@@ -4,17 +4,18 @@ services:
     container_name: theogen_db
     restart: always
     env_file:
-      - .env
+      - path: .env
+        required: false
     environment:
-      POSTGRES_DB: ${POSTGRES_DB}
-      POSTGRES_USER: ${POSTGRES_USER}
-      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD}
+      POSTGRES_DB: ${POSTGRES_DB:-theogen_electoral}
+      POSTGRES_USER: ${POSTGRES_USER:-theogen}
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:-theogen_secret}
     ports:
       - "5432:5432"
     volumes:
       - postgres_data:/var/lib/postgresql/data
     healthcheck:
-      test: ["CMD-SHELL", "pg_isready -U ${POSTGRES_USER} -d ${POSTGRES_DB}"]
+      test: ["CMD-SHELL", "pg_isready -U ${POSTGRES_USER:-theogen} -d ${POSTGRES_DB:-theogen_electoral}"]
       interval: 5s
       timeout: 5s
       retries: 5
@@ -26,12 +27,13 @@ services:
     container_name: theogen_backend
     restart: always
     env_file:
-      - .env
+      - path: .env
+        required: false
     environment:
-      DATABASE_URL: ${DATABASE_URL}
-      SECRET_KEY: ${SECRET_KEY}
-      VOTE_HMAC_KEY: ${VOTE_HMAC_KEY}
-      ENVIRONMENT: ${ENVIRONMENT:-production}
+      DATABASE_URL: ${DATABASE_URL:-postgresql://theogen:theogen_secret@db:5432/theogen_electoral}
+      SECRET_KEY: ${SECRET_KEY:-insecure_development_secret_key_change_in_production}
+      VOTE_HMAC_KEY: ${VOTE_HMAC_KEY:-insecure_development_hmac_key_change_in_production}
+      ENVIRONMENT: ${ENVIRONMENT:-development}
     ports:
       - "8000:8000"
     depends_on:

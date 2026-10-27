@@ -12,7 +12,7 @@ from app.schemas import (
 )
 from app.auth import (
     get_current_user, log_audit, is_superadmin, check_election_access,
-    ROLE_RESPONSABLE, ROLE_COMISION
+    ROLE_RESPONSABLE, ROLE_COMISION, hash_voting_token
 )
 from app.rut_validator import clean_rut
 
@@ -282,8 +282,10 @@ def open_election(
     generated_count = 0
     entitlement_keys = set()
     for v in voters:
-        if not v.token_votacion:
-            v.token_votacion = str(uuid.uuid4())
+        if not v.token_votacion and not v.token_hash:
+            raw_token = str(uuid.uuid4())
+            v.token_votacion = raw_token
+            v.token_hash = hash_voting_token(raw_token)
             generated_count += 1
         if not v.rut_normalizado:
             v.rut_normalizado = clean_rut(v.rut)

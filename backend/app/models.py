@@ -73,6 +73,8 @@ class Voter(Base):
     correo = Column(String(150), nullable=True)
     familia_id = Column(String(100), nullable=True, index=True)
     token_votacion = Column(String(100), unique=True, index=True, nullable=True)
+    # P8: Derivación/hash resistente para canje seguro de credenciales (HMAC-SHA256)
+    token_hash = Column(String(128), unique=True, index=True, nullable=True)
     # Estados: Pendiente, Votó, Bloqueado
     estado = Column(String(50), default="Pendiente", index=True)
     fecha_voto = Column(DateTime(timezone=True), nullable=True)

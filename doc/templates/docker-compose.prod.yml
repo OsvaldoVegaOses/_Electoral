@@ -10,7 +10,8 @@ services:
     container_name: theogen_db
     restart: unless-stopped
     env_file:
-      - .env
+      - path: .env
+        required: false
     environment:
       POSTGRES_DB: ${POSTGRES_DB:-theogen_electoral}
       POSTGRES_USER: ${POSTGRES_USER:-theogen}
@@ -45,7 +46,8 @@ services:
     container_name: theogen_backend
     restart: unless-stopped
     env_file:
-      - .env
+      - path: .env
+        required: false
     environment:
       DATABASE_URL: ${DATABASE_URL}
       SECRET_KEY: ${SECRET_KEY}

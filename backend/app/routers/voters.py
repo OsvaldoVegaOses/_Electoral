@@ -13,7 +13,10 @@ from typing import List, Optional
 from app.database import get_db
 from app.models import Voter, Election, User
 from app.schemas import VoterCreate, VoterResponse, VoterBulkUploadResult
-from app.auth import get_current_user, log_audit, check_election_access, sanitize_formula_injection
+from app.auth import (
+    get_current_user, log_audit, check_election_access, sanitize_formula_injection,
+    hash_voting_token
+)
 from app.rut_validator import validate_rut, format_rut, clean_rut, mask_rut
 
 logger = logging.getLogger("theogen.voters")
@@ -113,6 +116,7 @@ def create_voter(
         correo=voter_in.correo.strip().lower() if voter_in.correo else None,
         familia_id=clean_familia,
         token_votacion=token,
+        token_hash=hash_voting_token(token),
         estado="Pendiente",
         election_id=election_id
     )
@@ -281,6 +285,7 @@ async def upload_voters_file(
             correo=raw_correo.lower() if raw_correo else None,
             familia_id=clean_familia,
             token_votacion=token,
+            token_hash=hash_voting_token(token),
             estado="Pendiente",
             election_id=election_id
         ))
@@ -328,7 +333,9 @@ def generate_all_tokens(
     voters = db.query(Voter).filter(Voter.election_id == election_id, Voter.token_votacion.is_(None)).all()
     count = 0
     for v in voters:
-        v.token_votacion = str(uuid.uuid4())
+        raw_token = str(uuid.uuid4())
+        v.token_votacion = raw_token
+        v.token_hash = hash_voting_token(raw_token)
         count += 1
 
     log_audit(

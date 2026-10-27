@@ -1,3 +1,5 @@
+import hmac
+import hashlib
 import bcrypt
 import uuid
 import logging
@@ -89,6 +91,20 @@ def create_access_token(
         to_encode, settings.SECRET_KEY, algorithm=settings.ALGORITHM
     )
     return encoded_jwt
+
+
+# --- P8: Hashing Criptográfico de Credenciales de Sufragio ---
+
+def hash_voting_token(token: str) -> str:
+    """
+    P8: Derivación criptográfica HMAC-SHA256 para tokens de votación.
+    Permite almacenar únicamente el hash en la base de datos (evitando que
+    un volcado de la tabla voters exponga credenciales de sufragio válidas).
+    """
+    if not token or not token.strip():
+        return ""
+    key = settings.VOTE_HMAC_KEY.encode() if settings.VOTE_HMAC_KEY else b"theogen-voting-token-pepper"
+    return hmac.new(key, token.strip().encode("utf-8"), hashlib.sha256).hexdigest()
 
 
 def get_client_ip(request: Request) -> str:
