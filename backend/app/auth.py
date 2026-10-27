@@ -91,14 +91,22 @@ def create_access_token(
     return encoded_jwt
 
 
+def get_client_ip(request: Request) -> str:
+    """Extrae la IP del cliente considerando cabeceras de proxy inverso (X-Forwarded-For)"""
+    forwarded = request.headers.get("X-Forwarded-For")
+    if forwarded:
+        return forwarded.split(",")[0].strip()
+    if request.client:
+        return request.client.host
+    return "unknown"
+
+
 # --- Dependencias de autenticación ---
 
 def get_current_user(
-    token_header: Optional[str] = Depends(oauth2_scheme),
-    token_query: Optional[str] = Query(None, alias="token"),
+    token: Optional[str] = Depends(oauth2_scheme),
     db: Session = Depends(get_db)
 ) -> User:
-    token = token_header or token_query
     credentials_exception = HTTPException(
         status_code=status.HTTP_401_UNAUTHORIZED,
         detail="Credenciales de autenticación inválidas",

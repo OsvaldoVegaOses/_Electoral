@@ -1,6 +1,8 @@
+import re
 from fastapi import APIRouter, Depends, HTTPException, status
 from fastapi.responses import StreamingResponse
 from sqlalchemy.orm import Session
+from sqlalchemy import func, or_
 from typing import List
 from datetime import datetime, timezone
 
@@ -21,12 +23,37 @@ def get_election_scrutiny(
     """
     Módulo 7: Escrutinio oficial.
     Calcula votos por candidato, votos nulos, votos blancos, porcentaje de participación y proclamación de ganador.
+    PROTEGIDO: Solo accesible cuando la elección se encuentra en estado 'Cerrada' o 'Finalizada' (A2 - P0).
     """
     election = db.query(Election).filter(Election.id == election_id).first()
     if not election:
         raise HTTPException(status_code=404, detail="Elección no encontrada")
 
-    total_padron = db.query(Voter).filter(Voter.election_id == election_id).count()
+    # A2: Bloquear escrutinio en elecciones abiertas o borradores
+    if election.estado not in ["Cerrada", "Finalizada"]:
+        raise HTTPException(
+            status_code=status.HTTP_403_FORBIDDEN,
+            detail=(
+                f"El escrutinio detallado y resultados no están disponibles mientras la elección "
+                f"se encuentre en estado '{election.estado}'. Solo se publican una vez cerrada la elección."
+            )
+        )
+
+    # Denominador de participación: según regla electoral
+    if election.regla_votacion == "Un voto por familia":
+        familias_count = db.query(func.count(func.distinct(Voter.familia_id))).filter(
+            Voter.election_id == election_id,
+            Voter.familia_id.isnot(None),
+            Voter.familia_id != ""
+        ).scalar() or 0
+        sin_familia_count = db.query(Voter).filter(
+            Voter.election_id == election_id,
+            or_(Voter.familia_id.is_(None), Voter.familia_id == "")
+        ).count()
+        total_padron = familias_count + sin_familia_count
+    else:
+        total_padron = db.query(Voter).filter(Voter.election_id == election_id).count()
+
     total_votos = db.query(Vote).filter(Vote.election_id == election_id).count()
     
     part_rate = (total_votos / total_padron * 100.0) if total_padron > 0 else 0.0
@@ -37,8 +64,7 @@ def get_election_scrutiny(
     votos_blancos = 0
     votos_nulos = 0
     
-    highest_votes = -1
-    ganador_candidato = None
+    regular_candidates = []
 
     for c in candidates:
         v_count = db.query(Vote).filter(Vote.candidate_id == c.id).count()
@@ -49,18 +75,16 @@ def get_election_scrutiny(
         elif c.es_nulo:
             votos_nulos += v_count
         else:
-            if v_count > highest_votes:
-                highest_votes = v_count
-                ganador_candidato = {
-                    "candidate_id": c.id,
-                    "nombre": c.nombre,
-                    "cargo": c.cargo,
-                    "descripcion": c.descripcion,
-                    "votos": v_count,
-                    "porcentaje": v_pct,
-                    "es_blanco": False,
-                    "es_nulo": False
-                }
+            regular_candidates.append({
+                "candidate_id": c.id,
+                "nombre": c.nombre,
+                "cargo": c.cargo,
+                "descripcion": c.descripcion,
+                "votos": v_count,
+                "porcentaje": round(v_pct, 1),
+                "es_blanco": False,
+                "es_nulo": False
+            })
 
         candidates_results.append(CandidateResult(
             candidate_id=c.id,
@@ -73,6 +97,19 @@ def get_election_scrutiny(
             es_nulo=c.es_nulo
         ))
 
+    # Determinación rigurosa de ganador (sin proclamación ficticia ante empates o cero votos)
+    ganador_candidato = None
+    if total_votos > 0 and regular_candidates:
+        regular_candidates.sort(key=lambda x: x["votos"], reverse=True)
+        top_cand = regular_candidates[0]
+        # Verificar si hay empate en el primer lugar
+        if top_cand["votos"] > 0:
+            if len(regular_candidates) > 1 and regular_candidates[1]["votos"] == top_cand["votos"]:
+                # Empate técnico: no proclamar ganador unívoco
+                ganador_candidato = None
+            else:
+                ganador_candidato = top_cand
+
     return ScrutinyResponse(
         election_id=election.id,
         election_nombre=election.nombre,
@@ -84,7 +121,7 @@ def get_election_scrutiny(
         votos_blancos=votos_blancos,
         votos_nulos=votos_nulos,
         candidatos=candidates_results,
-        ganador=CandidateResult(**ganador_candidato) if ganador_candidato and highest_votes > 0 else None,
+        ganador=CandidateResult(**ganador_candidato) if ganador_candidato else None,
         fecha_cierre=election.fecha_fin
     )
 
@@ -114,7 +151,7 @@ def download_acta_apertura_pdf(
         usuario=current_user.email
     )
 
-    clean_name = election.nombre.replace(" ", "_").replace("/", "-")[:30]
+    clean_name = re.sub(r'[^a-zA-Z0-9_\-]', '_', election.nombre)[:30]
     filename = f"Acta_Apertura_{clean_name}_{datetime.now(timezone.utc).strftime('%Y%m%d')}.pdf"
 
     return StreamingResponse(
@@ -131,10 +168,20 @@ def download_acta_cierre_pdf(
 ):
     """
     Módulo 8: Generación y descarga directa del PDF del Acta de Cierre y Escrutinio Definitivo.
+    PROTEGIDO: Solo disponible cuando la elección se encuentra en estado 'Cerrada' o 'Finalizada' (A2 - P0).
     """
     election = db.query(Election).filter(Election.id == election_id).first()
     if not election:
         raise HTTPException(status_code=404, detail="Elección no encontrada")
+
+    if election.estado not in ["Cerrada", "Finalizada"]:
+        raise HTTPException(
+            status_code=status.HTTP_403_FORBIDDEN,
+            detail=(
+                f"El Acta de Cierre y Escrutinio Definitivo solo puede generarse cuando la elección "
+                f"esté Cerrada o Finalizada (Estado actual: '{election.estado}')."
+            )
+        )
 
     school = election.school or School(nombre="Institución Educativa", rbd="S/N", comuna="Santiago")
     committee = election.committee_members or []
@@ -152,7 +199,7 @@ def download_acta_cierre_pdf(
         usuario=current_user.email
     )
 
-    clean_name = election.nombre.replace(" ", "_").replace("/", "-")[:30]
+    clean_name = re.sub(r'[^a-zA-Z0-9_\-]', '_', election.nombre)[:30]
     filename = f"Acta_Cierre_{clean_name}_{datetime.now(timezone.utc).strftime('%Y%m%d')}.pdf"
 
     return StreamingResponse(

@@ -6,19 +6,7 @@ import re
 # --- USUARIOS Y AUTENTICACIÓN ---
 class UserLogin(BaseModel):
     email: EmailStr
-    password: str = Field(..., min_length=8, max_length=128)
-
-    @field_validator("password")
-    @classmethod
-    def validate_password_strength(cls, v: str) -> str:
-        """HIGH-04: Validación mínima de complejidad de contraseña"""
-        if len(v) < 8:
-            raise ValueError("La contraseña debe tener al menos 8 caracteres")
-        if not re.search(r"[A-Za-z]", v):
-            raise ValueError("La contraseña debe contener al menos una letra")
-        if not re.search(r"[0-9]", v):
-            raise ValueError("La contraseña debe contener al menos un número")
-        return v
+    password: str = Field(..., min_length=1, max_length=128)
 
 class UserCreate(BaseModel):
     nombre: str
@@ -122,7 +110,6 @@ class VoterCreate(VoterBase):
 
 class VoterResponse(VoterBase):
     id: int
-    token_votacion: Optional[str] = None
     estado: str
     fecha_voto: Optional[datetime] = None
     election_id: int
@@ -175,6 +162,9 @@ class ElectionDetailResponse(ElectionResponse):
     voted_count: int = 0
 
 # --- VOTACIÓN PÚBLICA ---
+class TokenValidateRequest(BaseModel):
+    token: str = Field(..., min_length=1, max_length=256)
+
 class TokenValidateResponse(BaseModel):
     valido: bool
     mensaje: str

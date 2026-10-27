@@ -2,30 +2,45 @@ import hmac
 import hashlib
 import uuid
 from datetime import datetime, timezone
-from fastapi import APIRouter, Depends, HTTPException, status
+from fastapi import APIRouter, Depends, HTTPException, status, Request
 from sqlalchemy.orm import Session
 from app.database import get_db
 from app.models import Voter, Election, Candidate, Vote, School
-from app.schemas import TokenValidateResponse, VoteSubmitRequest, VoteReceiptResponse, CandidateResponse
-from app.auth import log_audit
+from app.schemas import (
+    TokenValidateRequest, TokenValidateResponse, VoteSubmitRequest,
+    VoteReceiptResponse, CandidateResponse
+)
+from app.auth import log_audit, check_rate_limit, record_failed_attempt, clear_failed_attempts, get_client_ip
 from app.config import settings
 
 router = APIRouter(prefix="/voting", tags=["Sala de Votación Pública"])
 
 @router.post("/validate-token", response_model=TokenValidateResponse)
-def validate_voting_token(token: str, db: Session = Depends(get_db)):
+def validate_voting_token(
+    payload: TokenValidateRequest,
+    request: Request,
+    db: Session = Depends(get_db)
+):
     """
     Módulo 5 & 3: Valida el token del elector y verifica las reglas de votación
     (persona vs familia, estado de la elección, sufragio previo).
+    Protegido con rate limiting contra ataques de fuerza bruta y enumeración de tokens.
     """
-    token_clean = token.strip()
+    client_ip = get_client_ip(request)
+    check_rate_limit(client_ip)
+
+    token_clean = payload.token.strip()
     voter = db.query(Voter).filter(Voter.token_votacion == token_clean).first()
     
     if not voter:
+        record_failed_attempt(client_ip)
         return TokenValidateResponse(
             valido=False,
-            mensaje="Token de votación no reconocido o inválido. Verifique las credenciales enviadas a su correo."
+            mensaje="Token de votación no reconocido o inválido. Verifique las credenciales provistas."
         )
+
+    # Token válido reconocido: limpiar intentos fallidos
+    clear_failed_attempts(client_ip)
 
     election = db.query(Election).filter(Election.id == voter.election_id).first()
     if not election:
@@ -38,12 +53,12 @@ def validate_voting_token(token: str, db: Session = Depends(get_db)):
             mensaje=f"La elección no se encuentra abierta para recibir sufragios (Estado actual: {election.estado})."
         )
 
-    # 2. Validar si el elector individual ya votó
+    # 2. Validar si el elector individual ya votó (sin revelar datos sensibles innecesarios)
     if voter.estado == "Votó":
         fecha_str = voter.fecha_voto.strftime("%d/%m/%Y a las %H:%M hrs") if voter.fecha_voto else "previamente"
         return TokenValidateResponse(
             valido=False,
-            mensaje=f"Estimado/a {voter.nombre}, su voto ya fue emitido y registrado de forma irreversible el {fecha_str}."
+            mensaje=f"Su sufragio ya fue emitido y registrado de forma irreversible el {fecha_str}."
         )
 
     if voter.estado == "Bloqueado":
@@ -52,7 +67,7 @@ def validate_voting_token(token: str, db: Session = Depends(get_db)):
             mensaje="Su registro se encuentra bloqueado por la Comisión Electoral. Contáctese con los administradores."
         )
 
-    # 3. Módulo 3: Validación de Regla de Votación Familiar
+    # 3. Módulo 3: Validación de Regla de Votación Familiar (sin revelar identidad de quién votó)
     if election.regla_votacion == "Un voto por familia" and voter.familia_id:
         family_vote = db.query(Voter).filter(
             Voter.election_id == election.id,
@@ -65,7 +80,7 @@ def validate_voting_token(token: str, db: Session = Depends(get_db)):
                 valido=False,
                 mensaje=(
                     f"La regla electoral vigente para este proceso es 'Un voto por familia'. "
-                    f"El representante familiar ({family_vote.nombre}) ya emitió el sufragio correspondiente al grupo {voter.familia_id}."
+                    f"Ya se ha registrado el sufragio correspondiente a su grupo familiar ({voter.familia_id})."
                 )
             )
 
@@ -104,14 +119,22 @@ def validate_voting_token(token: str, db: Session = Depends(get_db)):
     )
 
 @router.post("/submit", response_model=VoteReceiptResponse)
-def submit_vote(vote_in: VoteSubmitRequest, db: Session = Depends(get_db)):
+def submit_vote(
+    vote_in: VoteSubmitRequest,
+    request: Request,
+    db: Session = Depends(get_db)
+):
     """
     Módulo 5: Emisión de voto.
     - Secrecía y trazabilidad mediante HMAC-SHA256 de Integridad (CRIT-05)
     - Bloqueo con SELECT FOR UPDATE para concurrencia (HIGH-05)
     - Registro irreversible
     - Bloqueo inmediato del token
+    - Rate limiting contra abuso
     """
+    client_ip = get_client_ip(request)
+    check_rate_limit(client_ip)
+
     token_clean = vote_in.token.strip()
     
     # HIGH-05: Bloqueo transaccional con SELECT FOR UPDATE
@@ -120,13 +143,16 @@ def submit_vote(vote_in: VoteSubmitRequest, db: Session = Depends(get_db)):
     ).with_for_update().first()
 
     if not voter:
+        record_failed_attempt(client_ip)
         raise HTTPException(status_code=400, detail="Token de votación inválido")
 
     election = db.query(Election).filter(Election.id == voter.election_id).first()
     if not election or election.estado != "Abierta":
+        record_failed_attempt(client_ip)
         raise HTTPException(status_code=400, detail="La elección no está abierta para votación")
 
     if voter.estado != "Pendiente":
+        record_failed_attempt(client_ip)
         raise HTTPException(status_code=400, detail="Este elector ya emitió su voto o no está habilitado")
 
     # Revalidar regla familiar
@@ -196,6 +222,7 @@ def submit_vote(vote_in: VoteSubmitRequest, db: Session = Depends(get_db)):
     )
 
     school_nombre = election.school.nombre if election.school else "Institución Organizadora"
+    clear_failed_attempts(client_ip)
 
     return VoteReceiptResponse(
         success=True,

@@ -22,13 +22,13 @@ def list_candidates(
         Candidate.election_id == election_id
     ).order_by(Candidate.orden.asc()).offset(skip).limit(limit).all()
     
-    # HIGH-06: Ocultar conteo de votos si la elección está abierta (secreto del voto)
+    # A2 - P0: Ocultar conteo de votos salvo que la elección esté formalmente Cerrada o Finalizada
     result = []
     for c in candidates:
-        if election and election.estado == "Abierta":
-            v_count = 0  # No revelar votos durante elección abierta
-        else:
+        if election and election.estado in ["Cerrada", "Finalizada"]:
             v_count = db.query(Vote).filter(Vote.candidate_id == c.id).count()
+        else:
+            v_count = 0
         cand_dict = {**c.__dict__, "votos_count": v_count}
         result.append(cand_dict)
     return result

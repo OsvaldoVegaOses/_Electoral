@@ -290,15 +290,10 @@ def simulate_email_dispatch(
     voters = db.query(Voter).filter(Voter.election_id == election_id).limit(50).all()
     emails = []
 
-    for v in voters:
-        token = v.token_votacion or "SIN-TOKEN"
-        # CRIT-04: Enmascarar token en la respuesta — solo mostrar primeros y últimos 4 chars
-        if len(token) > 12:
-            masked_token = f"{token[:4]}...{token[-4:]}"
-        else:
-            masked_token = "****"
+    # Enlace genérico seguro sin credenciales expuestas en la URL
+    vote_url = "http://localhost:5173/votar"
 
-        vote_url = f"http://localhost:5173/votar?token={token}"
+    for v in voters:
         html_preview = f"""
         <div style="font-family: Arial, sans-serif; max-width: 600px; border: 1px solid #e2e8f0; border-radius: 8px; padding: 20px;">
             <div style="background-color: #0d233a; color: white; padding: 15px; border-radius: 6px; text-align: center;">
@@ -310,14 +305,14 @@ def simulate_email_dispatch(
                 <p>Se encuentra habilitado/a para emitir su sufragio en el proceso: <strong>{election.nombre}</strong>.</p>
                 <div style="background-color: #f8fafc; border-left: 4px solid #1e40af; padding: 12px; margin: 15px 0;">
                     <p style="margin: 0; font-size: 13px;"><strong>Tu Token Único de Votación:</strong></p>
-                    <code style="font-size: 16px; font-weight: bold; color: #0f172a;">{masked_token}</code>
+                    <code style="font-size: 14px; font-weight: bold; color: #0f172a;">[Credencial confidencial entregada por canal seguro]</code>
                 </div>
                 <p style="text-align: center; margin: 25px 0;">
                     <a href="{vote_url}" style="background-color: #1e40af; color: white; padding: 12px 24px; text-decoration: none; border-radius: 6px; font-weight: bold;">
-                        Ingresar a la Sala de Votación
+                        Ingresar a la Sala de Votación (/votar)
                     </a>
                 </p>
-                <p style="font-size: 11px; color: #64748b;">Este voto es personal, secreto e irreversible. No comparta este enlace con terceros.</p>
+                <p style="font-size: 11px; color: #64748b;">Este voto es personal, secreto e irreversible. No comparta su credencial con terceros.</p>
             </div>
         </div>
         """
@@ -326,8 +321,8 @@ def simulate_email_dispatch(
             "nombre": v.nombre,
             "rut": v.rut,
             "correo": v.correo or "sin_correo@demo.cl",
-            "token": masked_token,  # CRIT-04: Token enmascarado
-            "enlace_votacion": "[protegido - se envía directamente al correo del elector]",
+            "token": "[protegido por secreto electoral]",
+            "enlace_votacion": vote_url,
             "preview_html": html_preview,
             "estado": v.estado
         })

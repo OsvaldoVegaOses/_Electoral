@@ -5,7 +5,8 @@ from app.models import User
 from app.schemas import UserLogin, Token, UserResponse
 from app.auth import (
     verify_password, create_access_token, get_current_user,
-    log_audit, check_rate_limit, record_failed_attempt, clear_failed_attempts
+    log_audit, check_rate_limit, record_failed_attempt, clear_failed_attempts,
+    get_client_ip
 )
 
 router = APIRouter(prefix="/auth", tags=["Autenticación"])
@@ -14,7 +15,7 @@ router = APIRouter(prefix="/auth", tags=["Autenticación"])
 def login(login_data: UserLogin, request: Request, db: Session = Depends(get_db)):
     """Inicia sesión con credenciales de Administrador o Comisión Electoral"""
     # CRIT-02: Rate limiting por IP
-    client_ip = request.client.host if request.client else "unknown"
+    client_ip = get_client_ip(request)
     check_rate_limit(client_ip)
 
     user = db.query(User).filter(User.email == login_data.email).first()

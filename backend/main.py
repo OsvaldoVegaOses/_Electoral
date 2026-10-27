@@ -42,12 +42,16 @@ async def lifespan(app: FastAPI):
     # 1. Crear tablas en base de datos si no existen
     Base.metadata.create_all(bind=engine)
     
-    # 2. Cargar datos de demostración iniciales
-    db = SessionLocal()
-    try:
-        seed_initial_data(db)
-    finally:
-        db.close()
+    # 2. Cargar datos de demostración solo en desarrollo/test con opt-in explícito (B2: jamás en producción)
+    seed_opt_in = os.getenv("SEED_DEMO_DATA", "false").lower() in ("true", "1", "yes")
+    if settings.ENVIRONMENT in ["development", "test"] and seed_opt_in:
+        db = SessionLocal()
+        try:
+            seed_initial_data(db)
+        finally:
+            db.close()
+    elif settings.ENVIRONMENT == "production":
+        logger.info("Entorno de producción: carga de datos demo omitida.")
         
     yield
 
