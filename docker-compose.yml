@@ -34,11 +34,30 @@ services:
       SECRET_KEY: ${SECRET_KEY:-insecure_development_secret_key_change_in_production}
       VOTE_HMAC_KEY: ${VOTE_HMAC_KEY:-insecure_development_hmac_key_change_in_production}
       ENVIRONMENT: ${ENVIRONMENT:-development}
+      # P13: Redis URL para rate limiting persistente multi-instancia
+      REDIS_URL: ${REDIS_URL:-redis://redis:6379/0}
     ports:
       - "8000:8000"
     depends_on:
       db:
         condition: service_healthy
+      redis:
+        condition: service_healthy
+
+  redis:
+    image: redis:7-alpine
+    container_name: theogen_redis
+    restart: always
+    # Sin persistencia de disco: los datos de rate limiting son efímeros por diseño.
+    # Si se requiere persistencia entre reinicios, descomentar la línea siguiente:
+    # command: redis-server --appendonly yes
+    ports:
+      - "6379:6379"
+    healthcheck:
+      test: ["CMD", "redis-cli", "ping"]
+      interval: 5s
+      timeout: 3s
+      retries: 5
 
   frontend:
     build:

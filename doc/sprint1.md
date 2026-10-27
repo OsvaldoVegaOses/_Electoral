@@ -129,6 +129,6 @@ P4	Informe final consolidado (§9 del mandato) con recomendaciones y decisiones 
 | ✅ P10 | Validar Docker Compose y Nginx (docker compose config y directivas de seguridad) | Completado |
 | ✅ P11 | Verificar scripts backup.sh/restore.sh (set -u, -t→-i, umask 077, checksum relativo, guardia non-interactive) | Completado |
 | ✅ P12 | Pinnear versiones exactas en requirements.txt (>= → ==) | Completado |
-| P13 | Rate limiting persistente (Redis) para múltiples instancias | Pendiente |
+| ✅ P13 | Rate limiting persistente Redis (Sliding Window sorted set, fallback memoria, multi-instancia) | Completado |
 | P14 | Política de retención/eliminación de PII | Pendiente |
 | P15 | Bitácora append-only real (no tabla convencional) | Pendiente |

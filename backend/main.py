@@ -11,6 +11,7 @@ from sqlalchemy import text
 from app.config import settings
 from app.database import engine, Base, SessionLocal
 from app.seed_data import seed_initial_data
+import app.rate_limiter as rate_limiter
 
 # Importar Routers
 from app.routers.auth import router as auth_router
@@ -99,6 +100,9 @@ async def lifespan(app: FastAPI):
     elif settings.ENVIRONMENT == "production":
         logger.info("Entorno de producción: carga de datos demo omitida.")
         
+    # P13: Inicializar cliente Redis para rate limiting persistente
+    rate_limiter._init_redis(settings.REDIS_URL)
+
     yield
 
 # MED-01: Deshabilitar Swagger/ReDoc en producción

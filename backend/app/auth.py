@@ -5,7 +5,7 @@ import uuid
 import logging
 from datetime import datetime, timedelta, timezone
 from typing import Optional
-from collections import defaultdict
+
 from jose import JWTError, jwt
 from fastapi import Depends, HTTPException, status, Request, Query
 from fastapi.security import OAuth2PasswordBearer
@@ -19,40 +19,11 @@ logger = logging.getLogger("theogen.auth")
 
 oauth2_scheme = OAuth2PasswordBearer(tokenUrl=f"{settings.API_V1_STR}/auth/login", auto_error=False)
 
-# --- CRIT-04: Rate Limiter en Memoria ---
-_failed_attempts: dict[str, list[datetime]] = defaultdict(list)
-RATE_LIMIT_WINDOW_SECONDS = 300  # 5 minutos
-RATE_LIMIT_MAX_ATTEMPTS = 10
-
-
-def check_rate_limit(
-    client_ip: str,
-    window: int = RATE_LIMIT_WINDOW_SECONDS,
-    max_attempts: int = RATE_LIMIT_MAX_ATTEMPTS,
-):
-    """Verifica que la IP no haya excedido el límite de intentos"""
-    now = datetime.now(timezone.utc)
-    cutoff = now - timedelta(seconds=window)
-    # Limpiar intentos expirados
-    _failed_attempts[client_ip] = [
-        t for t in _failed_attempts[client_ip] if t > cutoff
-    ]
-    if len(_failed_attempts[client_ip]) >= max_attempts:
-        raise HTTPException(
-            status_code=429,
-            detail=f"Demasiados intentos. Intente nuevamente en {window // 60} minutos.",
-        )
-
-
-def record_failed_attempt(client_ip: str):
-    """Registra un intento fallido para rate limiting"""
-    _failed_attempts[client_ip].append(datetime.now(timezone.utc))
-
-
-def clear_failed_attempts(client_ip: str):
-    """Limpia los intentos fallidos al iniciar sesión exitosamente"""
-    if client_ip in _failed_attempts:
-        del _failed_attempts[client_ip]
+# --- P13: Rate Limiter Persistente (Redis) ---
+# Las funciones check_rate_limit, record_failed_attempt y clear_failed_attempts
+# son provistas por el módulo rate_limiter, que usa Redis como backend compartido
+# entre múltiples workers/instancias y tiene fallback automático a memoria.
+from app.rate_limiter import check_rate_limit, record_failed_attempt, clear_failed_attempts  # noqa: F401
 
 
 # --- Hashing de contraseñas ---

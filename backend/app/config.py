@@ -53,6 +53,10 @@ class Settings(BaseSettings):
     # CORS — CRIT-03 & P6: Configurable desde variable de entorno BACKEND_CORS_ORIGINS
     BACKEND_CORS_ORIGINS: list[str] = _parse_cors_origins(os.getenv("BACKEND_CORS_ORIGINS"))
 
+    # P13: Redis para rate limiting persistente multi-instancia.
+    # Sin esta variable, el sistema usa fallback en memoria (no apto para prod multi-worker).
+    REDIS_URL: str = os.getenv("REDIS_URL", "")
+
     # P2: Configuración de Cookies de Sesión y Protección CSRF
     AUTH_COOKIE_NAME: str = "access_token"
     CSRF_COOKIE_NAME: str = "csrf_token"
