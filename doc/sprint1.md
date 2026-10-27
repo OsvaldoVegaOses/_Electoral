@@ -112,7 +112,7 @@ Entrega: resumen de vulnerabilidades encontradas y cerradas; listado de commits/
 Pendiente
 Críticos (bloquean completitud)
 #	Pendiente	Esfuerzo
-P1	ADR doc/adr/001-motor-de-votacion.md — Belenios vs. motor propio, matrices de amenazas, recomendación	Alto
+✅ P1	ADR doc/adr/001-motor-de-votacion.md — Belenios 3.3.0 condicional vs. motor propio, matrices de amenazas, recomendación PoC	Completado
 ✅ P2	JWT → cookie HttpOnly; Secure; SameSite con CSRF (Double Submit Cookie y logout seguro)	Completado
 ✅ P3	Actualizar README.md — resuelto: sanitización de tokens demo, bitácora atómica, links relativos, bloqueo .xls	Completado
 P4	Informe final consolidado (§9 del mandato) con recomendaciones y decisiones para el dueño	Medio
