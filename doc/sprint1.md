@@ -109,13 +109,15 @@ Si una PR depende de una migración estructural de otra, documenta y reajusta se
 Entrega: resumen de vulnerabilidades encontradas y cerradas; listado de commits/PR; tabla hallazgo → corrección → prueba → resultado; migraciones; riesgos que aún bloquean producción; demo operativa verificada (si existe entorno); recomendaciones priorizadas y una lista corta de decisiones que requiere el dueño del proyecto. No confundas código compilable con plataforma electoral certificada.
 
 
-Pendiente
-Críticos (bloquean completitud)
-#	Pendiente	Esfuerzo
-✅ P1	ADR doc/adr/001-motor-de-votacion.md — Belenios 3.3.0 condicional vs. motor propio, matrices de amenazas, recomendación PoC	Completado
-✅ P2	JWT → cookie HttpOnly; Secure; SameSite con CSRF (Double Submit Cookie y logout seguro)	Completado
-✅ P3	Actualizar README.md — resuelto: sanitización de tokens demo, bitácora atómica, links relativos, bloqueo .xls	Completado
-P4	Informe final consolidado (§9 del mandato) con recomendaciones y decisiones para el dueño	Medio
+## Estado del Sprint 1: COMPLETADO (15/15 Tareas Finalizadas)
+
+### Críticos (bloquean completitud)
+| # | Tarea | Estado |
+| :---: | :--- | :---: |
+| ✅ P1 | ADR doc/adr/001-motor-de-votacion.md — Belenios 3.3.0 condicional vs. motor propio, matrices de amenazas, recomendación PoC | Completado |
+| ✅ P2 | JWT → cookie HttpOnly; Secure; SameSite con CSRF (Double Submit Cookie y logout seguro) | Completado |
+| ✅ P3 | Actualizar README.md — resuelto: sanitización de tokens demo, bitácora atómica, links relativos, bloqueo .xls | Completado |
+| ✅ P4 | Informe final consolidado doc/remediacion/07-informe-final-consolidado-sprint1.md (§9 del mandato) con recomendaciones y decisiones | Completado |
 
 
 ### Importantes (robustez operacional)
