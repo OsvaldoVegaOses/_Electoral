@@ -243,6 +243,29 @@ class AuditLogResponse(BaseModel):
     usuario: str
     accion: str
     detalle: Optional[str] = None
+    prev_hash: Optional[str] = None
+    record_hash: Optional[str] = None
 
     class Config:
         from_attributes = True
+
+
+class AuditIntegrityCheckResponse(BaseModel):
+    integro: bool
+    total_revisados: int
+    primer_hash: Optional[str] = None
+    ultimo_hash: Optional[str] = None
+    fallo_en_id: Optional[int] = None
+    razon: Optional[str] = None
+    fecha_verificacion: str
+
+
+class AuditCheckpointResponse(BaseModel):
+    success: bool
+    timestamp: str
+    total_records: int
+    last_record_id: Optional[int] = None
+    head_hash: str
+    checkpoint_hash: str
+    firmado_por: str
+    instrucciones_anclaje: str

@@ -11,7 +11,7 @@ import logging
 from datetime import datetime, timedelta, timezone
 from fastapi import APIRouter, Depends, HTTPException, status
 from sqlalchemy.orm import Session
-from sqlalchemy import func
+from sqlalchemy import func, text
 
 from app.database import get_db
 from app.models import Voter, ElectoralCommittee, Election, AuditLog, User
@@ -277,6 +277,12 @@ def purge_old_audit_logs(
         usuario=current_user.email,
         commit=True,  # Confirmar el log de purga antes de borrar
     )
+
+    # Si el motor es PostgreSQL con trigger append-only, autorizar temporalmente la purga en esta transacción
+    try:
+        db.execute(text("SET LOCAL theogen.allow_audit_purge = 'on'"))
+    except Exception:
+        pass
 
     # Eliminar registros antiguos
     deleted = db.query(AuditLog).filter(AuditLog.fecha <= cutoff).delete(synchronize_session=False)

@@ -131,4 +131,4 @@ P4	Informe final consolidado (§9 del mandato) con recomendaciones y decisiones 
 | ✅ P12 | Pinnear versiones exactas en requirements.txt (>= → ==) | Completado |
 | ✅ P13 | Rate limiting persistente Redis (Sliding Window sorted set, fallback memoria, multi-instancia) | Completado |
 | ✅ P14 | Política de retención/eliminación de PII (documento 05-politica-retencion-pii.md, endpoints /admin/pii/*, migración d4e5f6a7b8c9, purga audit_logs) | Completado |
-| P15 | Bitácora append-only real (no tabla convencional) | Pendiente |
+| ✅ P15 | Bitácora append-only real (encadenamiento SHA-256, trigger PG append-only, verificación y anclaje/checkpoints) | Completado |

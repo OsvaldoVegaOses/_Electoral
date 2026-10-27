@@ -5,7 +5,7 @@ import logging
 from datetime import datetime, timezone, timedelta
 from sqlalchemy.orm import Session
 from app.models import School, Election, ElectoralCommittee, Candidate, Voter, User, AuditLog
-from app.auth import get_password_hash
+from app.auth import get_password_hash, compute_audit_hash, GENESIS_HASH
 from app.rut_validator import format_rut
 
 logger = logging.getLogger("theogen.seed")
@@ -222,34 +222,27 @@ def seed_initial_data(db: Session):
         ))
     db.add_all(voters)
 
-    # 7. Registrar Auditoría Inicial
-    logs = [
-        AuditLog(
-            fecha=now - timedelta(hours=2),
-            usuario="admin@theogen.cl",
-            accion="Creó elección",
-            detalle=f"Se creó la elección '{election.nombre}' para la institución '{school.nombre}' con regla '{election.regla_votacion}'."
-        ),
-        AuditLog(
-            fecha=now - timedelta(hours=1, minutes=45),
-            usuario="admin@theogen.cl",
-            accion="Subió padrón",
-            detalle="Se cargaron exitosamente 20 electores habilitados correspondientes a las familias del colegio."
-        ),
-        AuditLog(
-            fecha=now - timedelta(hours=1, minutes=30),
-            usuario="admin@theogen.cl",
-            accion="Generó credenciales",
-            detalle="Se generaron 20 tokens UUID criptográficos únicos de sufragio."
-        ),
-        AuditLog(
-            fecha=now - timedelta(hours=1),
-            usuario="comision@theogen.cl",
-            accion="Abrió votación",
-            detalle="La Comisión Electoral verificó la urna digital vacía y firmó el Acta de Apertura."
-        )
+    # 7. Registrar Auditoría Inicial (P15: Encadenamiento criptográfico append-only)
+    seed_audit_entries = [
+        (now - timedelta(hours=2), "admin@theogen.cl", "Creó elección", f"Se creó la elección '{election.nombre}' para la institución '{school.nombre}' con regla '{election.regla_votacion}'."),
+        (now - timedelta(hours=1, minutes=45), "admin@theogen.cl", "Subió padrón", "Se cargaron exitosamente 20 electores habilitados correspondientes a las familias del colegio."),
+        (now - timedelta(hours=1, minutes=30), "admin@theogen.cl", "Generó credenciales", "Se generaron 20 tokens UUID criptográficos únicos de sufragio."),
+        (now - timedelta(hours=1), "comision@theogen.cl", "Abrió votación", "La Comisión Electoral verificó la urna digital vacía y firmó el Acta de Apertura."),
     ]
-    db.add_all(logs)
+    current_prev = GENESIS_HASH
+    for dt, usr, acc, det in seed_audit_entries:
+        rec_hash = compute_audit_hash(current_prev, dt, usr, acc, det, school.id)
+        log = AuditLog(
+            fecha=dt,
+            usuario=usr,
+            accion=acc,
+            detalle=det,
+            school_id=school.id,
+            prev_hash=current_prev,
+            record_hash=rec_hash,
+        )
+        db.add(log)
+        current_prev = rec_hash
 
     db.commit()
     logger.info("Seed de datos inicial completado exitosamente.")

@@ -253,7 +253,120 @@ def sanitize_formula_injection(value: Optional[str]) -> Optional[str]:
     return value
 
 
-# --- Auditoría Atómica y Trazabilidad Multi-Tenant ---
+# --- Auditoría Atómica y Trazabilidad Multi-Tenant (P15: Bitácora Append-Only Criptográfica) ---
+
+GENESIS_HASH = "0" * 64
+
+
+def format_audit_datetime(dt: datetime) -> str:
+    """Formatea fecha a representación canónica UTC: YYYY-MM-DDTHH:MM:SS.ffffffZ"""
+    if dt.tzinfo is None:
+        dt = dt.replace(tzinfo=timezone.utc)
+    else:
+        dt = dt.astimezone(timezone.utc)
+    return dt.strftime("%Y-%m-%dT%H:%M:%S.%fZ")
+
+
+def compute_audit_hash(
+    prev_hash: str,
+    fecha: datetime,
+    usuario: Optional[str],
+    accion: str,
+    detalle: Optional[str],
+    school_id: Optional[int] = None
+) -> str:
+    """
+    P15: Calcula el hash criptográfico SHA-256 canónico de un registro de auditoría.
+    Formato canónico: {prev_hash}|{fecha_canonica}|{usuario}|{accion}|{detalle}|{school_id}
+    """
+    dt_str = format_audit_datetime(fecha)
+    u = usuario or ""
+    d = detalle or ""
+    s = str(school_id) if school_id is not None else ""
+    canonical = f"{prev_hash}|{dt_str}|{u}|{accion}|{d}|{s}"
+    return hashlib.sha256(canonical.encode("utf-8")).hexdigest()
+
+
+def verify_audit_log_chain(db: Session, school_id: Optional[int] = None) -> dict:
+    """
+    P15: Verifica la integridad de la cadena criptográfica de la bitácora.
+    Retorna un reporte detallando si la cadena está íntegra o el punto exacto de alteración.
+    """
+    query = db.query(AuditLog).order_by(AuditLog.id.asc())
+    if school_id is not None:
+        query = query.filter(AuditLog.school_id == school_id)
+    logs = query.all()
+
+    now_iso = datetime.now(timezone.utc).isoformat()
+
+    if not logs:
+        return {
+            "integro": True,
+            "total_revisados": 0,
+            "primer_hash": None,
+            "ultimo_hash": None,
+            "fallo_en_id": None,
+            "razon": None,
+            "fecha_verificacion": now_iso,
+        }
+
+    expected_prev = GENESIS_HASH
+    first_hash = logs[0].record_hash
+
+    for i, log in enumerate(logs):
+        # 1. Verificar prev_hash en eslabones intermedios
+        if i > 0 and log.prev_hash != expected_prev:
+            return {
+                "integro": False,
+                "total_revisados": i,
+                "primer_hash": first_hash,
+                "ultimo_hash": logs[i - 1].record_hash,
+                "fallo_en_id": log.id,
+                "razon": (
+                    f"Eslabón roto en registro ID {log.id}: prev_hash '{log.prev_hash}' "
+                    f"no coincide con hash anterior '{expected_prev}' "
+                    f"(posible eliminación o inserción no autorizada)."
+                ),
+                "fecha_verificacion": now_iso,
+            }
+
+        # 2. Recomputar y verificar hash propio
+        if log.record_hash:
+            calculated = compute_audit_hash(
+                log.prev_hash or GENESIS_HASH,
+                log.fecha,
+                log.usuario,
+                log.accion,
+                log.detalle,
+                log.school_id
+            )
+            if log.record_hash != calculated:
+                return {
+                    "integro": False,
+                    "total_revisados": i,
+                    "primer_hash": first_hash,
+                    "ultimo_hash": logs[i - 1].record_hash if i > 0 else None,
+                    "fallo_en_id": log.id,
+                    "razon": (
+                        f"Contenido alterado en registro ID {log.id}: record_hash almacenado "
+                        f"no coincide con el digest recomputado de los datos (posible manipulación de datos)."
+                    ),
+                    "fecha_verificacion": now_iso,
+                }
+            expected_prev = log.record_hash
+        else:
+            expected_prev = log.prev_hash or GENESIS_HASH
+
+    return {
+        "integro": True,
+        "total_revisados": len(logs),
+        "primer_hash": first_hash,
+        "ultimo_hash": logs[-1].record_hash,
+        "fallo_en_id": None,
+        "razon": None,
+        "fecha_verificacion": now_iso,
+    }
+
 
 def log_audit(
     db: Session,
@@ -264,23 +377,34 @@ def log_audit(
     commit: bool = True
 ) -> Optional[AuditLog]:
     """
-    Registra una acción en la bitácora de auditoría con trazabilidad multi-tenant.
+    P15: Registra una acción en la bitácora append-only con encadenamiento criptográfico
+    y trazabilidad multi-tenant.
     
     - Si commit=True (comportamiento por defecto): realiza db.commit() de inmediato.
-    - Si commit=False: añade la entidad AuditLog a la sesión actual (db.add) sin invocar
+    - Si commit=False: añade la entidad AuditLog a la sesión actual (db.add + db.flush) sin invocar
       commit() ni rollback(), permitiendo que la mutación de negocio y el registro de
       auditoría se confirmen o reviertan de forma estrictamente atómica dentro de la
       misma transacción.
     """
     try:
+        # Obtener el último hash registrado en la cadena de auditoría
+        last_log = db.query(AuditLog).order_by(AuditLog.id.desc()).first()
+        prev_hash = last_log.record_hash if (last_log and last_log.record_hash) else GENESIS_HASH
+
+        now = datetime.now(timezone.utc)
+        record_hash = compute_audit_hash(prev_hash, now, usuario, accion, detalle, school_id)
+
         log = AuditLog(
-            fecha=datetime.now(timezone.utc),
+            fecha=now,
             usuario=usuario,
             accion=accion,
             detalle=detalle,
-            school_id=school_id
+            school_id=school_id,
+            prev_hash=prev_hash,
+            record_hash=record_hash,
         )
         db.add(log)
+        db.flush()
         if commit:
             db.commit()
         return log

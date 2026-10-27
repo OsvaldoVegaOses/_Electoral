@@ -153,6 +153,9 @@ class AuditLog(Base):
     accion = Column(String(150), nullable=False, index=True)
     detalle = Column(Text, nullable=True)
     school_id = Column(Integer, nullable=True, index=True)
+    # P15: Encadenamiento criptográfico para bitácora append-only verificable
+    prev_hash = Column(String(64), nullable=True)
+    record_hash = Column(String(64), nullable=True, index=True)
 
 
 class User(Base):

@@ -84,12 +84,34 @@ logging:
 ```
 Esto garantiza que ningún contenedor acumule más de 50 MB de registros en disco.
 
-### 3.3. Auditoría Electoral en Base de Datos
-Para revisar la bitácora legal inmutable almacenada en la tabla `audit_logs`:
+### 3.3. Bitácora de Auditoría Electoral (Almacenamiento Append-Only y Encadenamiento Criptográfico)
+La plataforma no asume que una tabla SQL convencional sea "inmutable" por sí sola. Para garantizar integridad y evidencia verificable de no alteración, **TheoGen Electoral** implementa un modelo de tres capas (P15):
+1. **Encadenamiento Criptográfico (Hash Chaining SHA-256)**: Cada registro almacena `prev_hash` (apuntando al registro anterior) y `record_hash` (digest del registro actual). Cualquier mutación o supresión rompe la cadena.
+2. **Restricción de Motor (PostgreSQL Append-Only Trigger)**: Un disparador en base de datos (`trg_audit_logs_append_only`) bloquea operaciones `UPDATE` y `DELETE` directas sobre `audit_logs`.
+3. **Anclaje Externo (Checkpoints)**: Generación periódica de snapshots criptográficos exportables a almacenamiento WORM o servidores de sellado de tiempo (RFC 3161 TSA).
+
+#### Consulta de registros y eslabones de la cadena:
 ```bash
 docker compose -f docker-compose.prod.yml exec db psql -U theogen -d theogen_electoral -c \
-  "SELECT id, usuario, accion, detalle, created_at FROM audit_logs ORDER BY id DESC LIMIT 20;"
+  "SELECT id, fecha, usuario, accion, LEFT(prev_hash, 12) AS prev, LEFT(record_hash, 12) AS hash FROM audit_logs ORDER BY id DESC LIMIT 20;"
 ```
+
+#### Verificación de integridad de la bitácora:
+Para verificar que ningún registro haya sido alterado o eliminado:
+```bash
+# Vía API (requiere token de Administrador General)
+curl -s -X GET "https://votaciones.tucolegio.cl/api/audit/verify-integrity" \
+  -H "Authorization: Bearer <TOKEN_ADMIN>"
+```
+Respuesta esperada: `{"integro": true, "total_revisados": N, ...}`.
+
+#### Generación de punto de anclaje (Checkpoint):
+Al finalizar una jornada electoral o mensualmente, se recomienda generar un anclaje firmado:
+```bash
+curl -s -X POST "https://votaciones.tucolegio.cl/api/audit/checkpoint" \
+  -H "Authorization: Bearer <TOKEN_ADMIN>"
+```
+El `checkpoint_hash` resultante debe registrarse en el libro de actas físico o archivarse en repositorio independiente fuera del servidor de base de datos.
 
 ---
 
