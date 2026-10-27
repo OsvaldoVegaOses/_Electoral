@@ -75,6 +75,12 @@ def create_voter(
 
     check_election_access(current_user, election, write=True)
 
+    if election.estado != "Borrador":
+        raise HTTPException(
+            status_code=409,
+            detail="El padrón electoral se encuentra congelado tras la apertura de la elección."
+        )
+
     # Validar RUT
     if not validate_rut(voter_in.rut):
         raise HTTPException(status_code=400, detail="El RUT ingresado no es matemáticamente válido (Módulo 11)")
@@ -85,7 +91,7 @@ def create_voter(
     # Validar duplicados de RUT en la misma elección
     existing = db.query(Voter).filter(
         Voter.election_id == election_id,
-        (Voter.rut == formatted) | (Voter.rut == cleaned)
+        (Voter.rut == formatted) | (Voter.rut == cleaned) | (Voter.rut_normalizado == cleaned)
     ).first()
     if existing:
         raise HTTPException(status_code=400, detail=f"El elector con RUT {formatted} ya se encuentra registrado")
@@ -97,6 +103,7 @@ def create_voter(
     token = str(uuid.uuid4())
     voter = Voter(
         rut=formatted,
+        rut_normalizado=cleaned,
         nombre=voter_in.nombre.strip(),
         curso=voter_in.curso.strip() if voter_in.curso else None,
         correo=voter_in.correo.strip().lower() if voter_in.correo else None,
@@ -139,6 +146,12 @@ async def upload_voters_file(
         raise HTTPException(status_code=404, detail="Elección no encontrada")
 
     check_election_access(current_user, election, write=True)
+
+    if election.estado != "Borrador":
+        raise HTTPException(
+            status_code=409,
+            detail="El padrón electoral se encuentra congelado tras la apertura de la elección."
+        )
 
     contents = await file.read()
 
@@ -233,6 +246,7 @@ async def upload_voters_file(
         token = str(uuid.uuid4())
         voters_to_insert.append(Voter(
             rut=formatted,
+            rut_normalizado=cleaned,
             nombre=raw_nombre,
             curso=raw_curso if raw_curso and raw_curso.lower() != 'nan' else None,
             correo=raw_correo.lower() if raw_correo else None,
@@ -275,6 +289,12 @@ def generate_all_tokens(
         raise HTTPException(status_code=404, detail="Elección no encontrada")
 
     check_election_access(current_user, election, write=True)
+
+    if election.estado != "Borrador":
+        raise HTTPException(
+            status_code=409,
+            detail="No se pueden generar o modificar credenciales tras la apertura de la elección."
+        )
 
     voters = db.query(Voter).filter(Voter.election_id == election_id, Voter.token_votacion.is_(None)).all()
     count = 0

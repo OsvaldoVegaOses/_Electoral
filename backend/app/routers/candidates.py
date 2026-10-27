@@ -52,8 +52,11 @@ def create_candidate(
 
     check_election_access(current_user, election, write=True)
 
-    if election.estado not in ["Borrador", "Abierta"]:
-        raise HTTPException(status_code=400, detail="No se pueden agregar candidatos a una elección cerrada")
+    if election.estado != "Borrador":
+        raise HTTPException(
+            status_code=409,
+            detail="La nómina de candidaturas se encuentra congelada tras la apertura de la elección."
+        )
 
     candidate = Candidate(**candidate_in.model_dump(), election_id=election_id)
     db.add(candidate)
@@ -82,6 +85,12 @@ def delete_candidate(
         raise HTTPException(status_code=404, detail="Elección no encontrada")
 
     check_election_access(current_user, election, write=True)
+
+    if election.estado != "Borrador":
+        raise HTTPException(
+            status_code=409,
+            detail="La nómina de candidaturas se encuentra congelada tras la apertura de la elección."
+        )
 
     candidate = db.query(Candidate).filter(
         Candidate.id == candidate_id,

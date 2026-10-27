@@ -1,10 +1,11 @@
 import uuid
+import hashlib
 from datetime import datetime, timezone
 from fastapi import APIRouter, Depends, HTTPException, status, Query
 from sqlalchemy.orm import Session
 from typing import List
 from app.database import get_db
-from app.models import Election, School, ElectoralCommittee, Voter, Candidate, Vote, User
+from app.models import Election, School, ElectoralCommittee, Voter, Candidate, Vote, User, VotingEntitlement
 from app.schemas import (
     ElectionCreate, ElectionUpdate, ElectionResponse, ElectionDetailResponse,
     ElectoralCommitteeCreate, ElectoralCommitteeResponse
@@ -13,6 +14,8 @@ from app.auth import (
     get_current_user, log_audit, is_superadmin, check_election_access,
     ROLE_RESPONSABLE, ROLE_COMISION
 )
+from app.rut_validator import clean_rut
+
 
 router = APIRouter(prefix="/elections", tags=["Elecciones"])
 
@@ -158,23 +161,36 @@ def update_election(
     db: Session = Depends(get_db),
     current_user: User = Depends(get_current_user)
 ):
-    """Actualiza los datos básicos o estado de una elección (verificación anti-IDOR)"""
+    """
+    Actualiza los datos básicos de una elección.
+    B1: Prohíbe modificar 'estado' por este endpoint general (utilizar /abrir, /cerrar, /finalizar).
+    B1: Congela parámetros estructurales una vez que la elección sale del estado 'Borrador'.
+    """
     election = db.query(Election).filter(Election.id == election_id).first()
     if not election:
         raise HTTPException(status_code=404, detail="Elección no encontrada")
 
     check_election_access(current_user, election, write=True)
 
-    # HIGH-02: Validar transición de estado si se intenta cambiar
     update_data = election_in.model_dump(exclude_unset=True)
+
+    # B1: Prohibir alterar 'estado' mediante actualización general
     if "estado" in update_data and update_data["estado"] != election.estado:
-        new_state = update_data["estado"]
-        allowed = VALID_STATE_TRANSITIONS.get(election.estado, [])
-        if new_state not in allowed:
+        raise HTTPException(
+            status_code=400,
+            detail="El estado de la elección no puede modificarse mediante actualización general. "
+                   "Utilice las transiciones explícitas: /abrir, /cerrar, /finalizar."
+        )
+
+    # B1: Congelar parámetros estructurales fuera de Borrador
+    if election.estado != "Borrador":
+        restricted_fields = {"regla_votacion", "tipo_votacion", "school_id"}
+        altered = restricted_fields.intersection(update_data.keys())
+        if altered:
             raise HTTPException(
-                status_code=400,
-                detail=f"Transición de estado inválida: '{election.estado}' → '{new_state}'. "
-                       f"Transiciones permitidas: {allowed or 'ninguna'}"
+                status_code=status.HTTP_409_CONFLICT,
+                detail=f"Parámetros estructurales congelados: no se puede modificar '{', '.join(altered)}' "
+                       f"en estado '{election.estado}'."
             )
 
     for field, val in update_data.items():
@@ -199,16 +215,22 @@ def open_election(
     current_user: User = Depends(get_current_user)
 ):
     """
-    Abre la elección para votación pública.
-    Genera automáticamente tokens UUID para todos los electores que no dispongan de uno.
+    B1 & A4: Abre la elección para sufragio público tras validación atómica:
+    - Estado previo debe ser exactamente 'Borrador'
+    - Padrón íntegro no vacío (mínimo 1 elector)
+    - En regla familiar: exige 'familia_id' válido en todos los electores
+    - Candidaturas validadas (al menos 1 candidato de lista además de blanco/nulo)
+    - Fechas coherentes (fecha_inicio <= fecha_fin)
+    - Provisionamiento de unidades electorales (VotingEntitlement)
+    - Instantánea de configuración con hash de integridad
     """
-    election = db.query(Election).filter(Election.id == election_id).first()
+    election = db.query(Election).filter(Election.id == election_id).with_for_update().first()
     if not election:
         raise HTTPException(status_code=404, detail="Elección no encontrada")
 
     check_election_access(current_user, election, write=True)
 
-    # HIGH-02: Validar transición de estado
+    # 1. Validar estado Borrador
     if election.estado != "Borrador":
         allowed = VALID_STATE_TRANSITIONS.get(election.estado, [])
         raise HTTPException(
@@ -217,17 +239,80 @@ def open_election(
                    f"Estado actual: '{election.estado}'. Transiciones permitidas: {allowed or 'ninguna'}"
         )
 
-    # Módulo 4: Generar token UUID para cada elector que no lo tenga
+    # 2. Validar padrón no vacío
     voters = db.query(Voter).filter(Voter.election_id == election_id).all()
+    if not voters:
+        raise HTTPException(
+            status_code=400,
+            detail="No se puede abrir una elección con el padrón electoral vacío. Incorpore electores antes de abrir."
+        )
+
+    # 3. Validar regla familiar (A4 - P0)
+    if election.regla_votacion == "Un voto por familia":
+        sin_familia = [v.rut for v in voters if not v.familia_id or not v.familia_id.strip()]
+        if sin_familia:
+            raise HTTPException(
+                status_code=400,
+                detail=f"No se puede abrir la elección: existen {len(sin_familia)} electores sin 'familia_id' "
+                       f"bajo regla 'Un voto por familia'. Sanee el padrón antes de abrir."
+            )
+
+    # 4. Validar candidaturas
+    regular_candidates = db.query(Candidate).filter(
+        Candidate.election_id == election_id,
+        Candidate.es_blanco == False,
+        Candidate.es_nulo == False
+    ).count()
+    if regular_candidates < 1:
+        raise HTTPException(
+            status_code=400,
+            detail="No se puede abrir la elección sin al menos un candidato o lista inscrita."
+        )
+
+    # 5. Validar coherencia de fechas
+    if election.fecha_inicio and election.fecha_fin and election.fecha_inicio > election.fecha_fin:
+        raise HTTPException(
+            status_code=400,
+            detail="Fechas incoherentes: la fecha de inicio no puede ser posterior a la fecha de término."
+        )
+
+    now = datetime.now(timezone.utc)
+
+    # 6. Generar tokens pendientes y provisionar VotingEntitlements
     generated_count = 0
+    entitlement_keys = set()
     for v in voters:
         if not v.token_votacion:
             v.token_votacion = str(uuid.uuid4())
             generated_count += 1
+        if not v.rut_normalizado:
+            v.rut_normalizado = clean_rut(v.rut)
+
+        if election.regla_votacion == "Un voto por familia":
+            key = f"FAM:{v.familia_id.strip().upper()}"
+        else:
+            key = f"RUT:{v.rut_normalizado}"
+        entitlement_keys.add(key)
+
+    for key in entitlement_keys:
+        existing_ent = db.query(VotingEntitlement).filter(
+            VotingEntitlement.election_id == election_id,
+            VotingEntitlement.unit_key == key
+        ).first()
+        if not existing_ent:
+            db.add(VotingEntitlement(
+                election_id=election_id,
+                unit_key=key,
+                estado="Pendiente"
+            ))
+
+    # 7. Hash de configuración aprobada
+    config_str = f"{election.id}:{election.nombre}:{election.regla_votacion}:{len(voters)}:{regular_candidates}:{now.isoformat()}"
+    election.config_hash = hashlib.sha256(config_str.encode("utf-8")).hexdigest()
 
     election.estado = "Abierta"
     if not election.fecha_inicio:
-        election.fecha_inicio = datetime.now(timezone.utc)
+        election.fecha_inicio = now
 
     db.commit()
     db.refresh(election)
@@ -235,7 +320,8 @@ def open_election(
     log_audit(
         db,
         accion="Abrió votación",
-        detalle=f"Elección '{election.nombre}' abierta al público. Se generaron {generated_count} tokens de sufragio.",
+        detalle=f"Elección '{election.nombre}' abierta con configuración sellada (Hash: {election.config_hash[:16]}...). "
+                f"{len(entitlement_keys)} derechos electorales provisionados. {generated_count} tokens generados.",
         usuario=current_user.email,
         school_id=election.school_id
     )
@@ -247,14 +333,16 @@ def close_election(
     db: Session = Depends(get_db),
     current_user: User = Depends(get_current_user)
 ):
-    """Cierra la elección y sella la urna digital para escrutinio definitivo"""
-    election = db.query(Election).filter(Election.id == election_id).first()
+    """
+    Cierra la elección y sella la urna digital para escrutinio definitivo.
+    Bloqueo estricto con SELECT FOR UPDATE sobre Election para evitar carreras contra votos simultáneos.
+    """
+    election = db.query(Election).filter(Election.id == election_id).with_for_update().first()
     if not election:
         raise HTTPException(status_code=404, detail="Elección no encontrada")
 
     check_election_access(current_user, election, write=True)
 
-    # HIGH-02: Validar transición de estado
     if election.estado != "Abierta":
         raise HTTPException(
             status_code=400,
@@ -276,6 +364,41 @@ def close_election(
     )
     return election
 
+@router.post("/{election_id}/finalizar", response_model=ElectionResponse)
+def finalize_election(
+    election_id: int,
+    db: Session = Depends(get_db),
+    current_user: User = Depends(get_current_user)
+):
+    """
+    B1: Finaliza y archiva formalmente la elección tras el escrutinio.
+    Estado terminal definitivo. No admite votos ni reaperturas.
+    """
+    election = db.query(Election).filter(Election.id == election_id).with_for_update().first()
+    if not election:
+        raise HTTPException(status_code=404, detail="Elección no encontrada")
+
+    check_election_access(current_user, election, write=True)
+
+    if election.estado != "Cerrada":
+        raise HTTPException(
+            status_code=400,
+            detail=f"Solo se puede finalizar una elección en estado 'Cerrada'. Estado actual: '{election.estado}'."
+        )
+
+    election.estado = "Finalizada"
+    db.commit()
+    db.refresh(election)
+
+    log_audit(
+        db,
+        accion="Finalizó elección",
+        detalle=f"Elección '{election.nombre}' finalizada y archivada formalmente.",
+        usuario=current_user.email,
+        school_id=election.school_id
+    )
+    return election
+
 @router.post("/{election_id}/comite", response_model=ElectoralCommitteeResponse)
 def add_committee_member(
     election_id: int,
@@ -283,12 +406,20 @@ def add_committee_member(
     db: Session = Depends(get_db),
     current_user: User = Depends(get_current_user)
 ):
-    """Agrega un miembro a la comisión electoral de una elección"""
+    """Agrega un miembro a la comisión electoral (Solo permitido en estado 'Borrador')"""
     election = db.query(Election).filter(Election.id == election_id).first()
     if not election:
         raise HTTPException(status_code=404, detail="Elección no encontrada")
 
     check_election_access(current_user, election, write=True)
+
+    # B1: Congelamiento de comisión tras apertura
+    if election.estado != "Borrador":
+        raise HTTPException(
+            status_code=status.HTTP_409_CONFLICT,
+            detail=f"No se pueden agregar miembros de comisión en estado '{election.estado}'. "
+                   f"La composición electoral está congelada."
+        )
 
     member = ElectoralCommittee(**member_in.model_dump(), election_id=election_id)
     db.add(member)
@@ -303,4 +434,5 @@ def add_committee_member(
         school_id=election.school_id
     )
     return member
+
 

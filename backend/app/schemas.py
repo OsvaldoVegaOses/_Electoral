@@ -162,6 +162,7 @@ class ElectionUpdate(BaseModel):
 class ElectionResponse(ElectionBase):
     id: int
     estado: str
+    config_hash: Optional[str] = None
     fecha_creacion: datetime
     school: Optional[SchoolResponse] = None
 
