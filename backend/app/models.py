@@ -59,6 +59,8 @@ class ElectoralCommittee(Base):
     correo = Column(String(150), nullable=True)
     cargo = Column(String(100), nullable=False)  # Presidente, Secretario, Vocal
     election_id = Column(Integer, ForeignKey("elections.id"), nullable=False)
+    # P14: Marca de tiempo de anonimización de PII (NULL = datos aún vigentes)
+    pii_eliminado_en = Column(DateTime(timezone=True), nullable=True, index=True)
 
     election = relationship("Election", back_populates="committee_members")
 
@@ -79,6 +81,8 @@ class Voter(Base):
     estado = Column(String(50), default="Pendiente", index=True)
     fecha_voto = Column(DateTime(timezone=True), nullable=True)
     election_id = Column(Integer, ForeignKey("elections.id"), nullable=False)
+    # P14: Marca de tiempo de anonimización de PII (NULL = datos aún vigentes)
+    pii_eliminado_en = Column(DateTime(timezone=True), nullable=True, index=True)
 
     election = relationship("Election", back_populates="voters")
 

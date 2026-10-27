@@ -57,6 +57,12 @@ class Settings(BaseSettings):
     # Sin esta variable, el sistema usa fallback en memoria (no apto para prod multi-worker).
     REDIS_URL: str = os.getenv("REDIS_URL", "")
 
+    # P14: Política de retención de PII
+    # Días tras Finalización de elección antes de anonimizar padrón y comisiones electorales.
+    PII_VOTER_RETENTION_DAYS: int = int(os.getenv("PII_VOTER_RETENTION_DAYS", "90"))
+    # Días de retención de registros de auditoría antes de eliminarlos físicamente.
+    PII_AUDIT_RETENTION_DAYS: int = int(os.getenv("PII_AUDIT_RETENTION_DAYS", "365"))
+
     # P2: Configuración de Cookies de Sesión y Protección CSRF
     AUTH_COOKIE_NAME: str = "access_token"
     CSRF_COOKIE_NAME: str = "csrf_token"
