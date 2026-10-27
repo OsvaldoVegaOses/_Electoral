@@ -1,0 +1,93 @@
+from fastapi import APIRouter, Depends, HTTPException, status, Query
+from sqlalchemy.orm import Session
+from typing import List
+from app.database import get_db
+from app.models import Candidate, Election, Vote, User
+from app.schemas import CandidateCreate, CandidateResponse
+from app.auth import get_current_user, log_audit
+
+router = APIRouter(prefix="/elections/{election_id}/candidates", tags=["Candidatos y Listas"])
+
+@router.get("", response_model=List[CandidateResponse])
+def list_candidates(
+    election_id: int,
+    skip: int = Query(0, ge=0),
+    limit: int = Query(100, ge=1, le=500),
+    db: Session = Depends(get_db),
+    current_user: User = Depends(get_current_user),  # CRIT-03: Autenticación requerida
+):
+    """Lista todos los candidatos y opciones de votación para una elección"""
+    election = db.query(Election).filter(Election.id == election_id).first()
+    candidates = db.query(Candidate).filter(
+        Candidate.election_id == election_id
+    ).order_by(Candidate.orden.asc()).offset(skip).limit(limit).all()
+    
+    # HIGH-06: Ocultar conteo de votos si la elección está abierta (secreto del voto)
+    result = []
+    for c in candidates:
+        if election and election.estado == "Abierta":
+            v_count = 0  # No revelar votos durante elección abierta
+        else:
+            v_count = db.query(Vote).filter(Vote.candidate_id == c.id).count()
+        cand_dict = {**c.__dict__, "votos_count": v_count}
+        result.append(cand_dict)
+    return result
+
+@router.post("", response_model=CandidateResponse, status_code=status.HTTP_201_CREATED)
+def create_candidate(
+    election_id: int,
+    candidate_in: CandidateCreate,
+    db: Session = Depends(get_db),
+    current_user: User = Depends(get_current_user)
+):
+    """Agrega un candidato o lista a la elección"""
+    election = db.query(Election).filter(Election.id == election_id).first()
+    if not election:
+        raise HTTPException(status_code=404, detail="Elección no encontrada")
+
+    if election.estado not in ["Borrador", "Abierta"]:
+        raise HTTPException(status_code=400, detail="No se pueden agregar candidatos a una elección cerrada")
+
+    candidate = Candidate(**candidate_in.model_dump(), election_id=election_id)
+    db.add(candidate)
+    db.commit()
+    db.refresh(candidate)
+
+    log_audit(
+        db,
+        accion="Creó candidato",
+        detalle=f"Candidato/Lista '{candidate.nombre}' agregado a la elección '{election.nombre}'",
+        usuario=current_user.email
+    )
+    return candidate
+
+@router.delete("/{candidate_id}")
+def delete_candidate(
+    election_id: int,
+    candidate_id: int,
+    db: Session = Depends(get_db),
+    current_user: User = Depends(get_current_user)
+):
+    """Elimina un candidato si la elección aún no ha recibido votos"""
+    candidate = db.query(Candidate).filter(
+        Candidate.id == candidate_id,
+        Candidate.election_id == election_id
+    ).first()
+    if not candidate:
+        raise HTTPException(status_code=404, detail="Candidato no encontrado")
+
+    votes_count = db.query(Vote).filter(Vote.candidate_id == candidate_id).count()
+    if votes_count > 0:
+        raise HTTPException(status_code=400, detail="No se puede eliminar un candidato que ya posee sufragios registrados")
+
+    nombre = candidate.nombre
+    db.delete(candidate)
+    db.commit()
+
+    log_audit(
+        db,
+        accion="Eliminó candidato",
+        detalle=f"Candidato '{nombre}' removido de la elección",
+        usuario=current_user.email
+    )
+    return {"mensaje": "Candidato eliminado con éxito"}

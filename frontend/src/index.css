@@ -1,0 +1,66 @@
+:root {
+  --theogen-navy: #0d233a;
+  --theogen-navy-dark: #071524;
+  --theogen-blue: #1e40af;
+  --theogen-blue-light: #3b82f6;
+  --theogen-sky: #e0f2fe;
+  --theogen-gray-50: #f8fafc;
+  --theogen-gray-100: #f1f5f9;
+  --theogen-gray-200: #e2e8f0;
+  --theogen-gray-600: #475569;
+  --theogen-gray-800: #1e293b;
+  --theogen-gray-900: #0f172a;
+  --theogen-success: #059669;
+  --theogen-warning: #d97706;
+  --theogen-danger: #dc2626;
+  --font-family: 'Inter', -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Helvetica, Arial, sans-serif;
+}
+
+* {
+  box-sizing: border-box;
+  margin: 0;
+  padding: 0;
+}
+
+body {
+  font-family: var(--font-family);
+  background-color: var(--theogen-gray-50);
+  color: var(--theogen-gray-900);
+  min-height: 100vh;
+  -webkit-font-smoothing: antialiased;
+  -moz-osx-font-smoothing: grayscale;
+}
+
+a {
+  color: inherit;
+  text-decoration: none;
+}
+
+/* Glassmorphism subtle card styling */
+.glass-panel {
+  background: rgba(255, 255, 255, 0.95);
+  backdrop-filter: blur(10px);
+  border: 1px solid rgba(226, 232, 240, 0.8);
+  box-shadow: 0 4px 20px -2px rgba(15, 23, 42, 0.05);
+}
+
+.gradient-header {
+  background: linear-gradient(135deg, #0d233a 0%, #1e3a8a 100%);
+  color: #ffffff;
+}
+
+/* Custom Scrollbar */
+::-webkit-scrollbar {
+  width: 8px;
+  height: 8px;
+}
+::-webkit-scrollbar-track {
+  background: #f1f5f9;
+}
+::-webkit-scrollbar-thumb {
+  background: #cbd5e1;
+  border-radius: 4px;
+}
+::-webkit-scrollbar-thumb:hover {
+  background: #94a3b8;
+}

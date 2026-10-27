@@ -1,0 +1,126 @@
+from sqlalchemy import Column, Integer, String, Text, DateTime, ForeignKey, Boolean, Enum
+from sqlalchemy.orm import relationship
+from datetime import datetime, timezone
+import uuid
+from app.database import Base
+
+
+def _utcnow():
+    """HIGH-01: Helper timezone-aware para defaults de columnas SQLAlchemy"""
+    return datetime.now(timezone.utc)
+
+class School(Base):
+    __tablename__ = "schools"
+
+    id = Column(Integer, primary_key=True, index=True)
+    nombre = Column(String(200), nullable=False)
+    rbd = Column(String(50), nullable=True, index=True)
+    comuna = Column(String(100), nullable=True)
+    correo_contacto = Column(String(150), nullable=True)
+    telefono = Column(String(50), nullable=True)
+    logo = Column(Text, nullable=True)
+    fecha_creacion = Column(DateTime, default=_utcnow)
+
+    # Relaciones
+    elections = relationship("Election", back_populates="school", cascade="all, delete-orphan")
+
+class Election(Base):
+    __tablename__ = "elections"
+
+    id = Column(Integer, primary_key=True, index=True)
+    nombre = Column(String(255), nullable=False)
+    descripcion = Column(Text, nullable=True)
+    fecha_inicio = Column(DateTime, nullable=True)
+    fecha_fin = Column(DateTime, nullable=True)
+    # Estados: Borrador, Abierta, Cerrada, Finalizada
+    estado = Column(String(50), default="Borrador", index=True)
+    school_id = Column(Integer, ForeignKey("schools.id"), nullable=False)
+    # Tipos: Centro de Padres, Centro de Alumnos, Consejo Escolar, Consulta Ciudadana, Directiva Organización
+    tipo_votacion = Column(String(100), nullable=False, default="Centro de Padres")
+    # Regla: "Un voto por persona" o "Un voto por familia"
+    regla_votacion = Column(String(50), nullable=False, default="Un voto por persona")
+    fecha_creacion = Column(DateTime, default=_utcnow)
+
+    # Relaciones
+    school = relationship("School", back_populates="elections")
+    committee_members = relationship("ElectoralCommittee", back_populates="election", cascade="all, delete-orphan")
+    voters = relationship("Voter", back_populates="election", cascade="all, delete-orphan")
+    candidates = relationship("Candidate", back_populates="election", cascade="all, delete-orphan")
+    votes = relationship("Vote", back_populates="election", cascade="all, delete-orphan")
+
+class ElectoralCommittee(Base):
+    __tablename__ = "electoral_committees"
+
+    id = Column(Integer, primary_key=True, index=True)
+    nombre = Column(String(200), nullable=False)
+    rut = Column(String(50), nullable=False)
+    correo = Column(String(150), nullable=True)
+    cargo = Column(String(100), nullable=False)  # Presidente, Secretario, Vocal
+    election_id = Column(Integer, ForeignKey("elections.id"), nullable=False)
+
+    election = relationship("Election", back_populates="committee_members")
+
+class Voter(Base):
+    __tablename__ = "voters"
+
+    id = Column(Integer, primary_key=True, index=True)
+    rut = Column(String(50), nullable=False, index=True)
+    nombre = Column(String(200), nullable=False)
+    curso = Column(String(100), nullable=True)
+    correo = Column(String(150), nullable=True)
+    familia_id = Column(String(100), nullable=True, index=True)
+    token_votacion = Column(String(100), unique=True, index=True, nullable=True)
+    # Estados: Pendiente, Votó, Bloqueado
+    estado = Column(String(50), default="Pendiente", index=True)
+    fecha_voto = Column(DateTime, nullable=True)
+    election_id = Column(Integer, ForeignKey("elections.id"), nullable=False)
+
+    election = relationship("Election", back_populates="voters")
+
+class Candidate(Base):
+    __tablename__ = "candidates"
+
+    id = Column(Integer, primary_key=True, index=True)
+    nombre = Column(String(200), nullable=False)
+    cargo = Column(String(100), nullable=True)
+    descripcion = Column(Text, nullable=True)
+    foto = Column(Text, nullable=True)
+    orden = Column(Integer, default=0)
+    es_blanco = Column(Boolean, default=False)
+    es_nulo = Column(Boolean, default=False)
+    election_id = Column(Integer, ForeignKey("elections.id"), nullable=False)
+
+    election = relationship("Election", back_populates="candidates")
+    votes = relationship("Vote", back_populates="candidate")
+
+class Vote(Base):
+    __tablename__ = "votes"
+
+    id = Column(Integer, primary_key=True, index=True)
+    candidate_id = Column(Integer, ForeignKey("candidates.id"), nullable=False)
+    voter_id = Column(Integer, nullable=True)  # Registro referencial para no duplicar
+    election_id = Column(Integer, ForeignKey("elections.id"), nullable=False)
+    fecha_voto = Column(DateTime, default=_utcnow)
+    hash_integridad = Column(String(128), nullable=False, unique=True, index=True)
+
+    election = relationship("Election", back_populates="votes")
+    candidate = relationship("Candidate", back_populates="votes")
+
+class AuditLog(Base):
+    __tablename__ = "audit_logs"
+
+    id = Column(Integer, primary_key=True, index=True)
+    fecha = Column(DateTime, default=_utcnow, index=True)
+    usuario = Column(String(150), default="Sistema")
+    accion = Column(String(150), nullable=False, index=True)
+    detalle = Column(Text, nullable=True)
+
+class User(Base):
+    __tablename__ = "users"
+
+    id = Column(Integer, primary_key=True, index=True)
+    nombre = Column(String(150), nullable=False)
+    email = Column(String(150), unique=True, index=True, nullable=False)
+    password_hash = Column(String(255), nullable=False)
+    rol = Column(String(50), default="Administrador")  # Administrador, Comisión Electoral
+    fecha_creacion = Column(DateTime, default=_utcnow)
