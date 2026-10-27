@@ -114,6 +114,8 @@ class AuditLog(Base):
     usuario = Column(String(150), default="Sistema")
     accion = Column(String(150), nullable=False, index=True)
     detalle = Column(Text, nullable=True)
+    school_id = Column(Integer, nullable=True, index=True)
+
 
 class User(Base):
     __tablename__ = "users"
@@ -122,5 +124,13 @@ class User(Base):
     nombre = Column(String(150), nullable=False)
     email = Column(String(150), unique=True, index=True, nullable=False)
     password_hash = Column(String(255), nullable=False)
-    rol = Column(String(50), default="Administrador")  # Administrador, Comisión Electoral
+    # Roles: "Administrador General", "Responsable Institucional", "Comisión Electoral"
+    rol = Column(String(50), default="Administrador General")
+    school_id = Column(Integer, ForeignKey("schools.id"), nullable=True, index=True)
+    election_id = Column(Integer, ForeignKey("elections.id"), nullable=True, index=True)
     fecha_creacion = Column(DateTime, default=_utcnow)
+
+    # Relaciones de ámbito organizacional
+    school = relationship("School")
+    election = relationship("Election")
+

@@ -10,7 +10,10 @@ from app.database import get_db
 from app.models import Election, School, ElectoralCommittee, Voter, Candidate, Vote, User
 from app.schemas import ScrutinyResponse, CandidateResult, DashboardStatsResponse, ElectionResponse
 from app.pdf_generator import generate_acta_apertura_pdf, generate_acta_cierre_pdf
-from app.auth import get_current_user, log_audit
+from app.auth import (
+    get_current_user, log_audit, check_election_access, is_superadmin,
+    ROLE_RESPONSABLE, ROLE_COMISION
+)
 
 router = APIRouter(prefix="/reports", tags=["Informes, Escrutinio y Actas PDF"])
 
@@ -23,11 +26,14 @@ def get_election_scrutiny(
     """
     Módulo 7: Escrutinio oficial.
     Calcula votos por candidato, votos nulos, votos blancos, porcentaje de participación y proclamación de ganador.
-    PROTEGIDO: Solo accesible cuando la elección se encuentra en estado 'Cerrada' o 'Finalizada' (A2 - P0).
+    PROTEGIDO: Solo accesible cuando la elección se encuentra en estado 'Cerrada' o 'Finalizada' (A2 - P0)
+    y pertenece al ámbito autorizado del usuario (A3 - P0).
     """
     election = db.query(Election).filter(Election.id == election_id).first()
     if not election:
         raise HTTPException(status_code=404, detail="Elección no encontrada")
+
+    check_election_access(current_user, election, write=False)
 
     # A2: Bloquear escrutinio en elecciones abiertas o borradores
     if election.estado not in ["Cerrada", "Finalizada"]:
@@ -38,6 +44,7 @@ def get_election_scrutiny(
                 f"se encuentre en estado '{election.estado}'. Solo se publican una vez cerrada la elección."
             )
         )
+
 
     # Denominador de participación: según regla electoral
     if election.regla_votacion == "Un voto por familia":
@@ -133,10 +140,13 @@ def download_acta_apertura_pdf(
 ):
     """
     Módulo 8: Generación y descarga directa del PDF del Acta de Apertura de la Elección.
+    Verificado contra IDOR (A3 - P0).
     """
     election = db.query(Election).filter(Election.id == election_id).first()
     if not election:
         raise HTTPException(status_code=404, detail="Elección no encontrada")
+
+    check_election_access(current_user, election, write=False)
 
     school = election.school or School(nombre="Institución Educativa", rbd="S/N", comuna="Santiago")
     committee = election.committee_members or []
@@ -148,7 +158,8 @@ def download_acta_apertura_pdf(
         db,
         accion="Descargó acta",
         detalle=f"Se descargó Acta de Apertura en PDF para '{election.nombre}'",
-        usuario=current_user.email
+        usuario=current_user.email,
+        school_id=election.school_id
     )
 
     clean_name = re.sub(r'[^a-zA-Z0-9_\-]', '_', election.nombre)[:30]
@@ -168,11 +179,14 @@ def download_acta_cierre_pdf(
 ):
     """
     Módulo 8: Generación y descarga directa del PDF del Acta de Cierre y Escrutinio Definitivo.
-    PROTEGIDO: Solo disponible cuando la elección se encuentra en estado 'Cerrada' o 'Finalizada' (A2 - P0).
+    PROTEGIDO: Solo disponible cuando la elección se encuentra en estado 'Cerrada' o 'Finalizada' (A2 - P0)
+    y pertenece al ámbito autorizado del usuario (A3 - P0).
     """
     election = db.query(Election).filter(Election.id == election_id).first()
     if not election:
         raise HTTPException(status_code=404, detail="Elección no encontrada")
+
+    check_election_access(current_user, election, write=False)
 
     if election.estado not in ["Cerrada", "Finalizada"]:
         raise HTTPException(
@@ -196,7 +210,8 @@ def download_acta_cierre_pdf(
         db,
         accion="Descargó acta",
         detalle=f"Se descargó Acta de Cierre en PDF para '{election.nombre}'",
-        usuario=current_user.email
+        usuario=current_user.email,
+        school_id=election.school_id
     )
 
     clean_name = re.sub(r'[^a-zA-Z0-9_\-]', '_', election.nombre)[:30]
@@ -214,16 +229,40 @@ def get_dashboard_stats(
     current_user: User = Depends(get_current_user),  # CRIT-03
 ):
     """
-    Módulo 6: Estadísticas generales para el panel de control.
+    Módulo 6: Estadísticas para el panel de control, restringidas por ámbito institucional (A3 - P0).
     """
-    total_elecciones = db.query(Election).count()
-    elecciones_activas = db.query(Election).filter(Election.estado == "Abierta").count()
-    total_padron = db.query(Voter).count()
-    total_votos = db.query(Vote).count()
+    if is_superadmin(current_user):
+        elections_query = db.query(Election)
+        voters_query = db.query(Voter)
+        votes_query = db.query(Vote)
+    elif current_user.rol == ROLE_RESPONSABLE and current_user.school_id:
+        elections_query = db.query(Election).filter(Election.school_id == current_user.school_id)
+        election_ids = [e.id for e in elections_query.all()]
+        voters_query = db.query(Voter).filter(Voter.election_id.in_(election_ids)) if election_ids else db.query(Voter).filter(False)
+        votes_query = db.query(Vote).filter(Vote.election_id.in_(election_ids)) if election_ids else db.query(Vote).filter(False)
+    elif current_user.rol == ROLE_COMISION:
+        if current_user.election_id:
+            elections_query = db.query(Election).filter(Election.id == current_user.election_id)
+        elif current_user.school_id:
+            elections_query = db.query(Election).filter(Election.school_id == current_user.school_id)
+        else:
+            elections_query = db.query(Election).filter(False)
+        election_ids = [e.id for e in elections_query.all()]
+        voters_query = db.query(Voter).filter(Voter.election_id.in_(election_ids)) if election_ids else db.query(Voter).filter(False)
+        votes_query = db.query(Vote).filter(Vote.election_id.in_(election_ids)) if election_ids else db.query(Vote).filter(False)
+    else:
+        elections_query = db.query(Election).filter(False)
+        voters_query = db.query(Voter).filter(False)
+        votes_query = db.query(Vote).filter(False)
+
+    total_elecciones = elections_query.count()
+    elecciones_activas = elections_query.filter(Election.estado == "Abierta").count()
+    total_padron = voters_query.count()
+    total_votos = votes_query.count()
 
     participacion_global = (total_votos / total_padron * 100.0) if total_padron > 0 else 0.0
 
-    ultimas = db.query(Election).order_by(Election.fecha_creacion.desc()).limit(5).all()
+    ultimas = elections_query.order_by(Election.fecha_creacion.desc()).limit(5).all()
 
     return DashboardStatsResponse(
         total_elecciones=total_elecciones,
@@ -233,3 +272,4 @@ def get_dashboard_stats(
         participacion_global=round(participacion_global, 1),
         ultimas_elecciones=ultimas
     )
+

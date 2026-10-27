@@ -31,8 +31,19 @@ def login(login_data: UserLogin, request: Request, db: Session = Depends(get_db)
     # Limpiar intentos fallidos al tener éxito
     clear_failed_attempts(client_ip)
     
-    access_token = create_access_token(data={"sub": user.email, "rol": user.rol})
-    log_audit(db, accion="Inicio de sesión", detalle=f"Usuario {user.email} ({user.rol}) inició sesión", usuario=user.email)
+    access_token = create_access_token(data={
+        "sub": user.email,
+        "rol": user.rol,
+        "school_id": user.school_id,
+        "election_id": user.election_id
+    })
+    log_audit(
+        db,
+        accion="Inicio de sesión",
+        detalle=f"Usuario {user.email} ({user.rol}) inició sesión",
+        usuario=user.email,
+        school_id=user.school_id
+    )
     
     return {
         "access_token": access_token,
@@ -41,9 +52,12 @@ def login(login_data: UserLogin, request: Request, db: Session = Depends(get_db)
             "id": user.id,
             "nombre": user.nombre,
             "email": user.email,
-            "rol": user.rol
+            "rol": user.rol,
+            "school_id": user.school_id,
+            "election_id": user.election_id
         }
     }
+
 
 @router.get("/me", response_model=UserResponse)
 def get_current_user_info(current_user: User = Depends(get_current_user)):

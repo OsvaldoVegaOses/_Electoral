@@ -1,10 +1,11 @@
 from fastapi import APIRouter, Depends, Query
 from sqlalchemy.orm import Session
+from sqlalchemy import or_
 from typing import List, Optional
 from app.database import get_db
 from app.models import AuditLog, User
 from app.schemas import AuditLogResponse
-from app.auth import get_current_user  # CRIT-03
+from app.auth import get_current_user, is_superadmin  # CRIT-03 + A3
 
 
 def _escape_like(value: str) -> str:
@@ -20,14 +21,24 @@ def get_audit_logs(
     accion: Optional[str] = None,
     q: Optional[str] = None,
     db: Session = Depends(get_db),
-    current_user: User = Depends(get_current_user),  # CRIT-03: Autenticación requerida
+    current_user: User = Depends(get_current_user),  # CRIT-03
 ):
     """
-    Módulo 9: Bitácora inmutable de auditoría.
-    Permite auditar cada acción crítica del sistema: creación de elecciones, subida de padrón,
-    apertura de mesa, emisión de votos, cierres y descarga de actas.
+    Módulo 9: Bitácora de auditoría con ámbito institucional (A3 - P0).
+    Permite auditar acciones dentro del ámbito autorizado del usuario.
     """
     query = db.query(AuditLog)
+    if not is_superadmin(current_user):
+        if current_user.school_id:
+            query = query.filter(
+                or_(
+                    AuditLog.school_id == current_user.school_id,
+                    AuditLog.usuario == current_user.email
+                )
+            )
+        else:
+            query = query.filter(AuditLog.usuario == current_user.email)
+
     if accion:
         safe_accion = _escape_like(accion)
         query = query.filter(AuditLog.accion.ilike(f"%{safe_accion}%"))
@@ -39,3 +50,4 @@ def get_audit_logs(
             (AuditLog.accion.ilike(f"%{safe_q}%"))
         )
     return query.order_by(AuditLog.fecha.desc()).limit(limit).all()
+

@@ -13,7 +13,7 @@ from typing import List, Optional
 from app.database import get_db
 from app.models import Voter, Election, User
 from app.schemas import VoterCreate, VoterResponse, VoterBulkUploadResult
-from app.auth import get_current_user, log_audit
+from app.auth import get_current_user, log_audit, check_election_access
 from app.rut_validator import validate_rut, format_rut, clean_rut
 
 logger = logging.getLogger("theogen.voters")
@@ -39,9 +39,15 @@ def list_voters(
     skip: int = Query(0, ge=0),
     limit: int = Query(100, ge=1, le=500),
     db: Session = Depends(get_db),
-    current_user: User = Depends(get_current_user),  # CRIT-03: Autenticación requerida
+    current_user: User = Depends(get_current_user),  # CRIT-03
 ):
-    """Lista los votantes de una elección con filtros opcionales de estado o búsqueda (paginado — LOW-03)"""
+    """Lista los votantes de una elección con verificación anti-IDOR"""
+    election = db.query(Election).filter(Election.id == election_id).first()
+    if not election:
+        raise HTTPException(status_code=404, detail="Elección no encontrada")
+
+    check_election_access(current_user, election, write=False)
+
     query = db.query(Voter).filter(Voter.election_id == election_id)
     if estado:
         query = query.filter(Voter.estado == estado)
@@ -62,10 +68,12 @@ def create_voter(
     db: Session = Depends(get_db),
     current_user: User = Depends(get_current_user)
 ):
-    """Agrega manualmente un elector al padrón con validación rigurosa"""
+    """Agrega manualmente un elector al padrón con verificación anti-IDOR"""
     election = db.query(Election).filter(Election.id == election_id).first()
     if not election:
         raise HTTPException(status_code=404, detail="Elección no encontrada")
+
+    check_election_access(current_user, election, write=True)
 
     # Validar RUT
     if not validate_rut(voter_in.rut):
@@ -105,9 +113,11 @@ def create_voter(
         db,
         accion="Agregó elector",
         detalle=f"Elector {voter.nombre} (RUT: {voter.rut}) añadido al padrón",
-        usuario=current_user.email
+        usuario=current_user.email,
+        school_id=election.school_id
     )
     return voter
+
 
 @router.post("/upload-excel", response_model=VoterBulkUploadResult)
 async def upload_voters_file(
@@ -127,6 +137,8 @@ async def upload_voters_file(
     election = db.query(Election).filter(Election.id == election_id).first()
     if not election:
         raise HTTPException(status_code=404, detail="Elección no encontrada")
+
+    check_election_access(current_user, election, write=True)
 
     contents = await file.read()
 
@@ -239,7 +251,8 @@ async def upload_voters_file(
             db,
             accion="Subió padrón",
             detalle=f"Se cargaron {len(voters_to_insert)} electores desde archivo '{file.filename}'. {len(errores)} filas con error.",
-            usuario=current_user.email
+            usuario=current_user.email,
+            school_id=election.school_id
         )
 
     return {
@@ -256,7 +269,13 @@ def generate_all_tokens(
     db: Session = Depends(get_db),
     current_user: User = Depends(get_current_user)
 ):
-    """Genera tokens UUID únicos para todos los electores de la elección que no lo posean"""
+    """Genera tokens UUID únicos para todos los electores de la elección con validación anti-IDOR"""
+    election = db.query(Election).filter(Election.id == election_id).first()
+    if not election:
+        raise HTTPException(status_code=404, detail="Elección no encontrada")
+
+    check_election_access(current_user, election, write=True)
+
     voters = db.query(Voter).filter(Voter.election_id == election_id, Voter.token_votacion.is_(None)).all()
     count = 0
     for v in voters:
@@ -268,7 +287,8 @@ def generate_all_tokens(
         db,
         accion="Generó credenciales",
         detalle=f"Generados {count} tokens UUID de votación",
-        usuario=current_user.email
+        usuario=current_user.email,
+        school_id=election.school_id
     )
     return {"mensaje": f"Se generaron {count} credenciales únicas.", "generados": count}
 
@@ -276,16 +296,17 @@ def generate_all_tokens(
 def simulate_email_dispatch(
     election_id: int,
     db: Session = Depends(get_db),
-    current_user: User = Depends(get_current_user),  # CRIT-03 + CRIT-04: Proteger con autenticación
+    current_user: User = Depends(get_current_user),  # CRIT-03
 ):
     """
-    Módulo 4: Simulación de despacho de credenciales.
-    Genera la vista previa de correos electrónicos con enlaces directos /votar?token=...
-    CRIT-04: Los tokens se enmascaran para reducir la exposición.
+    Módulo 4: Simulación de despacho de credenciales con validación anti-IDOR.
     """
     election = db.query(Election).filter(Election.id == election_id).first()
     if not election:
         raise HTTPException(status_code=404, detail="Elección no encontrada")
+
+    check_election_access(current_user, election, write=False)
+
 
     voters = db.query(Voter).filter(Voter.election_id == election_id).limit(50).all()
     emails = []

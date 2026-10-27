@@ -13,6 +13,8 @@ class UserCreate(BaseModel):
     email: EmailStr
     password: str = Field(..., min_length=8, max_length=128)
     rol: Optional[str] = "Comisión Electoral"
+    school_id: Optional[int] = None
+    election_id: Optional[int] = None
 
     @field_validator("password")
     @classmethod
@@ -36,6 +38,8 @@ class UserResponse(BaseModel):
     nombre: str
     email: EmailStr
     rol: str
+    school_id: Optional[int] = None
+    election_id: Optional[int] = None
 
     class Config:
         from_attributes = True
@@ -51,6 +55,15 @@ class SchoolBase(BaseModel):
 
 class SchoolCreate(SchoolBase):
     pass
+
+class SchoolUpdate(BaseModel):
+    nombre: Optional[str] = None
+    rbd: Optional[str] = None
+    comuna: Optional[str] = None
+    correo_contacto: Optional[str] = None
+    telefono: Optional[str] = None
+    logo: Optional[str] = None
+
 
 class SchoolResponse(SchoolBase):
     id: int

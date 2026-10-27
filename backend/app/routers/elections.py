@@ -9,7 +9,10 @@ from app.schemas import (
     ElectionCreate, ElectionUpdate, ElectionResponse, ElectionDetailResponse,
     ElectoralCommitteeCreate, ElectoralCommitteeResponse
 )
-from app.auth import get_current_user, log_audit
+from app.auth import (
+    get_current_user, log_audit, is_superadmin, check_election_access,
+    ROLE_RESPONSABLE, ROLE_COMISION
+)
 
 router = APIRouter(prefix="/elections", tags=["Elecciones"])
 
@@ -26,10 +29,27 @@ def list_elections(
     skip: int = Query(0, ge=0),
     limit: int = Query(50, ge=1, le=200),
     db: Session = Depends(get_db),
-    current_user: User = Depends(get_current_user),  # CRIT-03: Autenticación requerida
+    current_user: User = Depends(get_current_user),  # CRIT-03
 ):
-    """Lista todas las elecciones registradas (paginado — LOW-03)"""
-    return db.query(Election).order_by(Election.fecha_creacion.desc()).offset(skip).limit(limit).all()
+    """Lista las elecciones registradas según el ámbito y permisos del usuario (A3 - P0)"""
+    query = db.query(Election)
+    if not is_superadmin(current_user):
+        if current_user.rol == ROLE_RESPONSABLE:
+            if current_user.school_id:
+                query = query.filter(Election.school_id == current_user.school_id)
+            else:
+                query = query.filter(False)
+        elif current_user.rol == ROLE_COMISION:
+            if current_user.election_id:
+                query = query.filter(Election.id == current_user.election_id)
+            elif current_user.school_id:
+                query = query.filter(Election.school_id == current_user.school_id)
+            else:
+                query = query.filter(False)
+        else:
+            query = query.filter(False)
+
+    return query.order_by(Election.fecha_creacion.desc()).offset(skip).limit(limit).all()
 
 @router.post("", response_model=ElectionResponse, status_code=status.HTTP_201_CREATED)
 def create_election(
@@ -37,7 +57,20 @@ def create_election(
     db: Session = Depends(get_db),
     current_user: User = Depends(get_current_user)
 ):
-    """Crea una nueva elección asociada a un colegio"""
+    """Crea una nueva elección asociada a un colegio (restringido a Superadmin o Responsable de esa institución)"""
+    if not is_superadmin(current_user):
+        if current_user.rol == ROLE_COMISION:
+            raise HTTPException(
+                status_code=status.HTTP_403_FORBIDDEN,
+                detail="Permisos insuficientes: comisiones electorales no poseen permisos para crear elecciones."
+            )
+        if current_user.rol == ROLE_RESPONSABLE:
+            if current_user.school_id != election_in.school_id:
+                raise HTTPException(
+                    status_code=status.HTTP_403_FORBIDDEN,
+                    detail="Acceso denegado: no tiene permisos para crear elecciones en otra institución."
+                )
+
     school = db.query(School).filter(School.id == election_in.school_id).first()
     if not school:
         raise HTTPException(status_code=404, detail="El colegio seleccionado no existe")
@@ -86,7 +119,8 @@ def create_election(
         db,
         accion="Creó elección",
         detalle=f"Elección '{election.nombre}' creada para '{school.nombre}' con regla '{election.regla_votacion}'",
-        usuario=current_user.email
+        usuario=current_user.email,
+        school_id=school.id
     )
     return election
 
@@ -96,10 +130,13 @@ def get_election_detail(
     db: Session = Depends(get_db),
     current_user: User = Depends(get_current_user),  # CRIT-03
 ):
-    """Obtiene el detalle completo de una elección"""
+    """Obtiene el detalle completo de una elección con validación anti-IDOR"""
     election = db.query(Election).filter(Election.id == election_id).first()
     if not election:
         raise HTTPException(status_code=404, detail="Elección no encontrada")
+
+    check_election_access(current_user, election, write=False)
+
 
     total_voters = db.query(Voter).filter(Voter.election_id == election_id).count()
     voted_count = db.query(Voter).filter(Voter.election_id == election_id, Voter.estado == "Votó").count()
@@ -121,10 +158,12 @@ def update_election(
     db: Session = Depends(get_db),
     current_user: User = Depends(get_current_user)
 ):
-    """Actualiza los datos básicos o estado de una elección"""
+    """Actualiza los datos básicos o estado de una elección (verificación anti-IDOR)"""
     election = db.query(Election).filter(Election.id == election_id).first()
     if not election:
         raise HTTPException(status_code=404, detail="Elección no encontrada")
+
+    check_election_access(current_user, election, write=True)
 
     # HIGH-02: Validar transición de estado si se intenta cambiar
     update_data = election_in.model_dump(exclude_unset=True)
@@ -148,7 +187,8 @@ def update_election(
         db,
         accion="Actualizó elección",
         detalle=f"Se actualizaron parámetros de la elección '{election.nombre}'",
-        usuario=current_user.email
+        usuario=current_user.email,
+        school_id=election.school_id
     )
     return election
 
@@ -165,6 +205,8 @@ def open_election(
     election = db.query(Election).filter(Election.id == election_id).first()
     if not election:
         raise HTTPException(status_code=404, detail="Elección no encontrada")
+
+    check_election_access(current_user, election, write=True)
 
     # HIGH-02: Validar transición de estado
     if election.estado != "Borrador":
@@ -194,7 +236,8 @@ def open_election(
         db,
         accion="Abrió votación",
         detalle=f"Elección '{election.nombre}' abierta al público. Se generaron {generated_count} tokens de sufragio.",
-        usuario=current_user.email
+        usuario=current_user.email,
+        school_id=election.school_id
     )
     return election
 
@@ -208,6 +251,8 @@ def close_election(
     election = db.query(Election).filter(Election.id == election_id).first()
     if not election:
         raise HTTPException(status_code=404, detail="Elección no encontrada")
+
+    check_election_access(current_user, election, write=True)
 
     # HIGH-02: Validar transición de estado
     if election.estado != "Abierta":
@@ -226,7 +271,8 @@ def close_election(
         db,
         accion="Cerró votación",
         detalle=f"Elección '{election.nombre}' cerrada formalmente para cómputo definitivo.",
-        usuario=current_user.email
+        usuario=current_user.email,
+        school_id=election.school_id
     )
     return election
 
@@ -242,6 +288,8 @@ def add_committee_member(
     if not election:
         raise HTTPException(status_code=404, detail="Elección no encontrada")
 
+    check_election_access(current_user, election, write=True)
+
     member = ElectoralCommittee(**member_in.model_dump(), election_id=election_id)
     db.add(member)
     db.commit()
@@ -251,6 +299,8 @@ def add_committee_member(
         db,
         accion="Agregó miembro de comisión",
         detalle=f"{member.nombre} ({member.cargo}) incorporado a la comisión electoral",
-        usuario=current_user.email
+        usuario=current_user.email,
+        school_id=election.school_id
     )
     return member
+
