@@ -104,6 +104,7 @@ def get_client_ip(request: Request) -> str:
 # --- Dependencias de autenticación ---
 
 def get_current_user(
+    request: Request,
     token: Optional[str] = Depends(oauth2_scheme),
     db: Session = Depends(get_db)
 ) -> User:
@@ -112,11 +113,13 @@ def get_current_user(
         detail="Credenciales de autenticación inválidas",
         headers={"WWW-Authenticate": "Bearer"},
     )
-    if not token:
+    # P2: Extraer credencial desde cookie HttpOnly 'access_token' o cabecera 'Authorization: Bearer'
+    effective_token = request.cookies.get(settings.AUTH_COOKIE_NAME) or token
+    if not effective_token:
         raise credentials_exception
     try:
         payload = jwt.decode(
-            token, settings.SECRET_KEY, algorithms=[settings.ALGORITHM]
+            effective_token, settings.SECRET_KEY, algorithms=[settings.ALGORITHM]
         )
         email: str = payload.get("sub")
         if email is None:

@@ -1,4 +1,5 @@
 import os
+import secrets
 import logging
 from datetime import datetime, timezone
 from contextlib import asynccontextmanager
@@ -39,6 +40,46 @@ class SecurityHeadersMiddleware(BaseHTTPMiddleware):
         return response
 
 
+# --- P2: CSRF Protection Middleware (Double Submit Cookie) ---
+class CSRFProtectionMiddleware(BaseHTTPMiddleware):
+    """
+    P2: Valida protección CSRF para mutaciones (POST, PUT, DELETE, PATCH)
+    cuando la petición está autenticada mediante cookie HttpOnly.
+    """
+    SAFE_METHODS = {"GET", "HEAD", "OPTIONS"}
+    EXCLUDED_PREFIXES = (
+        f"{settings.API_V1_STR}/auth/login",
+        f"{settings.API_V1_STR}/voting/",
+        f"{settings.API_V1_STR}/health",
+        "/docs",
+        "/openapi.json",
+        "/redoc",
+    )
+
+    async def dispatch(self, request: Request, call_next):
+        if request.method not in self.SAFE_METHODS:
+            has_auth_cookie = bool(request.cookies.get(settings.AUTH_COOKIE_NAME))
+            has_auth_header = bool(request.headers.get("Authorization"))
+
+            # Aplica solo si la sesión está basada en cookie y no tiene cabecera Authorization (modo browser)
+            if has_auth_cookie and not has_auth_header:
+                path = request.url.path
+                if not any(path.startswith(prefix) for prefix in self.EXCLUDED_PREFIXES):
+                    csrf_cookie = request.cookies.get(settings.CSRF_COOKIE_NAME)
+                    csrf_header = request.headers.get("X-CSRF-Token")
+
+                    if not csrf_cookie or not csrf_header or not secrets.compare_digest(csrf_cookie, csrf_header):
+                        logger.warning(
+                            f"Petición rechazada por CSRF inválido o ausente en {path}"
+                        )
+                        return JSONResponse(
+                            status_code=status.HTTP_403_FORBIDDEN,
+                            content={"detail": "Token CSRF inválido o ausente en cabecera X-CSRF-Token"}
+                        )
+        return await call_next(request)
+
+
+
 @asynccontextmanager
 async def lifespan(app: FastAPI):
     # 1. Crear tablas en base de datos solo en desarrollo/test; en producción el esquema es gobernado por Alembic
@@ -73,16 +114,19 @@ app = FastAPI(
     redoc_url=_redoc_url,
 )
 
+# P2: CSRF protection middleware
+app.add_middleware(CSRFProtectionMiddleware)
+
 # MED-05: Security headers middleware
 app.add_middleware(SecurityHeadersMiddleware)
 
-# HIGH-07: Configuración de CORS — restringir métodos y headers
+# HIGH-07: Configuración de CORS — restringir métodos y headers (incluyendo X-CSRF-Token)
 app.add_middleware(
     CORSMiddleware,
     allow_origins=settings.BACKEND_CORS_ORIGINS,
     allow_credentials=True,
     allow_methods=["GET", "POST", "PUT", "DELETE", "OPTIONS"],
-    allow_headers=["Authorization", "Content-Type", "Accept"],
+    allow_headers=["Authorization", "Content-Type", "Accept", "X-CSRF-Token"],
 )
 
 # Registro de Rutas API V1

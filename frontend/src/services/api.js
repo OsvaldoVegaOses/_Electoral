@@ -1,11 +1,25 @@
 import axios from 'axios';
 
+function getCookie(name) {
+  if (typeof document === 'undefined') return null;
+  const match = document.cookie.match(new RegExp('(^|;\\s*)(' + name + ')=([^;]*)'));
+  return match ? decodeURIComponent(match[3]) : null;
+}
+
 const api = axios.create({
   baseURL: '/api',
+  withCredentials: true, // P2: Habilitar envío automático de cookies HttpOnly y CSRF
 });
 
-// Interceptor para inyectar token JWT automáticamente
+// Interceptor para inyectar token CSRF y credenciales de autenticación
 api.interceptors.request.use((config) => {
+  // P2: Adjuntar token CSRF desde cookie en cabecera X-CSRF-Token para mutaciones
+  const csrfToken = getCookie('csrf_token');
+  if (csrfToken) {
+    config.headers['X-CSRF-Token'] = csrfToken;
+  }
+
+  // Fallback retrocompatible para Authorization si existiera token en almacenamiento
   const token = localStorage.getItem('theogen_token');
   if (token) {
     config.headers.Authorization = `Bearer ${token}`;
@@ -18,7 +32,7 @@ api.interceptors.response.use(
   (response) => response,
   (error) => {
     if (error.response && error.response.status === 401) {
-      // Si el token expira o es inválido en rutas protegidas
+      // Si la sesión expira o es inválida en rutas protegidas
       if (!window.location.pathname.startsWith('/votar') && window.location.pathname !== '/login') {
         localStorage.removeItem('theogen_token');
         localStorage.removeItem('theogen_user');
@@ -32,6 +46,15 @@ export const authService = {
   login: async (email, password) => {
     const res = await api.post('/auth/login', { email, password });
     return res.data;
+  },
+  logout: async () => {
+    try {
+      const res = await api.post('/auth/logout');
+      return res.data;
+    } catch {
+      // Proceder localmente si la red falla
+      return null;
+    }
   },
   getMe: async () => {
     const res = await api.get('/auth/me');

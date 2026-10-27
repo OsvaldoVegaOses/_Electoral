@@ -53,6 +53,11 @@ class Settings(BaseSettings):
     # CORS — CRIT-03 & P6: Configurable desde variable de entorno BACKEND_CORS_ORIGINS
     BACKEND_CORS_ORIGINS: list[str] = _parse_cors_origins(os.getenv("BACKEND_CORS_ORIGINS"))
 
+    # P2: Configuración de Cookies de Sesión y Protección CSRF
+    AUTH_COOKIE_NAME: str = "access_token"
+    CSRF_COOKIE_NAME: str = "csrf_token"
+    COOKIE_SAMESITE: str = "lax"
+
     class Config:
         case_sensitive = True
 

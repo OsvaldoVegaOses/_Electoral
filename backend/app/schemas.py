@@ -31,6 +31,7 @@ class UserCreate(BaseModel):
 class Token(BaseModel):
     access_token: str
     token_type: str
+    csrf_token: Optional[str] = None
     user: dict
 
 class UserResponse(BaseModel):
