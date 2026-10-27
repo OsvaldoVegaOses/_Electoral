@@ -56,6 +56,10 @@ const PublicVote = () => {
   useEffect(() => {
     if (initialToken) {
       handleValidateToken(initialToken);
+      // Sanitizar la barra de direcciones del navegador inmediatamente para no exponer el token en historial/URL
+      if (typeof window !== 'undefined' && window.history && window.history.replaceState) {
+        window.history.replaceState({}, document.title, window.location.pathname);
+      }
     }
   }, [initialToken]);
 

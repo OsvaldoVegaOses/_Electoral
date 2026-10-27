@@ -130,7 +130,7 @@ export const candidateService = {
 
 export const votingService = {
   validateToken: async (token) => {
-    const res = await api.post(`/voting/validate-token?token=${encodeURIComponent(token)}`);
+    const res = await api.post('/voting/validate-token', { token });
     return res.data;
   },
   submitVote: async (token, candidateId) => {
@@ -148,13 +148,31 @@ export const reportService = {
     const res = await api.get('/reports/dashboard-stats');
     return res.data;
   },
-  getActaAperturaPdfUrl: (electionId) => {
-    const token = localStorage.getItem('theogen_token');
-    return `/api/reports/election/${electionId}/acta-apertura/pdf${token ? `?token=${encodeURIComponent(token)}` : ''}`;
+  downloadActaAperturaPdf: async (electionId, fileName) => {
+    const res = await api.get(`/reports/election/${electionId}/acta-apertura/pdf`, {
+      responseType: 'blob',
+    });
+    const url = window.URL.createObjectURL(new Blob([res.data], { type: 'application/pdf' }));
+    const link = document.createElement('a');
+    link.href = url;
+    link.setAttribute('download', fileName || `Acta_Apertura_Eleccion_${electionId}.pdf`);
+    document.body.appendChild(link);
+    link.click();
+    link.remove();
+    window.URL.revokeObjectURL(url);
   },
-  getActaCierrePdfUrl: (electionId) => {
-    const token = localStorage.getItem('theogen_token');
-    return `/api/reports/election/${electionId}/acta-cierre/pdf${token ? `?token=${encodeURIComponent(token)}` : ''}`;
+  downloadActaCierrePdf: async (electionId, fileName) => {
+    const res = await api.get(`/reports/election/${electionId}/acta-cierre/pdf`, {
+      responseType: 'blob',
+    });
+    const url = window.URL.createObjectURL(new Blob([res.data], { type: 'application/pdf' }));
+    const link = document.createElement('a');
+    link.href = url;
+    link.setAttribute('download', fileName || `Acta_Cierre_Eleccion_${electionId}.pdf`);
+    document.body.appendChild(link);
+    link.click();
+    link.remove();
+    window.URL.revokeObjectURL(url);
   },
 };
 

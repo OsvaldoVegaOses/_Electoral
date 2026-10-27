@@ -43,7 +43,6 @@ import CheckCircleIcon from '@mui/icons-material/CheckCircle';
 import EmojiEventsIcon from '@mui/icons-material/EmojiEvents';
 import RefreshIcon from '@mui/icons-material/Refresh';
 import DeleteIcon from '@mui/icons-material/Delete';
-import OpenInNewIcon from '@mui/icons-material/OpenInNew';
 
 import {
   electionService,
@@ -99,21 +98,51 @@ const ElectionDetail = () => {
   const loadAllData = async () => {
     try {
       setLoading(true);
-      const [elData, vData, cData, scData] = await Promise.all([
+      const [elData, vData, cData] = await Promise.all([
         electionService.getById(id),
         voterService.getByElection(id),
         candidateService.getByElection(id),
-        reportService.getScrutiny(id),
       ]);
       setElection(elData);
       setVoters(vData);
       setCandidates(cData);
-      setScrutiny(scData);
+
+      // A2 - P0: Solo solicitar escrutinio si la elección está formalmente cerrada
+      if (elData.estado === 'Cerrada' || elData.estado === 'Finalizada') {
+        try {
+          const scData = await reportService.getScrutiny(id);
+          setScrutiny(scData);
+        } catch {
+          setScrutiny(null);
+        }
+      } else {
+        setScrutiny(null);
+      }
     } catch (err) {
       console.error(err);
       setActionError('Error al cargar información de la elección.');
     } finally {
       setLoading(false);
+    }
+  };
+
+  const handleDownloadActaApertura = async () => {
+    try {
+      const cleanName = election?.nombre ? election.nombre.replace(/[^a-zA-Z0-9_-]/g, '_') : id;
+      await reportService.downloadActaAperturaPdf(id, `Acta_Apertura_${cleanName}.pdf`);
+      setActionSuccess('Acta de apertura descargada exitosamente.');
+    } catch (err) {
+      setActionError(err.response?.data?.detail || 'Error al descargar acta de apertura.');
+    }
+  };
+
+  const handleDownloadActaCierre = async () => {
+    try {
+      const cleanName = election?.nombre ? election.nombre.replace(/[^a-zA-Z0-9_-]/g, '_') : id;
+      await reportService.downloadActaCierrePdf(id, `Acta_Cierre_${cleanName}.pdf`);
+      setActionSuccess('Acta de cierre descargada exitosamente.');
+    } catch (err) {
+      setActionError(err.response?.data?.detail || 'Error al descargar acta de cierre.');
     }
   };
 
@@ -243,7 +272,7 @@ const ElectionDetail = () => {
       v.nombre.toLowerCase().includes(voterSearch.toLowerCase()) ||
       v.rut.toLowerCase().includes(voterSearch.toLowerCase()) ||
       (v.curso && v.curso.toLowerCase().includes(voterSearch.toLowerCase())) ||
-      (v.token_votacion && v.token_votacion.toLowerCase().includes(voterSearch.toLowerCase()))
+      (v.familia_id && v.familia_id.toLowerCase().includes(voterSearch.toLowerCase()))
   );
 
   if (loading || !election) {
@@ -341,9 +370,7 @@ const ElectionDetail = () => {
 
               {/* Botón Descargar Acta de Apertura */}
               <Button
-                component="a"
-                href={reportService.getActaAperturaPdfUrl(election.id)}
-                target="_blank"
+                onClick={handleDownloadActaApertura}
                 variant="outlined"
                 startIcon={<PictureAsPdfIcon />}
                 sx={{ borderColor: '#cbd5e1', color: '#0d233a', fontWeight: 600 }}
@@ -351,18 +378,18 @@ const ElectionDetail = () => {
                 Acta Apertura (PDF)
               </Button>
 
-              {/* Botón Descargar Acta de Cierre */}
-              <Button
-                component="a"
-                href={reportService.getActaCierrePdfUrl(election.id)}
-                target="_blank"
-                variant="outlined"
-                color="secondary"
-                startIcon={<PictureAsPdfIcon />}
-                sx={{ fontWeight: 600 }}
-              >
-                Acta Cierre (PDF)
-              </Button>
+              {/* Botón Descargar Acta de Cierre (solo disponible tras el cierre) */}
+              {(election.estado === 'Cerrada' || election.estado === 'Finalizada') && (
+                <Button
+                  onClick={handleDownloadActaCierre}
+                  variant="outlined"
+                  color="secondary"
+                  startIcon={<PictureAsPdfIcon />}
+                  sx={{ fontWeight: 600 }}
+                >
+                  Acta Cierre (PDF)
+                </Button>
+              )}
             </Box>
           </Box>
 
@@ -618,11 +645,11 @@ const ElectionDetail = () => {
           </Box>
 
           <Alert severity="info" sx={{ mb: 3, borderRadius: 2 }}>
-            <strong>Para probar el voto en este demo:</strong> Puede copiar directamente cualquier token de la tabla siguiente e ingresar a la{' '}
+            <strong>Protección de Credenciales:</strong> Por estrictos principios de secreto electoral y confidencialidad, las credenciales de votación son privadas de cada elector y no se exponen en las vistas de administración. Los electores ingresan directamente a la{' '}
             <Link to="/votar" target="_blank" style={{ color: '#1e40af', fontWeight: 'bold', textDecoration: 'underline' }}>
               Sala de Votación (/votar)
-            </Link>
-            , o bien hacer clic en "Copiar Enlace Directo".
+            </Link>{' '}
+            con su credencial personal enviada por canal seguro.
           </Alert>
 
           <TableContainer component={Paper} sx={{ borderRadius: 2, border: '1px solid #e2e8f0' }}>
@@ -631,49 +658,31 @@ const ElectionDetail = () => {
                 <TableRow>
                   <TableCell sx={{ fontWeight: 700 }}>Elector</TableCell>
                   <TableCell sx={{ fontWeight: 700 }}>RUT</TableCell>
+                  <TableCell sx={{ fontWeight: 700 }}>Curso</TableCell>
                   <TableCell sx={{ fontWeight: 700 }}>Correo Destino</TableCell>
-                  <TableCell sx={{ fontWeight: 700 }}>Token UUID</TableCell>
+                  <TableCell sx={{ fontWeight: 700 }}>Familia ID</TableCell>
                   <TableCell sx={{ fontWeight: 700 }}>Estado</TableCell>
-                  <TableCell align="right" sx={{ fontWeight: 700 }}>Acceso Rápido</TableCell>
                 </TableRow>
               </TableHead>
               <TableBody>
-                {voters.map((v) => {
-                  const voteUrl = `${window.location.origin}/votar?token=${v.token_votacion}`;
-                  return (
-                    <TableRow key={v.id} hover>
-                      <TableCell sx={{ fontWeight: 600 }}>{v.nombre}</TableCell>
-                      <TableCell>{v.rut}</TableCell>
-                      <TableCell>{v.correo || 'sin_correo@demo.cl'}</TableCell>
-                      <TableCell>
-                        <code style={{ fontSize: '0.85rem', fontWeight: 600, color: '#0d233a' }}>
-                          {v.token_votacion}
-                        </code>
-                      </TableCell>
-                      <TableCell>
-                        <StatusBadge status={v.estado} />
-                      </TableCell>
-                      <TableCell align="right">
-                        <Tooltip title="Copiar Token">
-                          <IconButton size="small" onClick={() => copyToClipboard(v.token_votacion, 'Token copiado')} sx={{ mr: 1 }}>
-                            <ContentCopyIcon fontSize="small" />
-                          </IconButton>
-                        </Tooltip>
-                        <Button
-                          size="small"
-                          variant="outlined"
-                          component={Link}
-                          to={`/votar?token=${v.token_votacion}`}
-                          target="_blank"
-                          endIcon={<OpenInNewIcon fontSize="small" />}
-                          sx={{ textTransform: 'none', fontWeight: 600 }}
-                        >
-                          Votar con este Token
-                        </Button>
-                      </TableCell>
-                    </TableRow>
-                  );
-                })}
+                {filteredVoters.map((v) => (
+                  <TableRow key={v.id} hover>
+                    <TableCell sx={{ fontWeight: 600 }}>{v.nombre}</TableCell>
+                    <TableCell>{v.rut}</TableCell>
+                    <TableCell>{v.curso || '-'}</TableCell>
+                    <TableCell>{v.correo || 'sin_correo@demo.cl'}</TableCell>
+                    <TableCell>
+                      {v.familia_id ? (
+                        <Chip label={v.familia_id} size="small" variant="outlined" />
+                      ) : (
+                        '-'
+                      )}
+                    </TableCell>
+                    <TableCell>
+                      <StatusBadge status={v.estado} />
+                    </TableCell>
+                  </TableRow>
+                ))}
               </TableBody>
             </Table>
           </TableContainer>
@@ -683,31 +692,48 @@ const ElectionDetail = () => {
       {/* ========================================================================= */}
       {/* TAB 3: ESCRUTINIO Y RESULTADOS OFICIALES (Módulo 7 & 8)                    */}
       {/* ========================================================================= */}
-      {tabIndex === 3 && scrutiny && (
+      {tabIndex === 3 && (
         <Box>
-          <Box sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', mb: 3, flexWrap: 'wrap', gap: 2 }}>
+          {election.estado !== 'Cerrada' && election.estado !== 'Finalizada' ? (
+            <Card sx={{ p: 5, textAlign: 'center', borderRadius: 3, border: '1px solid #e2e8f0', backgroundColor: '#f8fafc' }}>
+              <LockIcon sx={{ fontSize: 56, color: '#64748b', mb: 2 }} />
+              <Typography variant="h5" sx={{ fontWeight: 700, color: '#0d233a', mb: 1 }}>
+                Escrutinio Protegido por Secreto Electoral
+              </Typography>
+              <Typography variant="body1" color="text.secondary" sx={{ maxWidth: 650, mx: 'auto', mb: 3 }}>
+                El escrutinio detallado, conteo de votos por candidatura y acta definitiva se encuentran
+                estrictamente protegidos mientras el proceso electoral permanezca en estado <strong>{election.estado}</strong>.
+                Estarán disponibles automáticamente una vez que la elección sea formalmente cerrada.
+              </Typography>
+              <Chip
+                label={`Estado del Proceso: ${election.estado}`}
+                color={election.estado === 'Abierta' ? 'success' : 'default'}
+                sx={{ fontWeight: 700, px: 2, py: 1 }}
+              />
+            </Card>
+          ) : scrutiny ? (
             <Box>
-              <Typography variant="h5" sx={{ fontWeight: 700, color: '#0d233a' }}>
-                Escrutinio Oficial y Resultados (Módulo 7)
-              </Typography>
-              <Typography variant="body2" color="text.secondary">
-                Cómputo en tiempo real de sufragios, cálculo de porcentajes y proclamación de la opción ganadora
-              </Typography>
-            </Box>
-            <Box sx={{ display: 'flex', gap: 1.5 }}>
-              <Button
-                component="a"
-                href={reportService.getActaCierrePdfUrl(election.id)}
-                target="_blank"
-                variant="contained"
-                color="primary"
-                startIcon={<PictureAsPdfIcon />}
-                sx={{ fontWeight: 700 }}
-              >
-                Descargar Acta de Cierre Oficial (PDF)
-              </Button>
-            </Box>
-          </Box>
+              <Box sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', mb: 3, flexWrap: 'wrap', gap: 2 }}>
+                <Box>
+                  <Typography variant="h5" sx={{ fontWeight: 700, color: '#0d233a' }}>
+                    Escrutinio Oficial y Resultados (Módulo 7)
+                  </Typography>
+                  <Typography variant="body2" color="text.secondary">
+                    Cómputo oficial de sufragios, cálculo de porcentajes y proclamación de resultados
+                  </Typography>
+                </Box>
+                <Box sx={{ display: 'flex', gap: 1.5 }}>
+                  <Button
+                    onClick={handleDownloadActaCierre}
+                    variant="contained"
+                    color="primary"
+                    startIcon={<PictureAsPdfIcon />}
+                    sx={{ fontWeight: 700 }}
+                  >
+                    Descargar Acta de Cierre Oficial (PDF)
+                  </Button>
+                </Box>
+              </Box>
 
           {/* Banner de Proclamación de Ganador */}
           {scrutiny.ganador ? (
@@ -873,7 +899,9 @@ const ElectionDetail = () => {
             </CardContent>
           </Card>
         </Box>
-      )}
+      ) : null}
+    </Box>
+  )}
 
       {/* ========================================================================= */}
       {/* TAB 4: COMISIÓN ELECTORAL                                                 */}
