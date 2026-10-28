@@ -1,0 +1,19 @@
+FROM glondu/beleniosbase@sha256:3d57d508592aa94124473052e0beefcb6c06408fcbb1ded99febd6e70c4e7b62
+ARG UPSTREAM_COMMIT=337887bd1862c7cd057080b530fd80941bfc3c69
+ARG SOURCE_DATE_EPOCH
+LABEL org.opencontainers.image.source="https://github.com/glondu/belenios" \
+      org.opencontainers.image.revision="$UPSTREAM_COMMIT" \
+      org.opencontainers.image.version="3.3.0" \
+      org.theogen.scope="synthetic-isolated-poc-only"
+ENV BELENIOS_BUILD=3.3.0 SOURCE_DATE_EPOCH=$SOURCE_DATE_EPOCH
+ADD --chown=belenios source.tar /home/belenios/belenios/
+COPY --chown=belenios MANIFEST GIT_LOG SOURCE_DATE_EPOCH /home/belenios/belenios/
+WORKDIR /home/belenios/belenios
+RUN . /home/belenios/.belenios/env.sh && make build-debug-server DUNE_DEBUG_ARGS="-j 2"
+COPY --chown=belenios assets/ /opt/poc/
+RUN chmod 755 /opt/poc/*.sh && mkdir -p /home/belenios/poc-data
+ENV BELENIOS_VARDIR=/home/belenios/poc-data \
+    BELENIOS_RUNDIR=/tmp/belenios-poc \
+    BELENIOS_CONFIG=/tmp/ocsigenserver-poc.conf.in \
+    BELENIOS_SENDMAIL=/opt/poc/sendmail-fake.sh
+ENTRYPOINT ["/opt/poc/entrypoint.sh"]
