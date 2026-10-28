@@ -81,7 +81,10 @@ def tool(directory, *args, stdin=None):
 def write_json(path, value):
     path.write_text(json.dumps(value, separators=(',', ':')) + '\n', encoding='utf-8')
 
-def setup(mode, port):
+def setup(mode, port, voters=None, title=None):
+    voters = [f'votante{i:02d}@ejemplo.test' for i in range(1, 11)] if voters is None else voters
+    if not voters or len(voters) != len(set(voters)):
+        raise ValueError('A non-empty unique synthetic voter list is required')
     api = API(port)
     login = api.call('POST', 'login/demo', {'username': 'poc-admin'})
     api.token = login['token']
@@ -89,7 +92,7 @@ def setup(mode, port):
     draft = {
         'version': 1, 'owners': [account['id']], 'booth': 2, 'group': 'Ed25519',
         'languages': ['en'], 'authentication': ['Configured', 'email'],
-        'questions': {'name': 'Eleccion ficticia ' + mode, 'description': 'Diez unidades sinteticas. Sin validez oficial.',
+        'questions': {'name': title or 'Eleccion ficticia ' + mode, 'description': f'{len(voters)} unidades sinteticas. Sin validez oficial.',
                       'administrator': 'Comision ficticia', 'credential_authority': 'Autoridad externa simulada',
                       'questions': [{'question': 'Elija una lista', 'answers': ['Lista A', 'Lista B'], 'min': 1, 'max': 1}]},
     }
@@ -98,7 +101,6 @@ def setup(mode, port):
     STATE['elections'][mode] = election
     save()
     path = f'elections/{uuid}'
-    voters = [f'votante{i:02d}@ejemplo.test' for i in range(1, 11)]
     api.call('PUT', path + '/draft/voters', voters, match=True)
     authority = PRIVATE / uuid / 'authority'
     authority.mkdir(parents=True, exist_ok=True)
@@ -106,7 +108,7 @@ def setup(mode, port):
     tool(authority, 'setup', 'generate-credentials', '--uuid', uuid, '--group', 'Ed25519', '--file', 'voters.txt')
     public = json.loads(next(authority.glob('*.pubcreds')).read_text())
     credentials = json.loads(next(authority.glob('*.privcreds')).read_text())
-    assert len(public) == len(credentials) == 10
+    assert len(public) == len(credentials) == len(voters)
     election['private_credentials_file'] = str(next(authority.glob('*.privcreds')))
     election['voters'] = voters
     cap_raw = api.call('GET', path + '/draft/credentials/token', raw=True).decode()
@@ -149,14 +151,14 @@ def setup(mode, port):
         (custody / (trustee['key_id'] + '.dkey')).write_text(json.loads(output)['private_key'] + '\n', encoding='ascii')
         api.call('POST', path + '/draft/trustee', output, token=trustee['token'])
     status = api.call('GET', path + '/draft/status')
-    assert status['num_voters'] == 10 and status['credentials_ready'] and status['trustees_ready']
+    assert status['num_voters'] == len(voters) and status['credentials_ready'] and status['trustees_ready']
     api.call('POST', path + '/draft', 'ValidateElection', match=True)
     assert api.call('GET', path)['state'] == 'Closed'
     api.call('POST', path, 'Open', match=True)
     assert api.call('GET', path)['state'] == 'Open'
     election['phase'] = 'open_no_ballots'
     save()
-    print(json.dumps({'mode': mode, 'uuid': uuid, 'phase': election['phase'], 'synthetic_voters': 10, 'external_threshold': '2/3'}), flush=True)
+    print(json.dumps({'mode': mode, 'uuid': uuid, 'phase': election['phase'], 'synthetic_voters': len(voters), 'external_threshold': '2/3'}), flush=True)
 
 def main():
     if STATE_PATH.exists():

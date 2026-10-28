@@ -1,0 +1,20 @@
+{
+  "checks": [
+    {
+      "check": "record_counts_and_unapproved_fields_match_verified_family_election",
+      "passed": true
+    },
+    {
+      "check": "unanchored_record_rejected",
+      "passed": true
+    },
+    {
+      "check": "person_count_cannot_replace_family_denominator",
+      "passed": true
+    },
+    {
+      "check": "duplicate_representative_across_units_rejected",
+      "passed": true
+    }
+  ]
+}

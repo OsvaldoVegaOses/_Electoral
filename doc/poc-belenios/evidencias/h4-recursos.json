@@ -1,0 +1,177 @@
+{
+  "measured_at_utc": "2026-10-28T19:19:14.861301+00:00",
+  "samples": [
+    {
+      "at_utc": "2026-10-28T19:19:01.284109+00:00",
+      "containers": [
+        {
+          "BlockIO": "6.93MB / 1.63MB",
+          "CPUPerc": "0.17%",
+          "Container": "theogen-belenios33-poc-revote-1",
+          "ID": "d3b5ec5f8813",
+          "MemPerc": "3.81%",
+          "MemUsage": "29.23MiB / 768MiB",
+          "Name": "theogen-belenios33-poc-revote-1",
+          "NetIO": "276kB / 28.9MB",
+          "PIDs": "9"
+        },
+        {
+          "BlockIO": "2.1MB / 4.4MB",
+          "CPUPerc": "0.14%",
+          "Container": "theogen-belenios33-poc-single-1",
+          "ID": "c66db6e43437",
+          "MemPerc": "3.78%",
+          "MemUsage": "29.04MiB / 768MiB",
+          "Name": "theogen-belenios33-poc-single-1",
+          "NetIO": "3.22MB / 385MB",
+          "PIDs": "9"
+        },
+        {
+          "BlockIO": "11.8MB / 39.8MB",
+          "CPUPerc": "0.00%",
+          "Container": "theogen-belenios33-poc-ingress-a-1",
+          "ID": "c8c836914d37",
+          "MemPerc": "87.93%",
+          "MemUsage": "112.5MiB / 128MiB",
+          "Name": "theogen-belenios33-poc-ingress-a-1",
+          "NetIO": "511MB / 490MB",
+          "PIDs": "11"
+        },
+        {
+          "BlockIO": "2.49MB / 23.6MB",
+          "CPUPerc": "0.00%",
+          "Container": "theogen-belenios33-poc-ingress-b-1",
+          "ID": "798a2e7bc8de",
+          "MemPerc": "86.10%",
+          "MemUsage": "110.2MiB / 128MiB",
+          "Name": "theogen-belenios33-poc-ingress-b-1",
+          "NetIO": "856MB / 851MB",
+          "PIDs": "11"
+        }
+      ]
+    },
+    {
+      "at_utc": "2026-10-28T19:19:04.677379+00:00",
+      "containers": [
+        {
+          "BlockIO": "6.93MB / 1.63MB",
+          "CPUPerc": "0.16%",
+          "Container": "theogen-belenios33-poc-revote-1",
+          "ID": "d3b5ec5f8813",
+          "MemPerc": "3.81%",
+          "MemUsage": "29.23MiB / 768MiB",
+          "Name": "theogen-belenios33-poc-revote-1",
+          "NetIO": "276kB / 28.9MB",
+          "PIDs": "9"
+        },
+        {
+          "BlockIO": "2.1MB / 4.4MB",
+          "CPUPerc": "0.19%",
+          "Container": "theogen-belenios33-poc-single-1",
+          "ID": "c66db6e43437",
+          "MemPerc": "3.78%",
+          "MemUsage": "29.04MiB / 768MiB",
+          "Name": "theogen-belenios33-poc-single-1",
+          "NetIO": "3.22MB / 385MB",
+          "PIDs": "9"
+        },
+        {
+          "BlockIO": "11.8MB / 39.8MB",
+          "CPUPerc": "0.00%",
+          "Container": "theogen-belenios33-poc-ingress-a-1",
+          "ID": "c8c836914d37",
+          "MemPerc": "87.93%",
+          "MemUsage": "112.5MiB / 128MiB",
+          "Name": "theogen-belenios33-poc-ingress-a-1",
+          "NetIO": "511MB / 490MB",
+          "PIDs": "11"
+        },
+        {
+          "BlockIO": "2.49MB / 23.6MB",
+          "CPUPerc": "0.00%",
+          "Container": "theogen-belenios33-poc-ingress-b-1",
+          "ID": "798a2e7bc8de",
+          "MemPerc": "86.10%",
+          "MemUsage": "110.2MiB / 128MiB",
+          "Name": "theogen-belenios33-poc-ingress-b-1",
+          "NetIO": "856MB / 851MB",
+          "PIDs": "11"
+        }
+      ]
+    },
+    {
+      "at_utc": "2026-10-28T19:19:08.316017+00:00",
+      "containers": [
+        {
+          "BlockIO": "6.93MB / 1.63MB",
+          "CPUPerc": "0.17%",
+          "Container": "theogen-belenios33-poc-revote-1",
+          "ID": "d3b5ec5f8813",
+          "MemPerc": "3.81%",
+          "MemUsage": "29.22MiB / 768MiB",
+          "Name": "theogen-belenios33-poc-revote-1",
+          "NetIO": "276kB / 28.9MB",
+          "PIDs": "9"
+        },
+        {
+          "BlockIO": "2.1MB / 4.4MB",
+          "CPUPerc": "0.21%",
+          "Container": "theogen-belenios33-poc-single-1",
+          "ID": "c66db6e43437",
+          "MemPerc": "3.78%",
+          "MemUsage": "29.03MiB / 768MiB",
+          "Name": "theogen-belenios33-poc-single-1",
+          "NetIO": "3.22MB / 385MB",
+          "PIDs": "9"
+        },
+        {
+          "BlockIO": "11.8MB / 39.8MB",
+          "CPUPerc": "0.00%",
+          "Container": "theogen-belenios33-poc-ingress-a-1",
+          "ID": "c8c836914d37",
+          "MemPerc": "87.93%",
+          "MemUsage": "112.5MiB / 128MiB",
+          "Name": "theogen-belenios33-poc-ingress-a-1",
+          "NetIO": "511MB / 490MB",
+          "PIDs": "11"
+        },
+        {
+          "BlockIO": "2.49MB / 23.6MB",
+          "CPUPerc": "0.00%",
+          "Container": "theogen-belenios33-poc-ingress-b-1",
+          "ID": "798a2e7bc8de",
+          "MemPerc": "86.10%",
+          "MemUsage": "110.2MiB / 128MiB",
+          "Name": "theogen-belenios33-poc-ingress-b-1",
+          "NetIO": "856MB / 851MB",
+          "PIDs": "11"
+        }
+      ]
+    }
+  ],
+  "volume_apparent_bytes_all_synthetic_elections": {
+    "revote": 1022652,
+    "single": 1162478
+  },
+  "shared_image_id": "sha256:479253acf9676c3781a2ff7b1593b73e1f86f1e58354cd478c515086de9ea61f",
+  "shared_image_size_bytes": 2323381000,
+  "internal_ballot_networks": {
+    "a": true,
+    "b": true
+  },
+  "limits_per_urn": {
+    "memory_bytes": 805306368,
+    "cpu": 2
+  },
+  "limits_per_ingress": {
+    "memory_bytes": 134217728
+  },
+  "scope": "Three idle/light laboratory snapshots, one shared image and current volumes; not a load benchmark or hosting quote",
+  "not_measured": [
+    "Human assistance/trustee work hours",
+    "Real email/SMS cost",
+    "Independent administrative domains",
+    "Production RPO/RTO and peak capacity",
+    "Host-wide DNS/SMTP capture"
+  ]
+}

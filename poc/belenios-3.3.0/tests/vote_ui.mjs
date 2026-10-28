@@ -7,13 +7,19 @@ import { execFileSync } from 'node:child_process';
 import crypto from 'node:crypto';
 
 const root = path.resolve(path.dirname(fileURLToPath(import.meta.url)), '..');
-const privateDir = path.join(root, '.runtime/private');
-const state = JSON.parse(fs.readFileSync(path.join(privateDir, 'h2-state.json'), 'utf8'));
+const family = process.argv.includes('--family');
+const privateDir = path.join(root, family ? '.runtime/private/h4' : '.runtime/private');
+const state = JSON.parse(fs.readFileSync(path.join(privateDir, family ? 'h4-state.json' : 'h2-state.json'), 'utf8'));
 const journalFile = path.join(privateDir, 'h2-ui-journal.json');
 const journal = fs.existsSync(journalFile) ? JSON.parse(fs.readFileSync(journalFile, 'utf8')) : {};
+if (family && fs.existsSync(path.resolve(root, '../../doc/poc-belenios/evidencias/h4-navegador.json'))) {
+  console.error('Completed H4 browser evidence already exists; do not overwrite it or repeat voting.');
+  process.exit(2);
+}
 const save = () => fs.writeFileSync(journalFile, JSON.stringify(journal, null, 2));
 let phase = 'launch';
 let browser;
+const requests = { allowed: 0, blocked: 0, observed_hosts: new Set(), cookies: [] };
 const sleep = ms => new Promise(resolve => setTimeout(resolve, ms));
 
 function latestOtp(mode) {
@@ -34,7 +40,9 @@ async function vote(mode, index, selection, suffix = 'initial') {
   const context = await browser.newContext({ locale: 'en-US', serviceWorkers: 'block' });
   await context.route('**/*', route => {
     const url = route.request().url();
-    if (url.startsWith(origin + '/') || url.startsWith('data:') || url.startsWith('blob:')) return route.continue();
+    if (url.startsWith('http')) requests.observed_hosts.add(new URL(url).hostname);
+    if (url.startsWith(origin + '/') || url.startsWith('data:') || url.startsWith('blob:')) { requests.allowed++; return route.continue(); }
+    requests.blocked++;
     return route.abort();
   });
   const page = await context.newPage();
@@ -95,6 +103,7 @@ async function vote(mode, index, selection, suffix = 'initial') {
     save();
     throw error;
   } finally {
+    if (family) requests.cookies.push(...(await context.cookies()).map(c => ({ domain: c.domain, httpOnly: c.httpOnly, secure: c.secure, sameSite: c.sameSite })));
     await context.close();
   }
 }
@@ -103,9 +112,18 @@ try {
   browser = await chromium.launch({ headless: true });
   if (process.argv.includes('--first')) await vote('revote', 0, 0);
   else {
-    for (const mode of ['revote', 'single']) {
-      for (let index = 0; index < 10; index++) await vote(mode, index, index < 6 ? 0 : 1);
+    for (const mode of family ? ['single'] : ['revote', 'single']) {
+      for (let index = 0; index < state.elections[mode].voters.length; index++) await vote(mode, index, index < (family ? 4 : 6) ? 0 : 1);
       await vote(mode, 0, 1, 'revote');
+    }
+    if (family) {
+      const initial = Object.entries(journal).filter(([id]) => id.endsWith('-initial'));
+      if (initial.length !== 8 || initial.some(([,v]) => v.phase !== 'confirmed' || v.result.kind !== 'Ok')) throw new Error('Family vote count mismatch');
+      const report = { initial_votes: initial.length, family_revote: journal['single-0-revote'].result,
+        request_allowlist: { allowed: requests.allowed, blocked: requests.blocked, observed_hosts: [...requests.observed_hosts] },
+        cookie_metadata_without_values: requests.cookies,
+        limitations: ['Browser allowlist only; not a host-wide DNS/SMTP packet capture', 'HTTP laboratory: Secure cookie/TLS production readiness is not claimed'] };
+      fs.writeFileSync(path.resolve(root, '../../doc/poc-belenios/evidencias/h4-navegador.json'), JSON.stringify(report, null, 2));
     }
   }
 } catch {

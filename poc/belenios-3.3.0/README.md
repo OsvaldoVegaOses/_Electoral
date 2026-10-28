@@ -69,3 +69,9 @@ python adapter/lab_adapter.py --base-url http://127.0.0.1:18001 --theogen-id poc
 Es una mutación deliberada de laboratorio. Una reserva persistida antes del envío bloquea otra creación incluso si se pierde la respuesta; cotejar mapping/estado y reconciliar manualmente antes de un nuevo envío. Las capacidades administrativas solo se mantienen en memoria; no se pasan por URL, argumentos o archivos de evidencia. Los tokens/custodias de los tests H2 permanecen en `.runtime/private`, ignorados por Git.
 
 El prototipo solo maneja una pregunta homomórfica de dos opciones, peso 1 y resultado final. No automatiza autoridades, OIDC, voto familiar, ni actas jurídicas. [Contrato H3 y evidencia](../../doc/poc-belenios/05-adaptador-experimental.md).
+
+## Ajuste familiar y acta técnica H4
+
+La [prueba H4](../../doc/poc-belenios/05-compatibilidad-theogen-chile.md) agrega un registro privado de representantes fuera de Belenios: diez apoderados ficticios, ocho unidades, ocho alias aleatorios y ocho credenciales. La nueva elección R2 terminó 4/4; el acta técnica vuelve a verificar el archivo y conserva como pendientes quórum, blanco/nulo no modelados, desempate, reglas jurídicas, firmas y auditor humano.
+
+El documento enlazado contiene la secuencia exacta y los resultados. No repetir `setup_h4.py`, el sufragio o el escrutinio sobre estados inciertos. El registro privado, correo y claves permanecen en `.runtime/` y volúmenes del PoC. No hay integración con las tablas ni rutas actuales de TheoGen.
