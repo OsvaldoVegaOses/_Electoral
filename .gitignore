@@ -3,6 +3,8 @@
 # =============================================================================
 
 # Entornos virtuales de Python
+.runtime/
+frontend/test-results/
 venv/
 .venv/
 env/

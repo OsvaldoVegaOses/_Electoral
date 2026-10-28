@@ -108,6 +108,16 @@ export const electionService = {
   },
 };
 
+export const beleniosService = {
+  status: async id => (await api.get(`/elections/${id}/belenios`)).data,
+  prepare: async (id, body) => (await api.post(`/elections/${id}/belenios/prepare`, body)).data,
+  transition: async (id, action) => (await api.post(`/elections/${id}/belenios/transition`, { action, request_id: crypto.randomUUID() })).data,
+  verify: async (id, body) => (await api.post(`/elections/${id}/belenios/verify`, body)).data,
+  units: async id => (await api.get(`/elections/${id}/belenios/units`)).data,
+  record: async id => (await api.get(`/elections/${id}/belenios/record`)).data,
+  reconcile: async (id, body) => (await api.post(`/elections/${id}/belenios/reconcile`, body)).data,
+};
+
 export const voterService = {
   getByElection: async (electionId, params = {}) => {
     const res = await api.get(`/elections/${electionId}/voters`, { params });

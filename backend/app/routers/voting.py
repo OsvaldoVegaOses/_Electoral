@@ -16,6 +16,7 @@ from app.auth import (
     get_client_ip, hash_voting_token
 )
 from app.config import settings
+from app.belenios.client import legacy_guard
 from app.rut_validator import clean_rut
 
 router = APIRouter(prefix="/voting", tags=["Sala de Votación Pública"])
@@ -78,6 +79,7 @@ def validate_voting_token(
         return TokenValidateResponse(valido=False, mensaje="Elección asociada no encontrada.")
 
     # 1. Validar estado de la elección
+    legacy_guard(db, election.id)
     if election.estado != "Abierta":
         return TokenValidateResponse(
             valido=False,
@@ -217,6 +219,8 @@ def submit_vote(
         Election.id == voter.election_id
     ).with_for_update().first()
 
+    if election:
+        legacy_guard(db, election.id)
     if not election or election.estado != "Abierta":
         record_failed_attempt(client_ip)
         raise HTTPException(

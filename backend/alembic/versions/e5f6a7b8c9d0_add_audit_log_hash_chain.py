@@ -31,7 +31,7 @@ def upgrade() -> None:
                     RETURN OLD;
                 END IF;
             END IF;
-            RAISE EXCEPTION 'Tabla audit_logs es append-only. Operacion %% denegada por politica de inmutabilidad.', TG_OP;
+            RAISE EXCEPTION 'Tabla audit_logs es append-only. Operacion % denegada por politica de inmutabilidad.', TG_OP;
         END;
         $$ LANGUAGE plpgsql;
 

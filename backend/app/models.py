@@ -180,3 +180,41 @@ class User(Base):
     school = relationship("School")
     election = relationship("Election")
 
+
+class BeleniosBinding(Base):
+    __tablename__ = "belenios_bindings"
+    id = Column(Integer, primary_key=True)
+    election_id = Column(Integer, ForeignKey("elections.id"), nullable=False, unique=True)
+    reference = Column(String(32), nullable=False, unique=True)
+    policy = Column(String(2), nullable=False)
+    remote_uuid = Column(String(14), nullable=True)
+    phase = Column(String(32), nullable=False, default="PREPARING")
+    inflight = Column(String(36), nullable=True)
+    draft_json = Column(Text, nullable=False)
+    approval_ref = Column(String(100), nullable=False)
+    total_people = Column(Integer, nullable=False)
+    total_units = Column(Integer, nullable=False)
+    verified_result = Column(Text, nullable=True)
+    created_at = Column(DateTime(timezone=True), default=_utcnow, nullable=False)
+    __table_args__ = (UniqueConstraint("policy", "remote_uuid", name="uq_belenios_remote"),)
+
+
+class BeleniosUnit(Base):
+    __tablename__ = "belenios_units"
+    id = Column(Integer, primary_key=True)
+    binding_id = Column(Integer, ForeignKey("belenios_bindings.id"), nullable=False, index=True)
+    representative_id = Column(Integer, ForeignKey("voters.id"), nullable=False)
+    alias = Column(String(80), nullable=False)
+    __table_args__ = (UniqueConstraint("binding_id", "representative_id", name="uq_belenios_representative"),
+                      UniqueConstraint("binding_id", "alias", name="uq_belenios_alias"))
+
+
+class BeleniosOperation(Base):
+    __tablename__ = "belenios_operations"
+    id = Column(String(36), primary_key=True)
+    binding_id = Column(Integer, ForeignKey("belenios_bindings.id"), nullable=False, index=True)
+    operator_id = Column(Integer, ForeignKey("users.id"), nullable=False)
+    kind = Column(String(32), nullable=False)
+    phase = Column(String(32), nullable=False)
+    created_at = Column(DateTime(timezone=True), default=_utcnow, nullable=False)
+

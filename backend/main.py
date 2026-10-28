@@ -23,6 +23,7 @@ from app.routers.voting import router as voting_router
 from app.routers.reports import router as reports_router
 from app.routers.audit import router as audit_router
 from app.routers.pii import router as pii_router
+from app.routers.belenios import router as belenios_router
 
 logger = logging.getLogger("theogen.main")
 
@@ -144,6 +145,7 @@ app.include_router(voting_router, prefix=settings.API_V1_STR)
 app.include_router(reports_router, prefix=settings.API_V1_STR)
 app.include_router(audit_router, prefix=settings.API_V1_STR)
 app.include_router(pii_router, prefix=settings.API_V1_STR)
+app.include_router(belenios_router, prefix=settings.API_V1_STR)
 
 @app.get("/", tags=["General"])
 def root():

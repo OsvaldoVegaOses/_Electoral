@@ -60,6 +60,17 @@ jobs:
           cd backend
           pytest tests -v
 
+      - name: ADR-001 PostgreSQL concurrency and provider isolation
+        env:
+          DATABASE_URL: postgresql+psycopg2://postgres:postgres@127.0.0.1:5432/theogen_test
+          ADR001_TEST_PG_URL: postgresql+psycopg2://postgres:postgres@127.0.0.1:5432/theogen_test
+          ENVIRONMENT: test
+          SECRET_KEY: test_ci_secret_key_very_secure_and_long_32bytes
+          VOTE_HMAC_KEY: test_ci_vote_hmac_key_secure_32bytes
+        run: |
+          cd backend
+          pytest tests/test_belenios_postgres.py -v
+
   frontend-build:
     name: Frontend Lint & Build
     runs-on: ubuntu-latest
@@ -78,7 +89,7 @@ jobs:
       - name: Install Frontend Dependencies
         run: |
           cd frontend
-          npm install
+          npm ci
 
       - name: Frontend Linter Check
         run: |
@@ -89,6 +100,12 @@ jobs:
         run: |
           cd frontend
           npm run build
+
+      - name: ADR-001 browser contracts (synthetic API doubles only)
+        run: |
+          cd frontend
+          npx playwright install --with-deps chromium
+          npx playwright test --config playwright.belenios.config.js
 
   security-audit:
     name: Security Scan (pip-audit & Gitleaks)

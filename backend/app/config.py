@@ -2,6 +2,7 @@ import os
 import secrets
 import logging
 from pydantic_settings import BaseSettings
+from pydantic import SecretStr
 
 logger = logging.getLogger("theogen.config")
 
@@ -38,6 +39,13 @@ class Settings(BaseSettings):
     VERSION: str = "1.0.0"
     API_V1_STR: str = "/api"
     ENVIRONMENT: str = os.getenv("ENVIRONMENT", "development")
+    # ADR-001: explicit laboratory mode; no production activation through this switch.
+    BELENIOS_MODE: str = "off"
+    BELENIOS_R1_URL: str = "http://127.0.0.1:18001"
+    BELENIOS_R2_URL: str = "http://127.0.0.1:18002"
+    BELENIOS_R1_ADMIN_TOKEN: SecretStr = SecretStr("")
+    BELENIOS_R2_ADMIN_TOKEN: SecretStr = SecretStr("")
+    BELENIOS_VERIFIER_IMAGE: str = ""
 
     # Base de datos: Usa PostgreSQL si está configurado en env, o SQLite por defecto para desarrollo local
     DATABASE_URL: str = os.getenv("DATABASE_URL", "sqlite:///./theogen_electoral.db")

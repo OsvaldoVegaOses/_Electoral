@@ -1,5 +1,7 @@
 import re
 from fastapi import APIRouter, Depends, HTTPException, status
+from app.belenios.client import legacy_guard
+from app.models import BeleniosBinding
 from fastapi.responses import StreamingResponse
 from sqlalchemy.orm import Session
 from sqlalchemy import func, or_
@@ -34,6 +36,7 @@ def get_election_scrutiny(
         raise HTTPException(status_code=404, detail="Elección no encontrada")
 
     check_election_access(current_user, election, write=False)
+    legacy_guard(db, election.id)
 
     # A2: Bloquear escrutinio en elecciones abiertas o borradores
     if election.estado not in ["Cerrada", "Finalizada"]:
@@ -149,6 +152,7 @@ def download_acta_apertura_pdf(
         raise HTTPException(status_code=404, detail="Elección no encontrada")
 
     check_election_access(current_user, election, write=False)
+    legacy_guard(db, election.id)
 
     school = election.school or School(nombre="Institución Educativa", rbd="S/N", comuna="Santiago")
     committee = election.committee_members or []
@@ -189,6 +193,7 @@ def download_acta_cierre_pdf(
         raise HTTPException(status_code=404, detail="Elección no encontrada")
 
     check_election_access(current_user, election, write=False)
+    legacy_guard(db, election.id)
 
     if election.estado not in ["Cerrada", "Finalizada"]:
         raise HTTPException(
@@ -257,6 +262,9 @@ def get_dashboard_stats(
         voters_query = db.query(Voter).filter(False)
         votes_query = db.query(Vote).filter(False)
 
+    scoped_ids = elections_query.with_entities(Election.id)
+    if db.query(BeleniosBinding.id).filter(BeleniosBinding.election_id.in_(scoped_ids)).first():
+        raise HTTPException(409, "El resumen combina motores. Consulte los resultados verificados por elección Belenios; no se muestran ceros del motor MVP.")
     total_elecciones = elections_query.count()
     elecciones_activas = elections_query.filter(Election.estado == "Abierta").count()
     total_padron = voters_query.count()

@@ -1,12 +1,12 @@
 # ADR-001 — Selección del motor de votación para TheoGen Electoral
 
-- **Estado:** PROPUESTO — pendiente de aprobación expresa del responsable del proyecto.
+- **Estado:** ACEPTADO PARA IMPLEMENTACIÓN CONTROLADA de alternativa A; activación institucional/productiva pendiente.
 - **Fecha:** 2026-10-27.
 - **Ámbito:** TheoGen Electoral, centros de padres y apoderados y otras organizaciones.
 - **Repositorio:** https://github.com/OsvaldoVegaOses/_Electoral
 - **Base del diagnóstico:** rama `main`, commit `0b654e5883145d629f331807693a1db7c9b67134`.
 - **Decisores:** titular del proyecto, asesoría jurídica electoral y revisión externa de seguridad (por designar).
-- **Consecuencia de aprobación de este ADR:** autoriza, como máximo, una prueba de concepto aislada si se aprueba específicamente su alcance; **no** autoriza desarrollar, integrar o desplegar un motor productivo.
+- **Autorización de implementación:** el titular indicó «Implementa el ADR» el 2026-10-28, después de aprobar G1 y revisar H0–H4. Se implementa la gestión con Belenios 3.3.0 en una rama aislada, modo de laboratorio deshabilitado por defecto. No se autoriza despliegue productivo, datos reales, migración de votos históricos ni elección vinculante.
 - **ADR relacionado:** pendiente de crear ADR de reglas electorales y política de revoto.
 
 ## 1. Contexto y problema
@@ -30,9 +30,9 @@ El objetivo no es añadir un simple cifrado a los registros actuales, sino demos
 9. Autohospedaje, exportación de evidencia, minimización de datos, derecho de acceso/corrección y retención definida; sin uso comercial de padrones.
 10. Pruebas repetibles de autenticación, concurrencia, revoto, recuperación, fraude, fallas y escrutinio, más validación externa.
 
-## 2. Decisión propuesta (NO aprobada)
+## 2. Decisión técnica autorizada
 
-**Preferir condicionalmente A: Belenios 3.3.0 autohospedado** como candidato para una prueba de concepto, manteniendo TheoGen Electoral para gestión institucional, convocatoria, padrón, gobierno electoral, actas chilenas y expediente. La propuesta requiere demostrar integración real, segregación de autoridades, compatibilidad de reglas familiares y política de revoto, viabilidad de licencia AGPL y verificación externa. Si cualquiera de los requisitos bloqueantes falla, reevaluar un componente alternativo auditado antes de considerar B.
+**Implementar A: Belenios 3.3.0 autohospedado**, manteniendo TheoGen Electoral para gestión institucional, convocatoria, padrón, gobierno electoral y expediente. El commit fijado es `337887bd1862c7cd057080b530fd80941bfc3c69`. La implementación controlada y sus pruebas se describen en [implementación ADR-001](../motor/implementacion_adr001.md). Segregación administrativa real, entrega de credenciales, reglas institucionales, AGPL, auditoría y activación productiva conservan gates independientes. Si falla un requisito bloqueante, no se habilita el uso real ni se construye B como atajo.
 
 **No implementar B como atajo.** Un motor propio solo pasa a una fase de diseño si un equipo especializado entrega especificación formal, pruebas de seguridad, auditoría independiente, plan económico y autorización expresa. No inventar criptografía ni diseñar protocolos por intuición.
 
@@ -122,7 +122,7 @@ OAuth 2.0 delega autorización; **OpenID Connect (OIDC)** agrega autenticación 
 
 **Hecho confirmado:** la documentación pública de Belenios indica revoto permitido durante la elección y cómputo exclusivo del **último** sufragio válido; puede mitigar ciertas coacciones leves, pero no coerción fuerte. El *smart ballot tracker* anterior deja de representar el voto activo. [B5, B6].
 
-**Verificado en código, pendiente de prueba funcional:** la configuración de servidor admite `<deny-revote/>` en la versión 3.3.0; efecto y granularidad verificados en código, pendientes de validación funcional. `demo/ocsigenserver.conf.in` ofrece la directiva, `web_main.ml` activa `Web_config.deny_revote` y `web_persist.ml` devuelve `RevoteNotAllowed` ante una boleta previa. Es una variable global del proceso, no un switch por elección. El [informe H0](../poc-belenios/01-factibilidad-y-contrato.md) fija el commit `337887bd1862c7cd057080b530fd80941bfc3c69`, identifica el flujo de confirmación y propone dos instancias para probar UI y envío por API. Esta corrección documental no aprueba G1 ni selecciona R1/R2.
+**Verificado funcionalmente en laboratorio:** H2 comprobó revoto permitido y `<deny-revote/>` por UI/API; H4 añadió una unidad familiar y la integración ejecutó otra elección completa desde TheoGen hasta resultado verificado. La directiva sigue siendo global al proceso, no por elección. El [informe H0](../poc-belenios/01-factibilidad-y-contrato.md) fija el commit y el flujo; [H2](../poc-belenios/04-resultados-verificacion.md) y [H4](../poc-belenios/05-compatibilidad-theogen-chile.md) conservan pruebas y límites. La selección jurídica de R1/R2 por institución permanece pendiente.
 
 | Política | Descripción | Consecuencias |
 |---|---|---|
@@ -325,11 +325,11 @@ Criterios ponderados propuestos (no puntuación definitiva): secreto y verificab
 | Protocolo y verificabilidad conocidos | Documentado y probado en proyecto externo; configurar y verificar | Por especificar, demostrar y auditar |
 | Interfaz de integración | API documentada; contrato y comportamiento deben ensayarse | Control completo de interfaz, pero desarrollo mayor |
 | Voto familiar | Requiere modelado de unidad/representante | Puede diseñarse; no implica seguridad automática |
-| Política de revoto R2 irreversible | Configuración global `<deny-revote/>` verificada en código 3.3.0; comportamiento funcional y elección jurídica de política pendientes | Posible solo con protocolo formal y revisión |
+| Política de revoto R2 | Rechazo backend/UI/API probado en instancia 3.3.0; no supone protección contra root o rollback, y falta aprobación institucional | Posible solo con protocolo formal y revisión |
 | Independencia de credenciales/trustees | Soportada, necesita operadores independientes | Debe diseñarse y auditarse |
 | Licenciamiento | AGPL y dependencias, revisión necesaria | Control IP propio; dependencias y auditoría necesarias |
 | Plazo/costo relativo | Opción preferida para exploración | Alto y de riesgo elevado |
-| Decisión | **PoC condicionada** | **No iniciar construcción** |
+| Decisión | **Implementación controlada autorizada; producción bloqueada** | **No iniciar construcción** |
 
 ### Gate G0 — Revisión documental (aprobable sin tocar el motor)
 Confirmar tag/commit de 3.3.0, semántica de API, OpenID Connect/OTP soportado, retención, AGPL, controles familiares, revoto, formato de pruebas y requerimientos chilenos. Entrega: informe de factibilidad y matriz “demostrado/no demostrado/bloqueante”.
@@ -339,6 +339,8 @@ Aprobar alcance, responsables, entorno sin datos reales, configuración de autor
 
 ### Gate G2 — Decisión de motor y política de revoto (requiere aprobación explícita)
 Elegir A, otra plataforma auditada o iniciativa de diseño B; aprobar R1/R2/R3, unidad electoral y responsabilidades. Si no hay soporte fiable de requisitos bloqueantes, **NO-GO**.
+
+Registro 2026-10-28: el titular autorizó implementar A mediante «Implementa el ADR». Se exige R1/R2 explícito por elección de laboratorio, sin default. Esto no acredita aprobación jurídica, representantes reales ni custodios independientes: G2 institucional sigue parcial; G3/G4 no se activan.
 
 ### Gate G3 — Piloto no vinculante
 Solo después de correcciones del backend TheoGen (RBAC/multiinstitución, credenciales, auditoría, congelamiento, concurrencia, CORS/logs, migraciones), revisión externa, control de privacidad y operación de comisión. No declarar aptitud para elecciones oficiales.
@@ -366,9 +368,9 @@ Dictamen jurídico por institución/tipo de elección, reglas y actas aprobadas,
 
 ## 12. Criterio de aprobación formal
 
-Esta es una **propuesta de decisión arquitectónica**, no un ADR aceptado. Para aprobarla se exige registrar: responsable que decide, fecha, alternativa seleccionada, versión/hash de Belenios o protocolo externo revisado, política R1/R2/R3, modelo de unidad familiar, evaluaciones jurídica/criptográfica, alcance del siguiente gate y aceptación de riesgos residuales.
+La decisión técnica A está autorizada para implementación controlada por el titular de esta sesión, el 2026-10-28. Para activar una institución se deben registrar además política R1/R2, unidad electoral jurídica, responsables y custodios, evaluaciones jurídica/criptográfica, alcance del piloto y aceptación de riesgos. La autorización de implementación no sustituye esas evidencias ni declara aprobado G3/G4.
 
-**Instrucción inequívoca para agentes IA y desarrolladores:** pueden investigar, documentar, crear pruebas en un entorno aislado **solo si G1 ha sido aprobado**, y corregir la aplicación de gestión mediante mandatos separados. No integrar ni escribir el motor electoral, no desplegar y no migrar votos reales hasta la aprobación expresa del gate correspondiente. La publicación o fusión de este ADR **no es** autorización implícita para implementar el motor.
+**Instrucción para agentes IA y desarrolladores:** G1 y la implementación controlada de A están autorizados por el titular. Conservar las fronteras de identidad/boleta, el bloqueo productivo y los gates restantes. No construir criptografía propia, desplegar, usar cuentas/padrones reales ni migrar votos históricos sin autorización del gate correspondiente. La publicación o fusión del ADR no activa elecciones.
 
 ## 13. Fuentes y evidencias (consultadas 2026-10-27)
 
@@ -395,4 +397,4 @@ Esta es una **propuesta de decisión arquitectónica**, no un ADR aceptado. Para
 - [CL3] Decreto 565/1990 Centros de Padres: https://www.bcn.cl/leychile/Navegar?idNorma=14275
 
 ---
-**Estado final del ADR:** PROPUESTO. **No hay autorización para implementar el motor.**
+**Estado:** implementación controlada de A autorizada. **Producción, piloto institucional y elección vinculante siguen bloqueados por sus gates.**

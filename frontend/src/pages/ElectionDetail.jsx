@@ -49,8 +49,10 @@ import {
   voterService,
   candidateService,
   reportService,
+  beleniosService,
 } from '../services/api';
 import StatusBadge from '../components/StatusBadge';
+import BeleniosPanel from '../components/BeleniosPanel';
 
 const ElectionDetail = () => {
   const { id } = useParams();
@@ -64,6 +66,7 @@ const ElectionDetail = () => {
   });
 
   const [election, setElection] = useState(null);
+  const [engine, setEngine] = useState(null);
   const [voters, setVoters] = useState([]);
   const [candidates, setCandidates] = useState([]);
   const [scrutiny, setScrutiny] = useState(null);
@@ -98,17 +101,19 @@ const ElectionDetail = () => {
   const loadAllData = async () => {
     try {
       setLoading(true);
-      const [elData, vData, cData] = await Promise.all([
+      const [elData, vData, cData, engineData] = await Promise.all([
         electionService.getById(id),
         voterService.getByElection(id),
         candidateService.getByElection(id),
+        beleniosService.status(id),
       ]);
       setElection(elData);
       setVoters(vData);
       setCandidates(cData);
+      setEngine(engineData);
 
       // A2 - P0: Solo solicitar escrutinio si la elección está formalmente cerrada
-      if (elData.estado === 'Cerrada' || elData.estado === 'Finalizada') {
+      if (!engineData.binding && (elData.estado === 'Cerrada' || elData.estado === 'Finalizada')) {
         try {
           const scData = await reportService.getScrutiny(id);
           setScrutiny(scData);
@@ -134,6 +139,12 @@ const ElectionDetail = () => {
     } catch (err) {
       setActionError(err.response?.data?.detail || 'Error al descargar acta de apertura.');
     }
+  };
+
+  const refreshEngine = async () => {
+    const [engineData, electionData] = await Promise.all([beleniosService.status(id), electionService.getById(id)]);
+    setEngine(engineData);
+    setElection(electionData);
   };
 
   const handleDownloadActaCierre = async () => {
@@ -283,8 +294,15 @@ const ElectionDetail = () => {
     );
   }
 
+  if (engine?.binding) return <Container maxWidth="xl" sx={{ py: 4 }}>
+    <Button component={Link} to="/elecciones" startIcon={<ArrowBackIcon />}>Volver al listado</Button>
+    <Typography variant="h4" component="h1">{election.nombre}</Typography>
+    <BeleniosPanel election={election} voters={voters} engine={engine} onRefresh={refreshEngine} />
+  </Container>;
+
   return (
     <Container maxWidth="xl" sx={{ py: 4 }}>
+      <BeleniosPanel election={election} voters={voters} engine={engine} onRefresh={refreshEngine} />
       {/* Breadcrumb y Volver */}
       <Box sx={{ mb: 3 }}>
         <Button component={Link} to="/elecciones" startIcon={<ArrowBackIcon />} sx={{ color: 'text.secondary', mb: 1 }}>

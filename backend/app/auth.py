@@ -172,7 +172,7 @@ def check_school_access(user: User, school_id: int, write: bool = False):
     )
 
 
-def check_election_access(user: User, election, write: bool = False):
+def _check_election_scope(user: User, election, write: bool = False):
     """
     IDOR-02 / RBAC / S2-A: Control de acceso a nivel de proceso electoral.
     - Superadmin: acceso total a todas las elecciones.
@@ -205,6 +205,19 @@ def check_election_access(user: User, election, write: bool = False):
         status_code=status.HTTP_403_FORBIDDEN,
         detail="Acceso denegado: permisos insuficientes para la elección."
     )
+
+
+def check_election_access(user: User, election, write: bool = False, allow_belenios: bool = False):
+    _check_election_scope(user, election, write=write)
+    if write:
+        from sqlalchemy.orm import object_session
+        from app.belenios.client import legacy_guard
+        from app.models import Election
+        session = object_session(election)
+        if session is not None:
+            session.query(Election).filter_by(id=election.id).populate_existing().with_for_update().one()
+            if not allow_belenios:
+                legacy_guard(session, election.id)
 
 
 def validate_user_scope_assignment(
