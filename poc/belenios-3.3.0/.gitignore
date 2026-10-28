@@ -1,0 +1,9 @@
+.runtime/
+__pycache__/
+*.pyc
+.env
+*.bel
+*.privcreds
+*.private
+*.key
+mail.txt

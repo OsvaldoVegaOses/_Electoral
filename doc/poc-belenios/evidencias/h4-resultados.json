@@ -1,0 +1,73 @@
+{
+  "milestone": "H4",
+  "recorded_at_utc": "2026-10-28T19:18:48.289316+00:00",
+  "family_summary": {
+    "synthetic_people": 10,
+    "enabled_family_units": 8,
+    "families_with_two_representatives": 2,
+    "public_roster_sha256": "996794b198285bb04a76e456a36af6a159c78b99a7329a11466d5cca04cf1684"
+  },
+  "family_checks": [
+    {
+      "check": "unresolved_representatives_block_freeze",
+      "passed": true
+    },
+    {
+      "check": "alternate_representative_has_no_second_identity",
+      "passed": true
+    },
+    {
+      "check": "alternate_representative_has_no_second_identity",
+      "passed": true
+    },
+    {
+      "check": "late_representative_change_blocked",
+      "passed": true
+    },
+    {
+      "check": "exactly_eight_credentials_and_api_voters_for_ten_people",
+      "passed": true
+    }
+  ],
+  "elections": {
+    "single": {
+      "uuid": "CvnVFmybmHMb19",
+      "state": "Tallied",
+      "enabled_synthetic_units": 8,
+      "active_ballots": 8,
+      "result": [
+        4,
+        4
+      ],
+      "expected": [
+        4,
+        4
+      ],
+      "final_event": {
+        "height": 14,
+        "hash": "8e2f146015b658142ca01a9efa3ad286c43fd564e8e607dff6b8b9d2eeef4f46",
+        "pos": 56832
+      },
+      "result_object_hash": "69419711996edceacbea30ee52dea1e0494a7881cd47ca91019b4dcd4856a41e",
+      "public_archive_sha256": "a232536b85c901bf5bd681a100720683746746f74aa025bb5691f3bad02bd337",
+      "public_archive_bytes": 56832,
+      "public_archive_repository_path": "doc/poc-belenios/evidencias/h4-publico/CvnVFmybmHMb19.bel",
+      "verification": {
+        "exit_code": 0,
+        "stdout": "",
+        "stderr": "I: using directory /audit\nI: fingerprint of encrypted tally is zopSTnx6cS+dqbwOTtLj9J73hrZXsW5oty6G/zsc1JA\nI: no shuffles to check\nI: all checks passed\n"
+      },
+      "verifier_image_id": "sha256:479253acf9676c3781a2ff7b1593b73e1f86f1e58354cd478c515086de9ea61f",
+      "external_threshold": "2/3",
+      "mandatory_server_key": true
+    }
+  },
+  "setup_elapsed_seconds": 13.969,
+  "tally_and_verification_elapsed_seconds": 9.422,
+  "limitations": [
+    "Synthetic representation decisions only; no legal family rule approved",
+    "Same host/operator; no independent human audit",
+    "Pseudonymous laboratory mailboxes; actual delivery to representatives is not implemented",
+    "No production TheoGen integration"
+  ]
+}

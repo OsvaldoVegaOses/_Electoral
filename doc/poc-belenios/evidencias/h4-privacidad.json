@@ -1,0 +1,99 @@
+{
+  "checks": [
+    {
+      "check": "revote_live_sender_is_private_file_sink",
+      "passed": true,
+      "sender_sha256": "119553897ecaa740777f2dc43cdf1450787ebb90e4efb3a0d504cc042a6c5441"
+    },
+    {
+      "check": "revote_mail_private_and_not_public",
+      "passed": true,
+      "file_mode": "600",
+      "public_mail_http": 400
+    },
+    {
+      "check": "single_live_sender_is_private_file_sink",
+      "passed": true,
+      "sender_sha256": "119553897ecaa740777f2dc43cdf1450787ebb90e4efb3a0d504cc042a6c5441"
+    },
+    {
+      "check": "single_mail_private_and_not_public",
+      "passed": true,
+      "file_mode": "600",
+      "public_mail_http": 400
+    },
+    {
+      "check": "observed_family_browser_requests_stayed_on_loopback",
+      "passed": true,
+      "requests": 423
+    }
+  ],
+  "bounded_log_metadata_only": [
+    {
+      "service": "revote",
+      "log_file": "access.log",
+      "total_bytes": 577115,
+      "sample_bytes": 577115,
+      "synthetic_address_marker_present": true,
+      "auth_state_query_markers": 0,
+      "token_query_markers": 0,
+      "raw_log_published": false
+    },
+    {
+      "service": "revote",
+      "log_file": "warnings.log",
+      "total_bytes": 304013,
+      "sample_bytes": 304013,
+      "synthetic_address_marker_present": false,
+      "auth_state_query_markers": 0,
+      "token_query_markers": 0,
+      "raw_log_published": false
+    },
+    {
+      "service": "revote",
+      "log_file": "errors.log",
+      "total_bytes": 0,
+      "sample_bytes": 0,
+      "synthetic_address_marker_present": false,
+      "auth_state_query_markers": 0,
+      "token_query_markers": 0,
+      "raw_log_published": false
+    },
+    {
+      "service": "single",
+      "log_file": "access.log",
+      "total_bytes": 692566,
+      "sample_bytes": 692566,
+      "synthetic_address_marker_present": true,
+      "auth_state_query_markers": 0,
+      "token_query_markers": 0,
+      "raw_log_published": false
+    },
+    {
+      "service": "single",
+      "log_file": "warnings.log",
+      "total_bytes": 302018,
+      "sample_bytes": 302018,
+      "synthetic_address_marker_present": false,
+      "auth_state_query_markers": 0,
+      "token_query_markers": 0,
+      "raw_log_published": false
+    },
+    {
+      "service": "single",
+      "log_file": "errors.log",
+      "total_bytes": 0,
+      "sample_bytes": 0,
+      "synthetic_address_marker_present": false,
+      "auth_state_query_markers": 0,
+      "token_query_markers": 0,
+      "raw_log_published": false
+    }
+  ],
+  "limitations": [
+    "No packet-level or host-wide DNS/SMTP capture",
+    "Cookies observed only at end of browser contexts; not an authentication-cookie audit",
+    "Access logs can correlate IP/time/authentication state even without a plaintext address; retention and independent custody remain unresolved",
+    "Fake mail contains sensitive laboratory OTPs and remains private; delivery to real representatives was not implemented"
+  ]
+}

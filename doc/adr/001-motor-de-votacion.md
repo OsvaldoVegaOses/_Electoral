@@ -122,12 +122,12 @@ OAuth 2.0 delega autorización; **OpenID Connect (OIDC)** agrega autenticación 
 
 **Hecho confirmado:** la documentación pública de Belenios indica revoto permitido durante la elección y cómputo exclusivo del **último** sufragio válido; puede mitigar ciertas coacciones leves, pero no coerción fuerte. El *smart ballot tracker* anterior deja de representar el voto activo. [B5, B6].
 
-**No confirmado:** existencia, en **Belenios 3.3.0 autohospedado**, de una opción administrativa soportada para impedir revoto (un voto irreversible) o de variantes de revoto configurables. No afirmar tal capacidad sin evidencia de código/configuración/prueba.
+**Verificado en código, pendiente de prueba funcional:** la configuración de servidor admite `<deny-revote/>` en la versión 3.3.0; efecto y granularidad verificados en código, pendientes de validación funcional. `demo/ocsigenserver.conf.in` ofrece la directiva, `web_main.ml` activa `Web_config.deny_revote` y `web_persist.ml` devuelve `RevoteNotAllowed` ante una boleta previa. Es una variable global del proceso, no un switch por elección. El [informe H0](../poc-belenios/01-factibilidad-y-contrato.md) fija el commit `337887bd1862c7cd057080b530fd80941bfc3c69`, identifica el flujo de confirmación y propone dos instancias para probar UI y envío por API. Esta corrección documental no aprueba G1 ni selecciona R1/R2.
 
 | Política | Descripción | Consecuencias |
 |---|---|---|
 | R1 — último voto válido | Puede reemplazar boleta hasta cierre; solo la última se cuenta | Coincide con comportamiento Belenios documentado; observar auditoría de reemplazos y coerción |
-| R2 — primer voto irrevocable | Segundo sufragio rechazado | Coincide con MVP actual; podría requerir otro motor o cambios protocolarios **auditados** |
+| R2 — primer voto irrevocable | Segundo sufragio rechazado | `<deny-revote/>` global existe en 3.3.0; probar rechazo backend/UI/API y límites de recuperación antes de afirmar cumplimiento |
 | R3 — revoto excepcional supervisado | Cambio solo con acta de incidencia y reglas estrictas | No asumir compatibilidad criptográfica; riesgo de control indebido de sufragio |
 
 **Recomendación provisional:** R1 si normativa y estatutos lo permiten y hay protocolo claro de revoto; la comisión y responsable jurídico deben aprobar explícitamente R1/R2/R3. **Prohibido simular R2 bloqueando solo la interfaz TheoGen:** Belenios seguiría pudiendo aceptar boletas por su canal propio. Si R2 es indispensable y no es soportado, detener integración y reconsiderar producto/motor.
@@ -325,7 +325,7 @@ Criterios ponderados propuestos (no puntuación definitiva): secreto y verificab
 | Protocolo y verificabilidad conocidos | Documentado y probado en proyecto externo; configurar y verificar | Por especificar, demostrar y auditar |
 | Interfaz de integración | API documentada; contrato y comportamiento deben ensayarse | Control completo de interfaz, pero desarrollo mayor |
 | Voto familiar | Requiere modelado de unidad/representante | Puede diseñarse; no implica seguridad automática |
-| Política de revoto R2 irreversible | **No verificada como configurable**; gate bloqueante | Posible solo con protocolo formal y revisión |
+| Política de revoto R2 irreversible | Configuración global `<deny-revote/>` verificada en código 3.3.0; comportamiento funcional y elección jurídica de política pendientes | Posible solo con protocolo formal y revisión |
 | Independencia de credenciales/trustees | Soportada, necesita operadores independientes | Debe diseñarse y auditarse |
 | Licenciamiento | AGPL y dependencias, revisión necesaria | Control IP propio; dependencias y auditoría necesarias |
 | Plazo/costo relativo | Opción preferida para exploración | Alto y de riesgo elevado |

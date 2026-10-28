@@ -1,0 +1,77 @@
+# Belenios 3.3.0 — laboratorio autorizado G1
+
+Entorno sintético aislado del backend TheoGen. [Autorización](../../doc/poc-belenios/00a-autorizacion-g1.md), [H0](../../doc/poc-belenios/01-factibilidad-y-contrato.md) y [evidencia H1](../../doc/poc-belenios/02-instalacion-aislada.md).
+
+Commit upstream: `337887bd1862c7cd057080b530fd80941bfc3c69`. Base oficial fijada por digest en `Dockerfile.poc`; compilación debug oficial, exclusivamente de laboratorio. No se modifica código criptográfico ni archivos del backend actual.
+
+## Arranque reproducible
+
+Requisitos: Git, Python 3.11+, Docker con contenedores Linux y Compose v2. En Windows se probó Docker Desktop 4.54.0/WSL2, Engine 29.1.2, Compose 2.40.3. Ejecutar desde este directorio:
+
+```powershell
+git -c core.autocrlf=false clone --branch 3.3.0 --depth 1 https://github.com/glondu/belenios.git .runtime/upstream
+python scripts/prepare.py --source .runtime/upstream
+docker build --progress=plain --build-arg SOURCE_DATE_EPOCH=1782962593 -f .runtime/build/Dockerfile.poc -t theogen-belenios-poc:3.3.0-337887bd .runtime/build
+docker compose -f docker-compose.poc.yml up -d --wait --wait-timeout 60
+python scripts/check_h1.py
+```
+
+En Linux los mismos comandos de Docker/Git aplican; usar `python3` si ese es el nombre de Python. Esta variante no se ejecutó en un host Linux físico. La receta upstream usa `--network host`; esta PoC utiliza bridge y proxies locales y no presume equivalencia entre ambos modos.
+
+`prepare.py` verifica tag/commit y conserva LF en el archivo tar aun cuando Git global usa `core.autocrlf=true`. No ejecutar `make clean` sobre un repositorio ajeno. La build descarga dependencias npm y la receta upstream genera su lock; registrar su inventario. Fijar fuente y base no implica reproducibilidad binaria de todas las dependencias de red.
+
+## Acceso y datos
+
+| Dirección | Política |
+|---|---|
+| http://127.0.0.1:18001 | Revoto permitido |
+| http://127.0.0.1:18002 | `<deny-revote/>` |
+
+Cada urna escucha en su red interna sin ruta por defecto. Solo los proxies de destino fijo publican puertos en loopback. Los proxies están también en redes de ingreso y no comparten la garantía de ausencia de ruta de las urnas; no son un cortafuegos frente a un host administrador malicioso.
+
+El administrador dummy permitido es `poc-admin`, solo en este laboratorio. El correo fake va a `/home/belenios/poc-data/private/mail.txt` dentro de cada volumen, **fuera** del árbol web. No se configura SMTP externo. Nunca copiar ese archivo, privadas, semillas, tokens o spool a Git/PR/logs. `.runtime/` contiene material privado temporal y está ignorado.
+
+El proxy implementa una compatibilidad limitada y medida: el puente Ocsigen/Cohttp de la imagen añade `0\r\n\r\n` después de una respuesta completa con Content-Length; se acepta solo ese caso exacto. Otros errores y respuestas incompletas producen 502. No es una recomendación para producción.
+
+## Parada y limpieza del laboratorio
+
+```powershell
+docker compose -f docker-compose.poc.yml stop
+docker compose -f docker-compose.poc.yml start
+```
+
+Para eliminar las dos urnas sintéticas y sus volúmenes (pierde sus datos de laboratorio):
+
+```powershell
+docker compose -f docker-compose.poc.yml down --volumes
+```
+
+El nombre de proyecto está fijado a `theogen-belenios33-poc`. No ejecutar prune global ni borrar imágenes, redes o volúmenes de otros proyectos. El borrado lógico de Docker no acredita sobreescritura física del disco; `.runtime/` y sus respaldos tienen ciclo de vida separado.
+
+## Elecciones y adaptador experimental
+
+El [protocolo H2](../../doc/poc-belenios/03-protocolos-y-matriz-pruebas.md) contiene la secuencia ejecutada y sus límites. Los [resultados](../../doc/poc-belenios/04-resultados-verificacion.md) incluyen archivos `.bel` públicos, hashes y verificación. Los scripts no deben repetirse ciegamente sobre estados existentes.
+
+El adaptador no importa bases, votos o sesiones TheoGen. Solo admite los dos endpoints locales e identificadores `poc-*`; provisiona un borrador de diez unidades ficticias o exporta evidencia de una elección ya escrutada y contrastada con un anclaje aprobado:
+
+```powershell
+python adapter/lab_adapter.py --base-url http://127.0.0.1:18001 --theogen-id poc-ejemplo verified-evidence --uuid FvmMAXJvurGXN9
+python tests/check_adapter.py
+python tests/check_adapter_failures.py
+```
+
+Para crear otro borrador sintético, con un identificador que aún no tenga mapping local:
+
+```powershell
+python adapter/lab_adapter.py --base-url http://127.0.0.1:18001 --theogen-id poc-nuevo-ensayo provision-synthetic
+```
+
+Es una mutación deliberada de laboratorio. Una reserva persistida antes del envío bloquea otra creación incluso si se pierde la respuesta; cotejar mapping/estado y reconciliar manualmente antes de un nuevo envío. Las capacidades administrativas solo se mantienen en memoria; no se pasan por URL, argumentos o archivos de evidencia. Los tokens/custodias de los tests H2 permanecen en `.runtime/private`, ignorados por Git.
+
+El prototipo solo maneja una pregunta homomórfica de dos opciones, peso 1 y resultado final. No automatiza autoridades, OIDC, voto familiar, ni actas jurídicas. [Contrato H3 y evidencia](../../doc/poc-belenios/05-adaptador-experimental.md).
+
+## Ajuste familiar y acta técnica H4
+
+La [prueba H4](../../doc/poc-belenios/05-compatibilidad-theogen-chile.md) agrega un registro privado de representantes fuera de Belenios: diez apoderados ficticios, ocho unidades, ocho alias aleatorios y ocho credenciales. La nueva elección R2 terminó 4/4; el acta técnica vuelve a verificar el archivo y conserva como pendientes quórum, blanco/nulo no modelados, desempate, reglas jurídicas, firmas y auditor humano.
+
+El documento enlazado contiene la secuencia exacta y los resultados. No repetir `setup_h4.py`, el sufragio o el escrutinio sobre estados inciertos. El registro privado, correo y claves permanecen en `.runtime/` y volúmenes del PoC. No hay integración con las tablas ni rutas actuales de TheoGen.

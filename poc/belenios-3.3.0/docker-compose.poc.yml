@@ -1,0 +1,63 @@
+name: theogen-belenios33-poc
+x-server: &server
+  image: theogen-belenios-poc:3.3.0-337887bd
+  pull_policy: never
+  init: true
+  restart: "no"
+  cap_drop: [ALL]
+  security_opt: [no-new-privileges:true]
+  mem_limit: 768m
+  cpus: 2
+  pids_limit: 256
+  healthcheck:
+    test: [CMD, wget, -q, -O, /dev/null, http://127.0.0.1:8001/api/configuration]
+    interval: 5s
+    timeout: 3s
+    retries: 12
+services:
+  revote:
+    <<: *server
+    environment:
+      POC_PUBLIC_URL: http://127.0.0.1:18001
+      POC_DENY_REVOTE: "false"
+    volumes: [revote-data:/home/belenios/poc-data]
+    networks: [ballot-a]
+  single:
+    <<: *server
+    environment:
+      POC_PUBLIC_URL: http://127.0.0.1:18002
+      POC_DENY_REVOTE: "true"
+    volumes: [single-data:/home/belenios/poc-data]
+    networks: [ballot-b]
+  ingress-a:
+    image: theogen-belenios-poc:3.3.0-337887bd
+    pull_policy: never
+    entrypoint: [node, /opt/poc/ingress.js]
+    environment: {POC_UPSTREAM: revote}
+    ports: ["127.0.0.1:18001:8000"]
+    networks: [ingress-a, ballot-a]
+    cap_drop: [ALL]
+    security_opt: [no-new-privileges:true]
+    mem_limit: 128m
+    depends_on: [revote]
+  ingress-b:
+    image: theogen-belenios-poc:3.3.0-337887bd
+    pull_policy: never
+    entrypoint: [node, /opt/poc/ingress.js]
+    environment: {POC_UPSTREAM: single}
+    ports: ["127.0.0.1:18002:8000"]
+    networks: [ingress-b, ballot-b]
+    cap_drop: [ALL]
+    security_opt: [no-new-privileges:true]
+    mem_limit: 128m
+    depends_on: [single]
+networks:
+  ballot-a:
+    internal: true
+  ballot-b:
+    internal: true
+  ingress-a: {}
+  ingress-b: {}
+volumes:
+  revote-data:
+  single-data:
