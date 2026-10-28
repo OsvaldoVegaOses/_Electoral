@@ -1,0 +1,947 @@
+{
+  "schema": 1,
+  "milestone": "H0 source-only documentary investigation",
+  "collected_at_utc": "2026-10-28T13:47:33.277191+00:00",
+  "environment": {
+    "os": "Windows",
+    "shell": "Windows PowerShell 5.1.26100.9711",
+    "git": "git version 2.55.0.windows.5",
+    "python": "3.11.7"
+  },
+  "theogen": {
+    "original_head": "65c164c7bb4073d5250c04d8f8cb40095a759ffb",
+    "mandate_branch": "docs/spike-poc-belenios-33",
+    "documentary_base": "de2e568464bb3bc89ea788de95f29ef3ec128b77",
+    "delivery_branch": "docs/belenios-h0-factibilidad",
+    "original_tracked_diff_sha256": "40218de280e8b3472dc4e80e7df8d68c7d6c7da6a985f7013db9fc5d27308a02"
+  },
+  "belenios": {
+    "repository": "https://github.com/glondu/belenios",
+    "tag": "3.3.0",
+    "tag_object": "2f0c5eb950d964baeea95f81ff6db7c418020ba5",
+    "commit": "337887bd1862c7cd057080b530fd80941bfc3c69",
+    "version": "3.3.0",
+    "api_version_from_source": 6,
+    "tag_signature": {
+      "github_verified": false,
+      "github_reason": "unknown_key",
+      "local_trusted_signature_verification": "NOT_RUN"
+    }
+  },
+  "upstream_sources": [
+    {
+      "path": "VERSION",
+      "commit": "337887bd1862c7cd057080b530fd80941bfc3c69",
+      "git_blob_sha1": "15a279981720791464e46ab21ae96b3c1c65c3b6",
+      "sha256": "5eee6c0c5c6901f5e523f0a434bca4106e1ff7136deb451f982b0bb1a7b13716",
+      "bytes": 6
+    },
+    {
+      "path": "README.md",
+      "commit": "337887bd1862c7cd057080b530fd80941bfc3c69",
+      "git_blob_sha1": "8670321391e0edf00b3e29262b2a9586859883df",
+      "sha256": "a0ae45f0af41a1d7f67e045c2fa89216caf72df9d017144195e17f4207ed005b",
+      "bytes": 3287
+    },
+    {
+      "path": "COPYING",
+      "commit": "337887bd1862c7cd057080b530fd80941bfc3c69",
+      "git_blob_sha1": "dba13ed2ddf783ee8118c6a581dbf75305f816a3",
+      "sha256": "57c8ff33c9c0cfc3ef00e650a1cc910d7ee479a8bc509f6c9209a7c2a11399d6",
+      "bytes": 34520
+    },
+    {
+      "path": "INSTALL.md",
+      "commit": "337887bd1862c7cd057080b530fd80941bfc3c69",
+      "git_blob_sha1": "1553bea56129ec8d57629e750137c285d251011d",
+      "sha256": "703fdc6193e4188a149000ecb5e4f723f48e3ae853840a01420c1550c3db12c5",
+      "bytes": 8571
+    },
+    {
+      "path": "RELEASE_NOTES.md",
+      "commit": "337887bd1862c7cd057080b530fd80941bfc3c69",
+      "git_blob_sha1": "c0cb0d4d80b4e4ad8a2fc57cc8468fadb0f90efc",
+      "sha256": "324e4af772a57ed8efb5dce77b58a89e6d860d4be065867cdb2f946d4f24248a",
+      "bytes": 5375
+    },
+    {
+      "path": "doc/API.md",
+      "commit": "337887bd1862c7cd057080b530fd80941bfc3c69",
+      "git_blob_sha1": "1c093cdfe14eccd7fa489159b0b65ac07e87b73b",
+      "sha256": "3861aa77849ba4f04448dfdaa8f6247dce97b6440ce3dcb96790d4d060b654a2",
+      "bytes": 5507
+    },
+    {
+      "path": "doc/auth.md",
+      "commit": "337887bd1862c7cd057080b530fd80941bfc3c69",
+      "git_blob_sha1": "37d81b02c8ed6489bf7cacb1adddc5fe89f2eab6",
+      "sha256": "516cb6278dd1d63f86e1e143369ef7d49b0257000a6a2d75e2f7a5e76368693c",
+      "bytes": 4517
+    },
+    {
+      "path": "doc/cred.md",
+      "commit": "337887bd1862c7cd057080b530fd80941bfc3c69",
+      "git_blob_sha1": "f4e172e098e11178f2ba17bd81814e2c52425825",
+      "sha256": "25c0f44d63d2decf13a70f51c1d857a6c0923bac99928f5d60d486bc8de25b8b",
+      "bytes": 5593
+    },
+    {
+      "path": "doc/tool.md",
+      "commit": "337887bd1862c7cd057080b530fd80941bfc3c69",
+      "git_blob_sha1": "620a6a870feafd91b3f23be0db0b85b59aa9e74d",
+      "sha256": "73089e2fc01d313b80513cfa9dce7b1adcdf554aa5a1b487c8e9db739f2e3ee3",
+      "bytes": 3780
+    },
+    {
+      "path": "doc/web.md",
+      "commit": "337887bd1862c7cd057080b530fd80941bfc3c69",
+      "git_blob_sha1": "1c65a923e662f35a7a14a58aa40a08c8d8c67e12",
+      "sha256": "f96cd58c1dc41038fb1bc8eeb458dd3e7fe8e7a07787a584e5ff2da1e7408030",
+      "bytes": 7680
+    },
+    {
+      "path": "contrib/docker/demo.Dockerfile",
+      "commit": "337887bd1862c7cd057080b530fd80941bfc3c69",
+      "git_blob_sha1": "cb6d07f1332a96d9151c4fd7da8b9f0aab296413",
+      "sha256": "d427ffdfd0921bdbd001715ceaba41c2de8824d3fc0179aab9bd1af8a0431171",
+      "bytes": 439
+    },
+    {
+      "path": "contrib/docker/gitlab-ci.Dockerfile",
+      "commit": "337887bd1862c7cd057080b530fd80941bfc3c69",
+      "git_blob_sha1": "1c8a9a45227c3250ec8f69f03810b370606b7bcc",
+      "sha256": "af717486e6bf2f40ec392c31a03d07e64da9557c49ba42c1090ec2b48e7fb13f",
+      "bytes": 1289
+    },
+    {
+      "path": "opam-bootstrap.sh",
+      "commit": "337887bd1862c7cd057080b530fd80941bfc3c69",
+      "git_blob_sha1": "5ba1e876c1785a536603b3a39eb27f85c2b7d6c1",
+      "sha256": "f545fb3b640708c39ae37325f4fa2f2e944591eac3e62dfefc1f51c5e7c99727",
+      "bytes": 3649
+    },
+    {
+      "path": "belenios-server.opam",
+      "commit": "337887bd1862c7cd057080b530fd80941bfc3c69",
+      "git_blob_sha1": "6a1972c7ff65876ba73b75674fc97644db0d637c",
+      "sha256": "e4bacd75a241f7475be3958987a298e93adb6599fa8e2ec6209bcaff3767142e",
+      "bytes": 599
+    },
+    {
+      "path": "belenios-platform.opam",
+      "commit": "337887bd1862c7cd057080b530fd80941bfc3c69",
+      "git_blob_sha1": "9854a5105193bc843b0aeb47d31705081b2484ab",
+      "sha256": "f58602c2bbde125505897ae5f72cb1eb8291ba30aeabdee7b0b27775c3aaebfe",
+      "bytes": 451
+    },
+    {
+      "path": "demo/ocsigenserver.conf.in",
+      "commit": "337887bd1862c7cd057080b530fd80941bfc3c69",
+      "git_blob_sha1": "02136f2a5fafc3b488d955feb434ffbc4d8e662a",
+      "sha256": "dc9b3ed9e6d46185d90fcb65c4d45094a12d516ac4632ad37a6761f34ea8049b",
+      "bytes": 4950
+    },
+    {
+      "path": "demo/run-server.sh",
+      "commit": "337887bd1862c7cd057080b530fd80941bfc3c69",
+      "git_blob_sha1": "f733907c9405432498f5532a59025c5fa1a38753",
+      "sha256": "62bfe4b8a7753916cbc91311d67ed6ea32b0006af86f5dc3415ec3f633ca91a2",
+      "bytes": 1625
+    },
+    {
+      "path": "tests/sendmail_fake_to_static.sh",
+      "commit": "337887bd1862c7cd057080b530fd80941bfc3c69",
+      "git_blob_sha1": "efca83ea0d3bd99fb9b317d40f20e49b3cdb0bc4",
+      "sha256": "54122ebda0c6c5fdd518d8047e3e6e8a82fd969ef62953d3e8aca4d43f9f88b4",
+      "bytes": 69
+    },
+    {
+      "path": "src/web/api/serializable.atd",
+      "commit": "337887bd1862c7cd057080b530fd80941bfc3c69",
+      "git_blob_sha1": "bdd86c1d71889e962d7089f8b2d135a009f9bc0d",
+      "sha256": "09f1d22208f668e06294b12c2a0f751cdd773413ee955bd487e04687fdbb0978",
+      "bytes": 12154
+    },
+    {
+      "path": "src/web/api/common.ml",
+      "commit": "337887bd1862c7cd057080b530fd80941bfc3c69",
+      "git_blob_sha1": "0b49b62711eac19ea4e33dec285979e54f6ba124",
+      "sha256": "3c0f27813ebc571679acf55c84df808044b97f98aa4d74596dd8f1fb77d52820",
+      "bytes": 2223
+    },
+    {
+      "path": "src/web/api/endpoints.ml",
+      "commit": "337887bd1862c7cd057080b530fd80941bfc3c69",
+      "git_blob_sha1": "10b59c2ca2caa7a9d59163e1d366d4fc55ee89ae",
+      "sha256": "1863be5a9f441dcda40efab54879f33308b20a8f8cc2471ba1855b0f33972deb",
+      "bytes": 9136
+    },
+    {
+      "path": "src/web/server/common/api_eliom.ml",
+      "commit": "337887bd1862c7cd057080b530fd80941bfc3c69",
+      "git_blob_sha1": "4af47f0c1f3661b6c6312ee58f6e045f17311975",
+      "sha256": "363d8f1b827c459e0f6cdbe6288cabf97eb5a5003ddc23488d919c85d37c8e9a",
+      "bytes": 9115
+    },
+    {
+      "path": "src/web/server/common/api_generic.ml",
+      "commit": "337887bd1862c7cd057080b530fd80941bfc3c69",
+      "git_blob_sha1": "0f381982959c39f90733766924387dd63bfa6a1a",
+      "sha256": "b046def6d0665add6b830a9504a60d70413e5a199d28fa0a50faa8d3027bbb4d",
+      "bytes": 8362
+    },
+    {
+      "path": "src/web/server/common/api_drafts.ml",
+      "commit": "337887bd1862c7cd057080b530fd80941bfc3c69",
+      "git_blob_sha1": "f6db67fc08382f3369f0e64e970003f5c1e7aec7",
+      "sha256": "dac3be4c1c11292fc3986a049d4921eb591ca74ccce98c87496cdd77c3d90595",
+      "bytes": 49495
+    },
+    {
+      "path": "src/web/server/common/api_elections.ml",
+      "commit": "337887bd1862c7cd057080b530fd80941bfc3c69",
+      "git_blob_sha1": "41b5a4225b48222902fdaeafb622813955338d27",
+      "sha256": "337ebfaad07ff15f040f39791b7bdad5b8b9e09679e8a5cd48e6a85df1c27004",
+      "bytes": 33033
+    },
+    {
+      "path": "src/web/server/common/api_credentials.ml",
+      "commit": "337887bd1862c7cd057080b530fd80941bfc3c69",
+      "git_blob_sha1": "793f9f88b8564c24410c3991574b9386cf6a858f",
+      "sha256": "d8253aaed9b3f20439ac182278c4a7187ab6474fb4b7097412ea5317ce9c9cff",
+      "bytes": 19612
+    },
+    {
+      "path": "src/web/server/common/web_config.ml",
+      "commit": "337887bd1862c7cd057080b530fd80941bfc3c69",
+      "git_blob_sha1": "534e2cbde56f5c4ebb21b62fecbc14377f75b8f6",
+      "sha256": "f21648917b7817a793ac976d7c730dc00b454cff465961b146b7eebe04ca1d95",
+      "bytes": 2926
+    },
+    {
+      "path": "src/web/server/common/web_main.ml",
+      "commit": "337887bd1862c7cd057080b530fd80941bfc3c69",
+      "git_blob_sha1": "bdf85ed7e59b685e726748b3ba4f8463b09cd984",
+      "sha256": "d6bf6f33a491b94894c067543708f4c73071fb0841a49afb2519945dc0671ea4",
+      "bytes": 14534
+    },
+    {
+      "path": "src/web/server/common/web_persist.ml",
+      "commit": "337887bd1862c7cd057080b530fd80941bfc3c69",
+      "git_blob_sha1": "1aaf806529b8ae082edc39a877f42041132dd09d",
+      "sha256": "d3d3a6b252e42073aeea9d4a0bc93a25b3fb3ac580c6f94a7f84ccf5b6240493",
+      "bytes": 33176
+    },
+    {
+      "path": "src/web/server/common/web_auth.ml",
+      "commit": "337887bd1862c7cd057080b530fd80941bfc3c69",
+      "git_blob_sha1": "12aeedb07a3a15a130c6ff8b6cbbff7471578b89",
+      "sha256": "abd898622b84b02e30151bb4be9b6063d33f3d6313a3c4af2842a5f9681a8b70",
+      "bytes": 16169
+    },
+    {
+      "path": "src/web/server/common/site_voter.ml",
+      "commit": "337887bd1862c7cd057080b530fd80941bfc3c69",
+      "git_blob_sha1": "88eeaa2de1ffefefea71588465028b961bcd8ef8",
+      "sha256": "91b4f75e0ef71a608d2ab2ea53a439bc079f994bdbb0b3d54059bf8b68e30232",
+      "bytes": 4773
+    },
+    {
+      "path": "src/web/server/common/web_services.ml",
+      "commit": "337887bd1862c7cd057080b530fd80941bfc3c69",
+      "git_blob_sha1": "879ecb212fc6c769885d40a37af6666c593e8c04",
+      "sha256": "fdc65d71f128ba78de3619081cf52027a763e91113918cff049989e69aaf552f",
+      "bytes": 9410
+    },
+    {
+      "path": "src/web/server/common/web_auth_dummy.ml",
+      "commit": "337887bd1862c7cd057080b530fd80941bfc3c69",
+      "git_blob_sha1": "6e47672a2ed0e75c09013138f19db3151b404965",
+      "sha256": "155240ecb4d352639c7e0754fdaed6ea46a9cc2877f0576bf34194cabe8b4a43",
+      "bytes": 3566
+    },
+    {
+      "path": "src/web/server/common/web_auth_password.ml",
+      "commit": "337887bd1862c7cd057080b530fd80941bfc3c69",
+      "git_blob_sha1": "f89ed0a130056880d7f3f643adfea8dfcada0e06",
+      "sha256": "ec4b63df58f33c03b3464d29f1de66cc06dacb59f31a91785a0f40f23a1c0d34",
+      "bytes": 9851
+    },
+    {
+      "path": "src/web/server/common/web_auth_email.ml",
+      "commit": "337887bd1862c7cd057080b530fd80941bfc3c69",
+      "git_blob_sha1": "cf83076669f3d82628d0592046a7a11190885b58",
+      "sha256": "29c45d6e8df74fc0e73f48809648fca45b5da6686f6872bad4853876491621d8",
+      "bytes": 8852
+    },
+    {
+      "path": "src/web/server/common/web_auth_oidc.ml",
+      "commit": "337887bd1862c7cd057080b530fd80941bfc3c69",
+      "git_blob_sha1": "4558b7f3f0c2d11cd15c2875ced29341d202d368",
+      "sha256": "4b332d04e0cf584260c43b81a712b1418fbb991e4f02c9fc9968ba9935b2d39c",
+      "bytes": 6586
+    },
+    {
+      "path": "src/web/server/common/public_archive.ml",
+      "commit": "337887bd1862c7cd057080b530fd80941bfc3c69",
+      "git_blob_sha1": "82afc21ff7d7e89a304337afdba3729007a54684",
+      "sha256": "0764a53b344e1a64a2fc0ed8f1b5b8ae35d78168ff2cec42da267f1284923aab",
+      "bytes": 11362
+    },
+    {
+      "path": "src/web/server/filesystem/election_ops.ml",
+      "commit": "337887bd1862c7cd057080b530fd80941bfc3c69",
+      "git_blob_sha1": "e152666f8d934d0a64393f377565b8892cc9dbf8",
+      "sha256": "1066b98d8f74be8b849406070c6f6cec8b2803e719aa09731bc43ec9c1caf8dc",
+      "bytes": 14291
+    },
+    {
+      "path": "src/web/server/filesystem/main.ml",
+      "commit": "337887bd1862c7cd057080b530fd80941bfc3c69",
+      "git_blob_sha1": "a5ff18c56160efcd5e5b8f3e656698a24aa8e8fe",
+      "sha256": "1aa2898549c3e016c068257d28e8171e5caa06d70b40f3c4dd34a223bf523377",
+      "bytes": 60639
+    },
+    {
+      "path": "src/web/server/messages/serializable.atd",
+      "commit": "337887bd1862c7cd057080b530fd80941bfc3c69",
+      "git_blob_sha1": "a416fdcd13542d29c16a340f88cfb87dfbdeadd0",
+      "sha256": "10875c3bd45f2ae657cde64082b1211f538bfa94473eaeb7afe8e726808b283e",
+      "bytes": 3086
+    },
+    {
+      "path": "src/web/clients/election/common.ml",
+      "commit": "337887bd1862c7cd057080b530fd80941bfc3c69",
+      "git_blob_sha1": "5718fe702fb30b00663811ce4476757e358b2820",
+      "sha256": "7c99fdcf7d38055cdaa5ab9e6102b9b1f426b020cf10b316c862d27151b8501e",
+      "bytes": 5617
+    },
+    {
+      "path": "src/tool/main.ml",
+      "commit": "337887bd1862c7cd057080b530fd80941bfc3c69",
+      "git_blob_sha1": "0de714ebb2e08ee89dcb30a67ac0473e5b5bf5e9",
+      "sha256": "3b0e079cead8ed8abd2019667dd687abb3038fc3330393c1c174910bb5c7e750",
+      "bytes": 13177
+    },
+    {
+      "path": "src/tool/common.ml",
+      "commit": "337887bd1862c7cd057080b530fd80941bfc3c69",
+      "git_blob_sha1": "1582516ed14ecc9b34132948c45c2d79ef7006a3",
+      "sha256": "7715a9d4824686b736aca44fea4a27640a18f2a44c544814c6304d799a08e87c",
+      "bytes": 5638
+    },
+    {
+      "path": "src/tool/tool_archive_pull.ml",
+      "commit": "337887bd1862c7cd057080b530fd80941bfc3c69",
+      "git_blob_sha1": "d1d3fe07d746a6ed0bf228efaa5e22ad07aa7cad",
+      "sha256": "0d3ab3f391873bf980d58ab622ad898866907bb99eb5c9988595530f5a700a85",
+      "bytes": 5244
+    },
+    {
+      "path": "src/lib/core/serializable.atd",
+      "commit": "337887bd1862c7cd057080b530fd80941bfc3c69",
+      "git_blob_sha1": "008f5afda9045743361bb5f38928836c2a3a35ac",
+      "sha256": "3907ca604591111e89eb4c1490306559ccf2ab530fc2cbe3aabffe8f5573f481",
+      "bytes": 11193
+    },
+    {
+      "path": "src/lib/core/serializable_core.atd",
+      "commit": "337887bd1862c7cd057080b530fd80941bfc3c69",
+      "git_blob_sha1": "d803c20c392e9346d9d3c53c8ff5916bc7c2e85e",
+      "sha256": "baf92b2fd9332e45972141fd805a985787dc75ddcb6500849ecda40c936033bd",
+      "bytes": 2490
+    },
+    {
+      "path": "src/lib/core/common.ml",
+      "commit": "337887bd1862c7cd057080b530fd80941bfc3c69",
+      "git_blob_sha1": "a927707c00d074856da09f249f01d6e32ad16ba7",
+      "sha256": "9203116d815ecf84734c6f25cd4fa9738c6b38bcc84f23895c591e94b604c85c",
+      "bytes": 15898
+    },
+    {
+      "path": "src/lib/core/common_types.ml",
+      "commit": "337887bd1862c7cd057080b530fd80941bfc3c69",
+      "git_blob_sha1": "632ccb925b8d11460bd553bb67750cd9da1026e6",
+      "sha256": "61cab427783d43d1aadb8bbcd87b6024c8ac287ad8f805b691e5d76b5a2fca0d",
+      "bytes": 7410
+    },
+    {
+      "path": "tests/tool/demo-threshold.sh",
+      "commit": "337887bd1862c7cd057080b530fd80941bfc3c69",
+      "git_blob_sha1": "68d0a4f4052964925d803f022839aa8de1bf3cf1",
+      "sha256": "2bbcb3510e7aad1c76a7bcabfd4ce912d2aa0dff1dc0bc19289646ad0f9f0f5e",
+      "bytes": 4636
+    },
+    {
+      "path": "tests/tool/templates/questions.json",
+      "commit": "337887bd1862c7cd057080b530fd80941bfc3c69",
+      "git_blob_sha1": "1293411e4425b7185dfcb9f4906724f3e8616321",
+      "sha256": "af389c38d316a65aa9797f46ddc059c144c4b3b84f07253a48b20ed5930d8280",
+      "bytes": 258
+    },
+    {
+      "path": "vendor/libsodium/LICENSE",
+      "commit": "337887bd1862c7cd057080b530fd80941bfc3c69",
+      "git_blob_sha1": "17397208cdd694816caba93a7f587af9bfe135af",
+      "sha256": "97df160927784a7fc3cf451aa084a86002a193512f0599f55a46d15ee1c41a76",
+      "bytes": 823
+    }
+  ],
+  "comparison_only": {
+    "commit": "8888045a7650df5241a76ae75128ebde61e83904",
+    "version": "4.0.0~dev",
+    "sources": [
+      {
+        "path": "VERSION",
+        "commit": "8888045a7650df5241a76ae75128ebde61e83904",
+        "git_blob_sha1": "8eb7a554b3ed41c8d8008efcefeb31b818aab946",
+        "sha256": "469b7c010f16cbe6efa49d2dcb99511f8acd4538f4222d6abfaeab652605a632",
+        "bytes": 10
+      },
+      {
+        "path": "doc/API.md",
+        "commit": "8888045a7650df5241a76ae75128ebde61e83904",
+        "git_blob_sha1": "abbb51170d6821801bb8c7b1250b6458262fd6e0",
+        "sha256": "634bd420f51a7f981c1d40729f3ddaf924b46fc26d0485b7de9e2b83548c871a",
+        "bytes": 5916
+      },
+      {
+        "path": "src/web/api/types.ml",
+        "commit": "8888045a7650df5241a76ae75128ebde61e83904",
+        "git_blob_sha1": "70fa6a02494e1ca34c1a717b54a94988a88feb23",
+        "sha256": "e4b64d2f0839f2e2dc044bef943ad78462c47f423c73545f733bd53140847e96",
+        "bytes": 13865
+      },
+      {
+        "path": "src/web/server/common/api_generic.ml",
+        "commit": "8888045a7650df5241a76ae75128ebde61e83904",
+        "git_blob_sha1": "9ad16a76d7b155c617b857cb4f2e689f1e500e8a",
+        "sha256": "9134fd39fa2a63655c2fa05e20f13970a7a8d509d9704f1fbe71c7716c9a1308",
+        "bytes": 8456
+      }
+    ],
+    "api_doc_diff_sha256": "6044281de0baca826fee0ad04146a604c1166aaef28f576207e88f76d1e446b2"
+  },
+  "theogen_sources": [
+    {
+      "path": "doc/poc-belenios/00-mandato-spike-autohospedado.md",
+      "commit": "de2e568464bb3bc89ea788de95f29ef3ec128b77",
+      "git_blob_sha1": "108e9264de4cc24c5bd8f09f92e8922a1729f9c1",
+      "sha256": "6dd864e32435687726a6263c879d81229e2df055d84abf22d95d73170135d655",
+      "bytes": 19627
+    },
+    {
+      "path": "doc/adr/001-motor-de-votacion.md",
+      "commit": "de2e568464bb3bc89ea788de95f29ef3ec128b77",
+      "git_blob_sha1": "8503f6611d3bbf92f58be33165570371b3a2410d",
+      "sha256": "17b5982227928bf77f146b3d70ff1fca5d84bc6876079800b43de67bfd46161d",
+      "bytes": 41499
+    },
+    {
+      "path": "doc/motor/propuestas_motor.md",
+      "commit": "de2e568464bb3bc89ea788de95f29ef3ec128b77",
+      "git_blob_sha1": "8503f6611d3bbf92f58be33165570371b3a2410d",
+      "sha256": "17b5982227928bf77f146b3d70ff1fca5d84bc6876079800b43de67bfd46161d",
+      "bytes": 41499
+    }
+  ],
+  "local_instruction": {
+    "path": "doc/poc-belenios/agente.md",
+    "sha256": "7e0346f5343b1d91498645abd12dc42aa634cc5db00d6bfe5cc15a2416299bf5",
+    "remote_lookup": "404 on docs/spike-poc-belenios-33; read local file explicitly requested by user"
+  },
+  "checks": [
+    {
+      "id": "tag_object",
+      "kind": "static_source_assertion",
+      "result": "PASS",
+      "evidence": "git rev-parse refs/tags/3.3.0"
+    },
+    {
+      "id": "peeled_commit",
+      "kind": "static_source_assertion",
+      "result": "PASS",
+      "evidence": "git rev-parse refs/tags/3.3.0^{}"
+    },
+    {
+      "id": "checkout_and_version",
+      "kind": "static_source_assertion",
+      "result": "PASS",
+      "evidence": "HEAD and VERSION"
+    },
+    {
+      "id": "api6",
+      "kind": "static_source_assertion",
+      "result": "PASS",
+      "evidence": "get_configuration"
+    },
+    {
+      "id": "demo_base_and_debug",
+      "kind": "static_source_assertion",
+      "result": "PASS",
+      "evidence": "demo.Dockerfile"
+    },
+    {
+      "id": "loopback",
+      "kind": "static_source_assertion",
+      "result": "PASS",
+      "evidence": "demo configuration"
+    },
+    {
+      "id": "fake_mail",
+      "kind": "static_source_assertion",
+      "result": "PASS",
+      "evidence": "fake sendmail script"
+    },
+    {
+      "id": "deny_global_default",
+      "kind": "static_source_assertion",
+      "result": "PASS",
+      "evidence": "Web_config.deny_revote"
+    },
+    {
+      "id": "deny_config_parser",
+      "kind": "static_source_assertion",
+      "result": "PASS",
+      "evidence": "Web_main parser"
+    },
+    {
+      "id": "deny_backend",
+      "kind": "static_source_assertion",
+      "result": "PASS",
+      "evidence": "do_cast_ballot"
+    },
+    {
+      "id": "deny_not_draft_field",
+      "kind": "static_source_assertion",
+      "result": "PASS",
+      "evidence": "API types have no deny_revote field; repository-wide semantic conclusion also reviewed"
+    },
+    {
+      "id": "validation_closed",
+      "kind": "static_source_assertion",
+      "result": "PASS",
+      "evidence": "filesystem validation"
+    },
+    {
+      "id": "ballot_initial_401",
+      "kind": "static_source_assertion",
+      "result": "PASS",
+      "evidence": "ballots POST returns authentication state"
+    },
+    {
+      "id": "confirm_cast",
+      "kind": "static_source_assertion",
+      "result": "PASS",
+      "evidence": "site_voter confirmation handler"
+    },
+    {
+      "id": "ifmatch_exact_digest",
+      "kind": "static_source_assertion",
+      "result": "PASS",
+      "evidence": "handle_ifmatch"
+    },
+    {
+      "id": "ifmatch_not_all_mutations",
+      "kind": "static_source_assertion",
+      "result": "PASS",
+      "evidence": "credential routes do not use generic If-Match helper"
+    },
+    {
+      "id": "atd_path_mismatch",
+      "kind": "static_source_assertion",
+      "result": "PASS",
+      "evidence": "API.md path mismatch"
+    },
+    {
+      "id": "draft_election_no_dispatch",
+      "kind": "static_source_assertion",
+      "result": "PASS",
+      "evidence": "draft router lacks documented suffix; /elections/U/election exists"
+    },
+    {
+      "id": "zip_restricted",
+      "kind": "static_source_assertion",
+      "result": "PASS",
+      "evidence": "make_archive includes restricted data"
+    },
+    {
+      "id": "threshold_2_of_3",
+      "kind": "static_source_assertion",
+      "result": "PASS",
+      "evidence": "test script read only, not run"
+    },
+    {
+      "id": "server_key_with_pedersen",
+      "kind": "static_source_assertion",
+      "result": "PASS",
+      "evidence": "server key plus external threshold"
+    },
+    {
+      "id": "oidc_login_claim",
+      "kind": "static_source_assertion",
+      "result": "PASS",
+      "evidence": "userinfo schema and mapping; no security audit implied"
+    },
+    {
+      "id": "archive_pull_public_api",
+      "kind": "static_source_assertion",
+      "result": "PASS",
+      "evidence": "archive reconstruction implementation"
+    },
+    {
+      "id": "master_only_comparison",
+      "kind": "static_source_assertion",
+      "result": "PASS",
+      "evidence": "pinned master VERSION"
+    },
+    {
+      "id": "master_login_break",
+      "kind": "static_source_assertion",
+      "result": "PASS",
+      "evidence": "API.md diff"
+    },
+    {
+      "id": "bytes_VERSION",
+      "kind": "static_source_assertion",
+      "result": "PASS",
+      "evidence": "checkout bytes match git show with core.autocrlf=false"
+    },
+    {
+      "id": "bytes_README.md",
+      "kind": "static_source_assertion",
+      "result": "PASS",
+      "evidence": "checkout bytes match git show with core.autocrlf=false"
+    },
+    {
+      "id": "bytes_COPYING",
+      "kind": "static_source_assertion",
+      "result": "PASS",
+      "evidence": "checkout bytes match git show with core.autocrlf=false"
+    },
+    {
+      "id": "bytes_INSTALL.md",
+      "kind": "static_source_assertion",
+      "result": "PASS",
+      "evidence": "checkout bytes match git show with core.autocrlf=false"
+    },
+    {
+      "id": "bytes_RELEASE_NOTES.md",
+      "kind": "static_source_assertion",
+      "result": "PASS",
+      "evidence": "checkout bytes match git show with core.autocrlf=false"
+    },
+    {
+      "id": "bytes_doc/API.md",
+      "kind": "static_source_assertion",
+      "result": "PASS",
+      "evidence": "checkout bytes match git show with core.autocrlf=false"
+    },
+    {
+      "id": "bytes_doc/auth.md",
+      "kind": "static_source_assertion",
+      "result": "PASS",
+      "evidence": "checkout bytes match git show with core.autocrlf=false"
+    },
+    {
+      "id": "bytes_doc/cred.md",
+      "kind": "static_source_assertion",
+      "result": "PASS",
+      "evidence": "checkout bytes match git show with core.autocrlf=false"
+    },
+    {
+      "id": "bytes_doc/tool.md",
+      "kind": "static_source_assertion",
+      "result": "PASS",
+      "evidence": "checkout bytes match git show with core.autocrlf=false"
+    },
+    {
+      "id": "bytes_doc/web.md",
+      "kind": "static_source_assertion",
+      "result": "PASS",
+      "evidence": "checkout bytes match git show with core.autocrlf=false"
+    },
+    {
+      "id": "bytes_contrib/docker/demo.Dockerfile",
+      "kind": "static_source_assertion",
+      "result": "PASS",
+      "evidence": "checkout bytes match git show with core.autocrlf=false"
+    },
+    {
+      "id": "bytes_contrib/docker/gitlab-ci.Dockerfile",
+      "kind": "static_source_assertion",
+      "result": "PASS",
+      "evidence": "checkout bytes match git show with core.autocrlf=false"
+    },
+    {
+      "id": "bytes_opam-bootstrap.sh",
+      "kind": "static_source_assertion",
+      "result": "PASS",
+      "evidence": "checkout bytes match git show with core.autocrlf=false"
+    },
+    {
+      "id": "bytes_belenios-server.opam",
+      "kind": "static_source_assertion",
+      "result": "PASS",
+      "evidence": "checkout bytes match git show with core.autocrlf=false"
+    },
+    {
+      "id": "bytes_belenios-platform.opam",
+      "kind": "static_source_assertion",
+      "result": "PASS",
+      "evidence": "checkout bytes match git show with core.autocrlf=false"
+    },
+    {
+      "id": "bytes_demo/ocsigenserver.conf.in",
+      "kind": "static_source_assertion",
+      "result": "PASS",
+      "evidence": "checkout bytes match git show with core.autocrlf=false"
+    },
+    {
+      "id": "bytes_demo/run-server.sh",
+      "kind": "static_source_assertion",
+      "result": "PASS",
+      "evidence": "checkout bytes match git show with core.autocrlf=false"
+    },
+    {
+      "id": "bytes_tests/sendmail_fake_to_static.sh",
+      "kind": "static_source_assertion",
+      "result": "PASS",
+      "evidence": "checkout bytes match git show with core.autocrlf=false"
+    },
+    {
+      "id": "bytes_src/web/api/serializable.atd",
+      "kind": "static_source_assertion",
+      "result": "PASS",
+      "evidence": "checkout bytes match git show with core.autocrlf=false"
+    },
+    {
+      "id": "bytes_src/web/api/common.ml",
+      "kind": "static_source_assertion",
+      "result": "PASS",
+      "evidence": "checkout bytes match git show with core.autocrlf=false"
+    },
+    {
+      "id": "bytes_src/web/api/endpoints.ml",
+      "kind": "static_source_assertion",
+      "result": "PASS",
+      "evidence": "checkout bytes match git show with core.autocrlf=false"
+    },
+    {
+      "id": "bytes_src/web/server/common/api_eliom.ml",
+      "kind": "static_source_assertion",
+      "result": "PASS",
+      "evidence": "checkout bytes match git show with core.autocrlf=false"
+    },
+    {
+      "id": "bytes_src/web/server/common/api_generic.ml",
+      "kind": "static_source_assertion",
+      "result": "PASS",
+      "evidence": "checkout bytes match git show with core.autocrlf=false"
+    },
+    {
+      "id": "bytes_src/web/server/common/api_drafts.ml",
+      "kind": "static_source_assertion",
+      "result": "PASS",
+      "evidence": "checkout bytes match git show with core.autocrlf=false"
+    },
+    {
+      "id": "bytes_src/web/server/common/api_elections.ml",
+      "kind": "static_source_assertion",
+      "result": "PASS",
+      "evidence": "checkout bytes match git show with core.autocrlf=false"
+    },
+    {
+      "id": "bytes_src/web/server/common/api_credentials.ml",
+      "kind": "static_source_assertion",
+      "result": "PASS",
+      "evidence": "checkout bytes match git show with core.autocrlf=false"
+    },
+    {
+      "id": "bytes_src/web/server/common/web_config.ml",
+      "kind": "static_source_assertion",
+      "result": "PASS",
+      "evidence": "checkout bytes match git show with core.autocrlf=false"
+    },
+    {
+      "id": "bytes_src/web/server/common/web_main.ml",
+      "kind": "static_source_assertion",
+      "result": "PASS",
+      "evidence": "checkout bytes match git show with core.autocrlf=false"
+    },
+    {
+      "id": "bytes_src/web/server/common/web_persist.ml",
+      "kind": "static_source_assertion",
+      "result": "PASS",
+      "evidence": "checkout bytes match git show with core.autocrlf=false"
+    },
+    {
+      "id": "bytes_src/web/server/common/web_auth.ml",
+      "kind": "static_source_assertion",
+      "result": "PASS",
+      "evidence": "checkout bytes match git show with core.autocrlf=false"
+    },
+    {
+      "id": "bytes_src/web/server/common/site_voter.ml",
+      "kind": "static_source_assertion",
+      "result": "PASS",
+      "evidence": "checkout bytes match git show with core.autocrlf=false"
+    },
+    {
+      "id": "bytes_src/web/server/common/web_services.ml",
+      "kind": "static_source_assertion",
+      "result": "PASS",
+      "evidence": "checkout bytes match git show with core.autocrlf=false"
+    },
+    {
+      "id": "bytes_src/web/server/common/web_auth_dummy.ml",
+      "kind": "static_source_assertion",
+      "result": "PASS",
+      "evidence": "checkout bytes match git show with core.autocrlf=false"
+    },
+    {
+      "id": "bytes_src/web/server/common/web_auth_password.ml",
+      "kind": "static_source_assertion",
+      "result": "PASS",
+      "evidence": "checkout bytes match git show with core.autocrlf=false"
+    },
+    {
+      "id": "bytes_src/web/server/common/web_auth_email.ml",
+      "kind": "static_source_assertion",
+      "result": "PASS",
+      "evidence": "checkout bytes match git show with core.autocrlf=false"
+    },
+    {
+      "id": "bytes_src/web/server/common/web_auth_oidc.ml",
+      "kind": "static_source_assertion",
+      "result": "PASS",
+      "evidence": "checkout bytes match git show with core.autocrlf=false"
+    },
+    {
+      "id": "bytes_src/web/server/common/public_archive.ml",
+      "kind": "static_source_assertion",
+      "result": "PASS",
+      "evidence": "checkout bytes match git show with core.autocrlf=false"
+    },
+    {
+      "id": "bytes_src/web/server/filesystem/election_ops.ml",
+      "kind": "static_source_assertion",
+      "result": "PASS",
+      "evidence": "checkout bytes match git show with core.autocrlf=false"
+    },
+    {
+      "id": "bytes_src/web/server/filesystem/main.ml",
+      "kind": "static_source_assertion",
+      "result": "PASS",
+      "evidence": "checkout bytes match git show with core.autocrlf=false"
+    },
+    {
+      "id": "bytes_src/web/server/messages/serializable.atd",
+      "kind": "static_source_assertion",
+      "result": "PASS",
+      "evidence": "checkout bytes match git show with core.autocrlf=false"
+    },
+    {
+      "id": "bytes_src/web/clients/election/common.ml",
+      "kind": "static_source_assertion",
+      "result": "PASS",
+      "evidence": "checkout bytes match git show with core.autocrlf=false"
+    },
+    {
+      "id": "bytes_src/tool/main.ml",
+      "kind": "static_source_assertion",
+      "result": "PASS",
+      "evidence": "checkout bytes match git show with core.autocrlf=false"
+    },
+    {
+      "id": "bytes_src/tool/common.ml",
+      "kind": "static_source_assertion",
+      "result": "PASS",
+      "evidence": "checkout bytes match git show with core.autocrlf=false"
+    },
+    {
+      "id": "bytes_src/tool/tool_archive_pull.ml",
+      "kind": "static_source_assertion",
+      "result": "PASS",
+      "evidence": "checkout bytes match git show with core.autocrlf=false"
+    },
+    {
+      "id": "bytes_src/lib/core/serializable.atd",
+      "kind": "static_source_assertion",
+      "result": "PASS",
+      "evidence": "checkout bytes match git show with core.autocrlf=false"
+    },
+    {
+      "id": "bytes_src/lib/core/serializable_core.atd",
+      "kind": "static_source_assertion",
+      "result": "PASS",
+      "evidence": "checkout bytes match git show with core.autocrlf=false"
+    },
+    {
+      "id": "bytes_src/lib/core/common.ml",
+      "kind": "static_source_assertion",
+      "result": "PASS",
+      "evidence": "checkout bytes match git show with core.autocrlf=false"
+    },
+    {
+      "id": "bytes_src/lib/core/common_types.ml",
+      "kind": "static_source_assertion",
+      "result": "PASS",
+      "evidence": "checkout bytes match git show with core.autocrlf=false"
+    },
+    {
+      "id": "bytes_tests/tool/demo-threshold.sh",
+      "kind": "static_source_assertion",
+      "result": "PASS",
+      "evidence": "checkout bytes match git show with core.autocrlf=false"
+    },
+    {
+      "id": "bytes_tests/tool/templates/questions.json",
+      "kind": "static_source_assertion",
+      "result": "PASS",
+      "evidence": "checkout bytes match git show with core.autocrlf=false"
+    },
+    {
+      "id": "bytes_vendor/libsodium/LICENSE",
+      "kind": "static_source_assertion",
+      "result": "PASS",
+      "evidence": "checkout bytes match git show with core.autocrlf=false"
+    }
+  ],
+  "original_workspace_observation": {
+    "same_head": true,
+    "same_status": false,
+    "same_tracked_diff": false,
+    "added_untracked_paths": [
+      "backend/tests/prepare_s2_migration_data.py",
+      "backend/tests/test_s2_migration_postgres.py"
+    ],
+    "changed_preexisting_untracked_paths": [],
+    "interpretation": "Independent changes observed in original workspace; H0 wrote only to its separate documentary worktree and temporary research files. No restoration or inclusion of Sprint 2 changes."
+  },
+  "reproduction_verifier": {
+    "path": "doc/poc-belenios/evidencias/verificar-fuentes.py",
+    "sha256": "6b2d50f6f934734130cba0a7875a70748889c160fe1660819eb54bd45ebbd8d0",
+    "command": "python doc/poc-belenios/evidencias/verificar-fuentes.py --belenios <source-checkout> --theogen <documentary-worktree>",
+    "observed_exit_code": 0,
+    "observed_summary": "PASS: 51 fixed-version sources, 4 comparison sources, 3 TheoGen base sources, tag/commit, API diff and 19 static probes.",
+    "scope": "source evidence only; no upstream code execution"
+  },
+  "not_run": [
+    "Docker build/run/inspect",
+    "Belenios compilation or execution",
+    "Belenios upstream tests",
+    "functional HTTP API calls",
+    "synthetic election",
+    "external election verification",
+    "SMTP/DNS/HTTP egress test",
+    "runtime resource measurement",
+    "legal or cryptographic audit"
+  ],
+  "decision": {
+    "H0": "GO_DOCUMENTAL_CONDICIONADO",
+    "G1": "PENDING_EXPLICIT_AUTHORIZATION",
+    "H1": "NOT_STARTED",
+    "integration": "NOT_AUTHORIZED"
+  }
+}
