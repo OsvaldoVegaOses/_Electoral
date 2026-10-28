@@ -9,7 +9,7 @@ Endpoints solo para Administrador General:
 """
 import logging
 from datetime import datetime, timedelta, timezone
-from fastapi import APIRouter, Depends, HTTPException, status
+from fastapi import APIRouter, Depends, HTTPException, status, Query
 from sqlalchemy.orm import Session
 from sqlalchemy import func, text
 
@@ -149,18 +149,26 @@ def elections_ready_for_anonymization(
 @router.post("/anonymize-election/{election_id}")
 def anonymize_election_pii(
     election_id: int,
+    dry_run: bool = Query(False, description="Simula la operación sin modificar la base de datos"),
     db: Session = Depends(get_db),
     current_user: User = Depends(require_role("Administrador General", "Administrador")),
 ):
     """
     P14: Anonimiza los datos personales del padrón y la comisión electoral
     de una elección específica.
-
-    - Solo ejecutable sobre elecciones en estado 'Finalizada'.
-    - No elimina registros: reemplaza campos PII con valores de sustitución.
-    - Registra el timestamp en pii_eliminado_en para evitar doble procesamiento.
-    - Toda la operación es atómica (transacción única).
+    S2-A: Bloqueo seguro en producción por defecto hasta completar PR S2-C.
+    Permite simulación segura con ?dry_run=true.
     """
+    if not dry_run and settings.ENVIRONMENT == "production" and not getattr(settings, "PII_OPERATIONS_MUTATIONS_ENABLED", False):
+        raise HTTPException(
+            status_code=status.HTTP_403_FORBIDDEN,
+            detail=(
+                "Operaciones destructivas de PII deshabilitadas por defecto en producción "
+                "(contención de seguridad S2-A) hasta completar PR S2-C. "
+                "Para simular sin alterar registros utilice el parámetro ?dry_run=true."
+            ),
+        )
+
     election = db.query(Election).filter(Election.id == election_id).first()
     if not election:
         raise HTTPException(status_code=404, detail="Elección no encontrada.")
@@ -174,13 +182,32 @@ def anonymize_election_pii(
 
     now = datetime.now(timezone.utc)
 
-    # 1. Anonimizar electores (voters) con PII aún vigente
+    # 1. Identificar electores (voters) con PII aún vigente
     voters_to_anon = db.query(Voter).filter(
         Voter.election_id == election_id,
         Voter.pii_eliminado_en == None  # noqa: E711
     ).all()
-
     voters_count = len(voters_to_anon)
+
+    # 2. Identificar miembros de la comisión electoral
+    committees_to_anon = db.query(ElectoralCommittee).filter(
+        ElectoralCommittee.election_id == election_id,
+        ElectoralCommittee.pii_eliminado_en == None  # noqa: E711
+    ).all()
+    committees_count = len(committees_to_anon)
+
+    # Modo simulación (Dry Run)
+    if dry_run:
+        return {
+            "success": True,
+            "dry_run": True,
+            "election_id": election_id,
+            "election_nombre": election.nombre,
+            "electores_que_serian_anonimizados": voters_count,
+            "comisionados_que_serian_anonimizados": committees_count,
+            "mensaje": "Simulación exitosa: ningún registro fue modificado en la base de datos.",
+        }
+
     for voter in voters_to_anon:
         voter.rut = _ANON_RUT
         voter.rut_normalizado = _ANON_RUT
@@ -191,13 +218,6 @@ def anonymize_election_pii(
         voter.token_hash = None      # Ya debería ser NULL (P8), doble seguridad
         voter.pii_eliminado_en = now
 
-    # 2. Anonimizar miembros de la comisión electoral
-    committees_to_anon = db.query(ElectoralCommittee).filter(
-        ElectoralCommittee.election_id == election_id,
-        ElectoralCommittee.pii_eliminado_en == None  # noqa: E711
-    ).all()
-
-    committees_count = len(committees_to_anon)
     for member in committees_to_anon:
         member.nombre = _ANON_NOMBRE_COMISION
         member.rut = _ANON_RUT
@@ -226,6 +246,7 @@ def anonymize_election_pii(
 
     return {
         "success": True,
+        "dry_run": False,
         "election_id": election_id,
         "election_nombre": election.nombre,
         "electores_anonimizados": voters_count,
@@ -240,26 +261,45 @@ def anonymize_election_pii(
 
 @router.post("/purge-audit-logs")
 def purge_old_audit_logs(
+    dry_run: bool = Query(False, description="Simula la purga sin eliminar registros de la base de datos"),
     db: Session = Depends(get_db),
     current_user: User = Depends(require_role("Administrador General", "Administrador")),
 ):
     """
     P14: Elimina físicamente los registros de auditoría con más de
     PII_AUDIT_RETENTION_DAYS días de antigüedad.
-
-    Los audit_logs no tienen referencias de integridad hacia otras tablas,
-    por lo que la eliminación física es segura.
-    Se registra una entrada en auditoría ANTES de la eliminación para que
-    quede constancia del evento.
+    S2-A: Bloqueo seguro en producción por defecto hasta completar PR S2-C.
+    Permite simulación segura con ?dry_run=true.
     """
+    if not dry_run and settings.ENVIRONMENT == "production" and not getattr(settings, "PII_OPERATIONS_MUTATIONS_ENABLED", False):
+        raise HTTPException(
+            status_code=status.HTTP_403_FORBIDDEN,
+            detail=(
+                "Operaciones destructivas de PII deshabilitadas por defecto en producción "
+                "(contención de seguridad S2-A) hasta completar PR S2-C. "
+                "Para simular sin alterar registros utilice el parámetro ?dry_run=true."
+            ),
+        )
+
     cutoff = _retention_cutoff_audit()
 
     # Contar antes de borrar
     count = db.query(func.count(AuditLog.id)).filter(AuditLog.fecha <= cutoff).scalar()
 
+    if dry_run:
+        return {
+            "success": True,
+            "dry_run": True,
+            "registros_que_serian_eliminados": count,
+            "fecha_corte": cutoff.isoformat(),
+            "retention_dias": settings.PII_AUDIT_RETENTION_DAYS,
+            "mensaje": "Simulación exitosa: ningún registro de auditoría fue eliminado.",
+        }
+
     if count == 0:
         return {
             "success": True,
+            "dry_run": False,
             "registros_eliminados": 0,
             "mensaje": f"No hay registros de auditoría con más de {settings.PII_AUDIT_RETENTION_DAYS} días.",
         }
@@ -292,6 +332,7 @@ def purge_old_audit_logs(
 
     return {
         "success": True,
+        "dry_run": False,
         "registros_eliminados": deleted,
         "fecha_corte": cutoff.isoformat(),
         "retention_dias": settings.PII_AUDIT_RETENTION_DAYS,

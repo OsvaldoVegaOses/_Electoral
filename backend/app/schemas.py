@@ -1,4 +1,4 @@
-from pydantic import BaseModel, EmailStr, Field, field_validator
+from pydantic import BaseModel, EmailStr, Field, field_validator, model_validator
 from typing import Optional, List
 from datetime import datetime
 import re
@@ -12,7 +12,7 @@ class UserCreate(BaseModel):
     nombre: str
     email: EmailStr
     password: str = Field(..., min_length=8, max_length=128)
-    rol: Optional[str] = "Comisión Electoral"
+    rol: Optional[str] = None
     school_id: Optional[int] = None
     election_id: Optional[int] = None
 
@@ -27,6 +27,37 @@ class UserCreate(BaseModel):
         if not re.search(r"[0-9]", v):
             raise ValueError("La contraseña debe contener al menos un número")
         return v
+
+    @model_validator(mode="after")
+    def validate_scope_consistency(self) -> "UserCreate":
+        """S2-A: Valida consistencia obligatoria entre rol y asignación de colegio/elección"""
+        if self.rol is None:
+            if self.school_id is None and self.election_id is None:
+                self.rol = "Administrador General"
+            elif self.school_id is not None and self.election_id is None:
+                self.rol = "Responsable Institucional"
+            elif self.school_id is not None and self.election_id is not None:
+                self.rol = "Comisión Electoral"
+            else:
+                raise ValueError("Asignación inválida: election_id requiere un school_id")
+
+        rol = self.rol
+        if rol in ("Administrador General", "Administrador"):
+            if self.school_id is not None or self.election_id is not None:
+                raise ValueError("Administrador General no debe tener school_id ni election_id asignados")
+        elif rol == "Responsable Institucional":
+            if self.school_id is None:
+                raise ValueError("Responsable Institucional requiere un school_id válido")
+            if self.election_id is not None:
+                raise ValueError("Responsable Institucional no debe tener election_id asignado")
+        elif rol == "Comisión Electoral":
+            if self.school_id is None:
+                raise ValueError("Comisión Electoral requiere un school_id asignado")
+            if self.election_id is None:
+                raise ValueError("Comisión Electoral requiere un election_id asignado")
+        else:
+            raise ValueError(f"Rol desconocido: {rol}")
+        return self
 
 class Token(BaseModel):
     access_token: str

@@ -43,10 +43,12 @@ def list_elections(
             else:
                 query = query.filter(False)
         elif current_user.rol == ROLE_COMISION:
-            if current_user.election_id:
-                query = query.filter(Election.id == current_user.election_id)
-            elif current_user.school_id:
-                query = query.filter(Election.school_id == current_user.school_id)
+            # S2-A: Comisión requiere ambos school_id y election_id; si election_id es None, retorna vacío
+            if current_user.school_id and current_user.election_id:
+                query = query.filter(
+                    Election.id == current_user.election_id,
+                    Election.school_id == current_user.school_id
+                )
             else:
                 query = query.filter(False)
         else:

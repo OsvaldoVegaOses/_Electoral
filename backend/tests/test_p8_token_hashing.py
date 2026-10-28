@@ -65,7 +65,7 @@ class TestP8TokenHashingAndCredentialConsumption(unittest.TestCase):
 
         self.election = Election(
             nombre="Elección Directiva P8",
-            tipo="Centro de Padres",
+            tipo_votacion="Centro de Padres",
             regla_votacion="Un voto por persona",
             estado="Abierta",
             school_id=self.school.id,
@@ -77,7 +77,6 @@ class TestP8TokenHashingAndCredentialConsumption(unittest.TestCase):
         # Candidato
         self.candidate = Candidate(
             nombre="Lista Única",
-            lista="Lista A",
             cargo="Presidente",
             election_id=self.election.id
         )

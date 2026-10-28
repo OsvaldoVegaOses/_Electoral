@@ -62,7 +62,6 @@ class TestP2HttpOnlyCookiesAndCSRF(unittest.TestCase):
             email="admin_p2@theogen.cl",
             password_hash=get_password_hash("AdminP2Password123"),
             rol=ROLE_SUPERADMIN,
-            is_active=True,
         )
         self.db.add(self.user)
         self.db.commit()

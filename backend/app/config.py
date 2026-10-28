@@ -68,6 +68,9 @@ class Settings(BaseSettings):
     CSRF_COOKIE_NAME: str = "csrf_token"
     COOKIE_SAMESITE: str = "lax"
 
+    # S2-A: Bloqueo seguro por defecto de mutaciones destructivas de PII en producción
+    PII_OPERATIONS_MUTATIONS_ENABLED: bool = os.getenv("PII_OPERATIONS_MUTATIONS_ENABLED", "false").lower() in ("true", "1", "yes")
+
     class Config:
         case_sensitive = True
 

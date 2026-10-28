@@ -78,6 +78,11 @@ def seed_initial_data(db: Session):
     db.add(election)
     db.flush()
 
+    # S2-A: Asignar ámbito explícito a comision_user
+    comision_user.school_id = school.id
+    comision_user.election_id = election.id
+    db.flush()
+
     # 4. Crear Miembros de la Comisión Electoral
     committee = [
         ElectoralCommittee(

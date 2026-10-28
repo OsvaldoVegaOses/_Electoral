@@ -165,7 +165,7 @@ class TestPR4OperationsAndBulkUpload(unittest.TestCase):
 
         self.election = Election(
             nombre="Elección Directiva PR4",
-            tipo="Directiva de Curso",
+            tipo_votacion="Directiva de Curso",
             regla_votacion="Un voto por elector",
             fecha_inicio=datetime.now(timezone.utc) - timedelta(hours=1),
             fecha_fin=datetime.now(timezone.utc) + timedelta(hours=2),
@@ -243,7 +243,7 @@ class TestPR4OperationsAndBulkUpload(unittest.TestCase):
         """Columnas alfanuméricas con ceros a la izquierda (ej. Familia ID '007') se preservan intactas."""
         csv_content = (
             "RUT,Nombre,Curso,Correo,Familia ID\n"
-            "17.123.456-7,Camila Vergara,01A,cvergara@ejemplo.cl,007\n"
+            "17.123.456-5,Camila Vergara,01A,cvergara@ejemplo.cl,007\n"
         ).encode("utf-8")
 
         files = {
@@ -256,7 +256,7 @@ class TestPR4OperationsAndBulkUpload(unittest.TestCase):
         )
         self.assertEqual(res.status_code, 200)
 
-        voter = self.db.query(Voter).filter(Voter.rut == "17.123.456-7").first()
+        voter = self.db.query(Voter).filter(Voter.rut == "17.123.456-5").first()
         self.assertIsNotNone(voter)
         self.assertEqual(voter.curso, "01A")
         self.assertEqual(voter.familia_id, "007")
@@ -323,6 +323,14 @@ class TestPR4AlembicOnPostgres(unittest.TestCase):
     Upgrade head -> Downgrade base -> Upgrade head.
     """
     def test_alembic_upgrade_downgrade_cycle(self):
+        import socket
+        sock = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
+        sock.settimeout(1.0)
+        res_conn = sock.connect_ex(('127.0.0.1', 5439))
+        sock.close()
+        if res_conn != 0:
+            raise unittest.SkipTest("PostgreSQL de prueba en puerto 5439 no está accesible en el host.")
+
         backend_dir = os.path.abspath(os.path.join(os.path.dirname(__file__), ".."))
         env = os.environ.copy()
         env["DATABASE_URL"] = "postgresql://postgres@127.0.0.1:5439/theogen_test"

@@ -23,7 +23,8 @@ oauth2_scheme = OAuth2PasswordBearer(tokenUrl=f"{settings.API_V1_STR}/auth/login
 # Las funciones check_rate_limit, record_failed_attempt y clear_failed_attempts
 # son provistas por el módulo rate_limiter, que usa Redis como backend compartido
 # entre múltiples workers/instancias y tiene fallback automático a memoria.
-from app.rate_limiter import check_rate_limit, record_failed_attempt, clear_failed_attempts  # noqa: F401
+from app.rate_limiter import check_rate_limit, record_failed_attempt, clear_failed_attempts, _mem_attempts  # noqa: F401
+_failed_attempts = _mem_attempts
 
 
 # --- Hashing de contraseñas ---
@@ -134,15 +135,15 @@ def is_superadmin(user: User) -> bool:
 
 def check_school_access(user: User, school_id: int, write: bool = False):
     """
-    IDOR-01 / RBAC: Control de acceso a nivel de colegio/institución.
+    IDOR-01 / RBAC / S2-A: Control de acceso a nivel de colegio/institución.
     - Superadmin: acceso global irrestricto.
     - Responsable Institucional: lectura y modificación exclusivamente de su institución asignada.
-    - Comisión Electoral: solo lectura de su institución; no puede modificar la entidad colegio.
+    - Comisión Electoral: solo lectura de su institución asignada (con election_id válido); no puede modificar la entidad colegio.
     """
     if is_superadmin(user):
         return
     if user.rol == ROLE_RESPONSABLE:
-        if user.school_id != school_id:
+        if user.school_id is None or user.school_id != school_id:
             raise HTTPException(
                 status_code=status.HTTP_403_FORBIDDEN,
                 detail="Acceso denegado: no tiene permisos para acceder a esta institución."
@@ -154,10 +155,15 @@ def check_school_access(user: User, school_id: int, write: bool = False):
                 status_code=status.HTTP_403_FORBIDDEN,
                 detail="Acceso denegado: comisiones electorales no poseen permisos de modificación sobre colegios."
             )
-        if user.school_id != school_id:
+        if user.school_id is None or user.school_id != school_id:
             raise HTTPException(
                 status_code=status.HTTP_403_FORBIDDEN,
                 detail="Acceso denegado: no tiene permisos para acceder a esta institución."
+            )
+        if user.election_id is None:
+            raise HTTPException(
+                status_code=status.HTTP_403_FORBIDDEN,
+                detail="Acceso denegado: comisión no asignada a esta elección."
             )
         return
     raise HTTPException(
@@ -168,27 +174,28 @@ def check_school_access(user: User, school_id: int, write: bool = False):
 
 def check_election_access(user: User, election, write: bool = False):
     """
-    IDOR-02 / RBAC: Control de acceso a nivel de proceso electoral.
+    IDOR-02 / RBAC / S2-A: Control de acceso a nivel de proceso electoral.
     - Superadmin: acceso total a todas las elecciones.
-    - Responsable Institucional: acceso a todas las elecciones de su colegio.
-    - Comisión Electoral: acceso únicamente a su elección asignada (mismo colegio y election_id).
+    - Responsable Institucional: acceso a todas las elecciones de su colegio (requiere school_id válido).
+    - Comisión Electoral: acceso únicamente a su elección asignada (requiere obligatoriamente school_id
+      y election_id coincidentes; si election_id es None o no coincide, denegar por defecto con 403).
     """
     if is_superadmin(user):
         return
     if user.rol == ROLE_RESPONSABLE:
-        if user.school_id != election.school_id:
+        if user.school_id is None or user.school_id != election.school_id:
             raise HTTPException(
                 status_code=status.HTTP_403_FORBIDDEN,
-                detail="Acceso denegado: la elección pertenece a otra institución."
+                detail="Acceso denegado: la elección pertenece a otra institución o responsable sin institución asignada."
             )
         return
     if user.rol == ROLE_COMISION:
-        if user.school_id != election.school_id:
+        if user.school_id is None or user.school_id != election.school_id:
             raise HTTPException(
                 status_code=status.HTTP_403_FORBIDDEN,
-                detail="Acceso denegado: la elección pertenece a otra institución."
+                detail="Acceso denegado: la elección pertenece a otra institución o comisión sin institución asignada."
             )
-        if user.election_id is not None and user.election_id != election.id:
+        if user.election_id is None or user.election_id != election.id:
             raise HTTPException(
                 status_code=status.HTTP_403_FORBIDDEN,
                 detail="Acceso denegado: comisión no asignada a esta elección."
@@ -198,6 +205,62 @@ def check_election_access(user: User, election, write: bool = False):
         status_code=status.HTTP_403_FORBIDDEN,
         detail="Acceso denegado: permisos insuficientes para la elección."
     )
+
+
+def validate_user_scope_assignment(
+    rol: str,
+    school_id: Optional[int],
+    election_id: Optional[int],
+    db: Optional[Session] = None
+) -> None:
+    """
+    S2-A: Valida que las asignaciones school_id y election_id sean coherentes con el rol.
+    - Superadmin / Administrador General: school_id=None, election_id=None.
+    - Responsable Institucional: school_id obligatorio, election_id=None.
+    - Comisión Electoral: school_id obligatorio, election_id obligatorio, y si db está presente,
+      election.school_id == school_id.
+    """
+    if rol in (ROLE_SUPERADMIN, ROLE_LEGACY_ADMIN):
+        if school_id is not None or election_id is not None:
+            raise HTTPException(
+                status_code=status.HTTP_422_UNPROCESSABLE_ENTITY,
+                detail="Administrador General no debe tener school_id ni election_id asignados."
+            )
+    elif rol == ROLE_RESPONSABLE:
+        if school_id is None:
+            raise HTTPException(
+                status_code=status.HTTP_422_UNPROCESSABLE_ENTITY,
+                detail="Responsable Institucional requiere un school_id válido."
+            )
+        if election_id is not None:
+            raise HTTPException(
+                status_code=status.HTTP_422_UNPROCESSABLE_ENTITY,
+                detail="Responsable Institucional no debe tener election_id asignado."
+            )
+    elif rol == ROLE_COMISION:
+        if school_id is None or election_id is None:
+            raise HTTPException(
+                status_code=status.HTTP_422_UNPROCESSABLE_ENTITY,
+                detail="Comisión Electoral requiere obligatoriamente school_id y election_id asignados."
+            )
+        if db is not None:
+            from app.models import Election
+            elec = db.query(Election).filter(Election.id == election_id).first()
+            if not elec:
+                raise HTTPException(
+                    status_code=status.HTTP_404_NOT_FOUND,
+                    detail=f"La elección ID {election_id} no existe."
+                )
+            if elec.school_id != school_id:
+                raise HTTPException(
+                    status_code=status.HTTP_422_UNPROCESSABLE_ENTITY,
+                    detail="Inconsistencia de ámbito: la elección no pertenece a la institución del usuario."
+                )
+    else:
+        raise HTTPException(
+            status_code=status.HTTP_422_UNPROCESSABLE_ENTITY,
+            detail=f"Rol '{rol}' no reconocido."
+        )
 
 
 # --- HIGH-04: RBAC con require_role ---
