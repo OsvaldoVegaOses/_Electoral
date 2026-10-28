@@ -47,3 +47,25 @@ docker compose -f docker-compose.poc.yml down --volumes
 ```
 
 El nombre de proyecto está fijado a `theogen-belenios33-poc`. No ejecutar prune global ni borrar imágenes, redes o volúmenes de otros proyectos. El borrado lógico de Docker no acredita sobreescritura física del disco; `.runtime/` y sus respaldos tienen ciclo de vida separado.
+
+## Elecciones y adaptador experimental
+
+El [protocolo H2](../../doc/poc-belenios/03-protocolos-y-matriz-pruebas.md) contiene la secuencia ejecutada y sus límites. Los [resultados](../../doc/poc-belenios/04-resultados-verificacion.md) incluyen archivos `.bel` públicos, hashes y verificación. Los scripts no deben repetirse ciegamente sobre estados existentes.
+
+El adaptador no importa bases, votos o sesiones TheoGen. Solo admite los dos endpoints locales e identificadores `poc-*`; provisiona un borrador de diez unidades ficticias o exporta evidencia de una elección ya escrutada y contrastada con un anclaje aprobado:
+
+```powershell
+python adapter/lab_adapter.py --base-url http://127.0.0.1:18001 --theogen-id poc-ejemplo verified-evidence --uuid FvmMAXJvurGXN9
+python tests/check_adapter.py
+python tests/check_adapter_failures.py
+```
+
+Para crear otro borrador sintético, con un identificador que aún no tenga mapping local:
+
+```powershell
+python adapter/lab_adapter.py --base-url http://127.0.0.1:18001 --theogen-id poc-nuevo-ensayo provision-synthetic
+```
+
+Es una mutación deliberada de laboratorio. Una reserva persistida antes del envío bloquea otra creación incluso si se pierde la respuesta; cotejar mapping/estado y reconciliar manualmente antes de un nuevo envío. Las capacidades administrativas solo se mantienen en memoria; no se pasan por URL, argumentos o archivos de evidencia. Los tokens/custodias de los tests H2 permanecen en `.runtime/private`, ignorados por Git.
+
+El prototipo solo maneja una pregunta homomórfica de dos opciones, peso 1 y resultado final. No automatiza autoridades, OIDC, voto familiar, ni actas jurídicas. [Contrato H3 y evidencia](../../doc/poc-belenios/05-adaptador-experimental.md).

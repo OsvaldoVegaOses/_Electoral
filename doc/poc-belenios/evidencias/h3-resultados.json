@@ -1,0 +1,90 @@
+{
+  "milestone": "H3",
+  "checks": [
+    {
+      "check": "revote_verified_export",
+      "passed": true
+    },
+    {
+      "check": "revote_wrong_anchor_rejected",
+      "passed": true
+    },
+    {
+      "check": "single_verified_export",
+      "passed": true
+    },
+    {
+      "check": "single_wrong_anchor_rejected",
+      "passed": true
+    },
+    {
+      "check": "create_edit_and_voter_readback_with_if_match",
+      "passed": true
+    },
+    {
+      "check": "repeated_creation_blocked_by_mapping_checkpoint",
+      "passed": true
+    },
+    {
+      "check": "unfinished_election_rejected",
+      "passed": true
+    },
+    {
+      "check": "non_laboratory_destination_rejected",
+      "passed": true
+    }
+  ],
+  "exports": {
+    "revote": {
+      "schema": "theogen-belenios-lab-evidence/v1",
+      "lab_only": true,
+      "theogen_election_id": "poc-h3-revote",
+      "belenios_uuid": "FvmMAXJvurGXN9",
+      "belenios_version": "3.3.0",
+      "upstream_commit": "337887bd1862c7cd057080b530fd80941bfc3c69",
+      "state": "Tallied",
+      "counts": [
+        5,
+        5
+      ],
+      "enabled_units": 10,
+      "counted_ballots": 10,
+      "participation": 1.0,
+      "public_archive_sha256": "83631af2b4b62eb9afeb5199a191254f4bd89dbb0343202dc013ed3b4c68566a",
+      "final_event_hash": "a4cf9ad48959a64d1a2659ea1bb1a242696acf857cd277eb8943b38738652e30",
+      "result_object_hash": "d835575b647fd7b3cb7438ee8e1cc9eafe5ce378aa8bacc3fec70c9b4fefd382",
+      "verifier_image_id": "sha256:479253acf9676c3781a2ff7b1593b73e1f86f1e58354cd478c515086de9ea61f",
+      "verification_exit_code": 0,
+      "legal_status": "Experimental evidence schema; not a legally valid signed election record"
+    },
+    "single": {
+      "schema": "theogen-belenios-lab-evidence/v1",
+      "lab_only": true,
+      "theogen_election_id": "poc-h3-single",
+      "belenios_uuid": "51jhBLBdowEGd3",
+      "belenios_version": "3.3.0",
+      "upstream_commit": "337887bd1862c7cd057080b530fd80941bfc3c69",
+      "state": "Tallied",
+      "counts": [
+        6,
+        4
+      ],
+      "enabled_units": 10,
+      "counted_ballots": 10,
+      "participation": 1.0,
+      "public_archive_sha256": "f6e5b070dc232cc093ca0d91d4e7e2528d36a44a0786001f5b04248b88f80539",
+      "final_event_hash": "65cc5329dde722f8fd5706d6cf5435002ede50cc8cea32c3b56a1b7e6a7a37eb",
+      "result_object_hash": "b3100bfe613a4a2ccce5fe2c9e80f80421bff54b74655ca895117ed88a34574d",
+      "verifier_image_id": "sha256:479253acf9676c3781a2ff7b1593b73e1f86f1e58354cd478c515086de9ea61f",
+      "verification_exit_code": 0,
+      "legal_status": "Experimental evidence schema; not a legally valid signed election record"
+    }
+  },
+  "mapping": {
+    "theogen_election_id": "poc-h3-contract",
+    "belenios_uuid": "GXRdp3qHbE6gdn",
+    "phase": "draft_with_10_synthetic_units",
+    "lab_only": true,
+    "enabled_units": 10
+  }
+}
