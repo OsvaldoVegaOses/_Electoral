@@ -1,3 +1,4 @@
+import json
 import uuid
 import hashlib
 from datetime import datetime, timezone
@@ -26,6 +27,89 @@ VALID_STATE_TRANSITIONS = {
     "Cerrada": ["Finalizada"],
     "Finalizada": [],
 }
+
+
+def build_canonical_config_snapshot(election: Election, db: Session) -> dict:
+    """
+    S2-B: Construye la instantánea canónica de configuración de la elección para sellado criptográfico.
+    Garantías:
+    - Determinismo estricto: claves y colecciones ordenadas canónicamente.
+    - Anonimización por diseño: excluye RUTs, emails personales y datos PII.
+    - Denominadores consolidados: total_padron y total_habilitados.
+    """
+    candidates = (
+        db.query(Candidate)
+        .filter(Candidate.election_id == election.id)
+        .order_by(Candidate.orden.asc(), Candidate.id.asc())
+        .all()
+    )
+    committee = (
+        db.query(ElectoralCommittee)
+        .filter(ElectoralCommittee.election_id == election.id)
+        .order_by(ElectoralCommittee.id.asc())
+        .all()
+    )
+
+    total_padron = db.query(Voter).filter(Voter.election_id == election.id).count()
+    if election.regla_votacion == "Un voto por familia":
+        total_habilitados = (
+            db.query(Voter.familia_id)
+            .filter(
+                Voter.election_id == election.id,
+                Voter.familia_id.isnot(None),
+                Voter.familia_id != "",
+            )
+            .distinct()
+            .count()
+        )
+    else:
+        total_habilitados = total_padron
+
+    def _fmt_dt(dt):
+        if not dt:
+            return None
+        if dt.tzinfo is None:
+            dt = dt.replace(tzinfo=timezone.utc)
+        return dt.astimezone(timezone.utc).isoformat()
+
+    return {
+        "version": 1,
+        "election_id": election.id,
+        "nombre": election.nombre,
+        "school_id": election.school_id,
+        "tipo_votacion": election.tipo_votacion,
+        "regla_votacion": election.regla_votacion,
+        "fecha_inicio": _fmt_dt(election.fecha_inicio),
+        "fecha_fin": _fmt_dt(election.fecha_fin),
+        "total_padron": total_padron,
+        "total_habilitados": total_habilitados,
+        "candidates": [
+            {
+                "id": c.id,
+                "nombre": c.nombre,
+                "cargo": c.cargo,
+                "orden": c.orden,
+                "es_blanco": bool(c.es_blanco),
+                "es_nulo": bool(c.es_nulo),
+            }
+            for c in candidates
+        ],
+        "committee": [
+            {
+                "id": m.id,
+                "nombre": m.nombre,
+                "cargo": m.cargo,
+            }
+            for m in committee
+        ],
+    }
+
+
+def compute_snapshot_hash(snapshot: dict) -> str:
+    """S2-B: Calcula el hash SHA-256 canónico de la instantánea de configuración serializada."""
+    canonical_json = json.dumps(snapshot, sort_keys=True, separators=(",", ":"))
+    return hashlib.sha256(canonical_json.encode("utf-8")).hexdigest()
+
 
 @router.get("", response_model=List[ElectionResponse])
 def list_elections(
@@ -184,16 +268,12 @@ def update_election(
                    "Utilice las transiciones explícitas: /abrir, /cerrar, /finalizar."
         )
 
-    # B1: Congelar parámetros estructurales fuera de Borrador
+    # B1: Congelar parámetros una vez que la elección sale de Borrador
     if election.estado != "Borrador":
-        restricted_fields = {"regla_votacion", "tipo_votacion", "school_id"}
-        altered = restricted_fields.intersection(update_data.keys())
-        if altered:
-            raise HTTPException(
-                status_code=status.HTTP_409_CONFLICT,
-                detail=f"Parámetros estructurales congelados: no se puede modificar '{', '.join(altered)}' "
-                       f"en estado '{election.estado}'."
-            )
+        raise HTTPException(
+            status_code=status.HTTP_409_CONFLICT,
+            detail=f"Parámetros estructurales congelados: no se pueden modificar los parámetros de una elección en estado '{election.estado}'."
+        )
 
     for field, val in update_data.items():
         setattr(election, field, val)
@@ -217,14 +297,15 @@ def open_election(
     current_user: User = Depends(get_current_user)
 ):
     """
-    B1 & A4: Abre la elección para sufragio público tras validación atómica:
+    B1 & A4 & S2-B: Abre la elección para sufragio público tras validación atómica:
     - Estado previo debe ser exactamente 'Borrador'
     - Padrón íntegro no vacío (mínimo 1 elector)
     - En regla familiar: exige 'familia_id' válido en todos los electores
     - Candidaturas validadas (al menos 1 candidato de lista además de blanco/nulo)
     - Fechas coherentes (fecha_inicio <= fecha_fin)
     - Provisionamiento de unidades electorales (VotingEntitlement)
-    - Instantánea de configuración con hash de integridad
+    - Instantánea canónica de configuración con hash de integridad determinista
+    - Congelamiento inmutable de denominadores electorales (total_padron y total_habilitados)
     """
     election = db.query(Election).filter(Election.id == election_id).with_for_update().first()
     if not election:
@@ -310,13 +391,24 @@ def open_election(
                 estado="Pendiente"
             ))
 
-    # 7. Hash de configuración aprobada
-    config_str = f"{election.id}:{election.nombre}:{election.regla_votacion}:{len(voters)}:{regular_candidates}:{now.isoformat()}"
-    election.config_hash = hashlib.sha256(config_str.encode("utf-8")).hexdigest()
+    # 7. Denominadores congelados e instantánea canónica con sellado criptográfico
+    total_padron = len(voters)
+    if election.regla_votacion == "Un voto por familia":
+        total_habilitados = len(entitlement_keys)
+    else:
+        total_habilitados = total_padron
 
-    election.estado = "Abierta"
+    election.total_padron_congelado = total_padron
+    election.total_habilitados_congelado = total_habilitados
+
     if not election.fecha_inicio:
         election.fecha_inicio = now
+
+    snapshot = build_canonical_config_snapshot(election, db)
+    election.config_snapshot = json.dumps(snapshot, sort_keys=True, separators=(",", ":"))
+    election.config_hash = compute_snapshot_hash(snapshot)
+
+    election.estado = "Abierta"
 
     db.commit()
     db.refresh(election)
@@ -325,6 +417,7 @@ def open_election(
         db,
         accion="Abrió votación",
         detalle=f"Elección '{election.nombre}' abierta con configuración sellada (Hash: {election.config_hash[:16]}...). "
+                f"Padrón congelado: {total_padron} personas, {total_habilitados} unidades habilitadas. "
                 f"{len(entitlement_keys)} derechos electorales provisionados. {generated_count} tokens generados.",
         usuario=current_user.email,
         school_id=election.school_id
@@ -340,6 +433,7 @@ def close_election(
     """
     Cierra la elección y sella la urna digital para escrutinio definitivo.
     Bloqueo estricto con SELECT FOR UPDATE sobre Election para evitar carreras contra votos simultáneos.
+    S2-B: Registra fecha_cierre_efectiva, verifica la integridad de la configuración congelada y preserva fecha_fin.
     """
     election = db.query(Election).filter(Election.id == election_id).with_for_update().first()
     if not election:
@@ -353,8 +447,25 @@ def close_election(
             detail=f"Solo se puede cerrar una elección en estado 'Abierta'. Estado actual: '{election.estado}'."
         )
 
+    # S2-B: Verificación de integridad de la configuración congelada
+    if election.config_snapshot and election.config_hash:
+        try:
+            snapshot_data = json.loads(election.config_snapshot)
+            current_hash = compute_snapshot_hash(snapshot_data)
+            if current_hash != election.config_hash:
+                raise HTTPException(
+                    status_code=status.HTTP_409_CONFLICT,
+                    detail="Discrepancia en la integridad de la configuración congelada de la elección"
+                )
+        except (json.JSONDecodeError, TypeError):
+            raise HTTPException(
+                status_code=status.HTTP_409_CONFLICT,
+                detail="La instantánea de configuración almacenada está corrupta o no es válida"
+            )
+
     election.estado = "Cerrada"
-    election.fecha_fin = datetime.now(timezone.utc)
+    election.fecha_cierre_efectiva = datetime.now(timezone.utc)
+    # S2-B: Preservar election.fecha_fin programada intacta
 
     db.commit()
     db.refresh(election)

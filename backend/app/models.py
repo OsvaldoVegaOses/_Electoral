@@ -40,6 +40,11 @@ class Election(Base):
     # Regla: "Un voto por persona" o "Un voto por familia"
     regla_votacion = Column(String(50), nullable=False, default="Un voto por persona")
     config_hash = Column(String(128), nullable=True)
+    # S2-B: Congelamiento e instantánea íntegra
+    fecha_cierre_efectiva = Column(DateTime(timezone=True), nullable=True)
+    total_padron_congelado = Column(Integer, nullable=True)
+    total_habilitados_congelado = Column(Integer, nullable=True)
+    config_snapshot = Column(Text, nullable=True)
     fecha_creacion = Column(DateTime(timezone=True), default=_utcnow)
 
     # Relaciones

@@ -46,8 +46,10 @@ def get_election_scrutiny(
         )
 
 
-    # Denominador de participación: según regla electoral
-    if election.regla_votacion == "Un voto por familia":
+    # S2-B: Denominador de participación: congelado oficialmente o calculado dinámicamente si es previo
+    if election.total_habilitados_congelado is not None:
+        total_padron = election.total_habilitados_congelado
+    elif election.regla_votacion == "Un voto por familia":
         familias_count = db.query(func.count(func.distinct(Voter.familia_id))).filter(
             Voter.election_id == election_id,
             Voter.familia_id.isnot(None),
@@ -129,7 +131,7 @@ def get_election_scrutiny(
         votos_nulos=votos_nulos,
         candidatos=candidates_results,
         ganador=CandidateResult(**ganador_candidato) if ganador_candidato else None,
-        fecha_cierre=election.fecha_fin
+        fecha_cierre=election.fecha_cierre_efectiva or election.fecha_fin
     )
 
 @router.get("/election/{election_id}/acta-apertura/pdf")
@@ -150,7 +152,7 @@ def download_acta_apertura_pdf(
 
     school = election.school or School(nombre="Institución Educativa", rbd="S/N", comuna="Santiago")
     committee = election.committee_members or []
-    total_voters = db.query(Voter).filter(Voter.election_id == election_id).count()
+    total_voters = election.total_padron_congelado if election.total_padron_congelado is not None else db.query(Voter).filter(Voter.election_id == election_id).count()
 
     pdf_buffer = generate_acta_apertura_pdf(election, school, committee, total_voters)
 
@@ -199,7 +201,7 @@ def download_acta_cierre_pdf(
 
     school = election.school or School(nombre="Institución Educativa", rbd="S/N", comuna="Santiago")
     committee = election.committee_members or []
-    total_voters = db.query(Voter).filter(Voter.election_id == election_id).count()
+    total_voters = election.total_habilitados_congelado if election.total_habilitados_congelado is not None else db.query(Voter).filter(Voter.election_id == election_id).count()
 
     scrutiny = get_election_scrutiny(election_id, db, current_user)
     results_dict = scrutiny.model_dump()

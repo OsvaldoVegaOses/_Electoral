@@ -195,6 +195,10 @@ class ElectionResponse(ElectionBase):
     id: int
     estado: str
     config_hash: Optional[str] = None
+    fecha_cierre_efectiva: Optional[datetime] = None
+    total_padron_congelado: Optional[int] = None
+    total_habilitados_congelado: Optional[int] = None
+    config_snapshot: Optional[str] = None
     fecha_creacion: datetime
     school: Optional[SchoolResponse] = None
 
