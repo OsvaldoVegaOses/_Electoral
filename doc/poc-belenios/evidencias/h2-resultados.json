@@ -1,0 +1,174 @@
+{
+  "milestone": "H2",
+  "elections": {
+    "revote": {
+      "uuid": "FvmMAXJvurGXN9",
+      "state": "Tallied",
+      "enabled_synthetic_units": 10,
+      "active_ballots": 10,
+      "result": [
+        5,
+        5
+      ],
+      "expected": [
+        5,
+        5
+      ],
+      "browser_initial_votes": 10,
+      "browser_revote": "Ok",
+      "api_revote": "Ok",
+      "rejection_error": null,
+      "active_ballot_hashes_hex_unlinked": [
+        "19d02a7a5b08ad8d3e67aa28af0d75924aa4ad3ca365a2c915d8c59b2e0daf22",
+        "240a8d079f30a915a0b24c9da0db4ff79b4ffe4f8d92771f21a0067aedf60773",
+        "43bec64d7d6615722f38d9e15a8bda09736f0c8e769e5ecaecb83078aee80e08",
+        "43cdcd1ac1de85c5bb7753ff5c3057db1f8474ec7e8ace92897d00f9ea989098",
+        "4805f380f9a24bc0a90938e9e7ce8337e8455aa88b203a12ab33be8d0e7dd9e1",
+        "60fa87f1b9e7ad492057fbf45435fedcd68084c58421901d66d4288237d50a01",
+        "d6acd90637a039a8c8d1d6bd98a97a25d1982bbcd5863e7754430de6c2d4f67a",
+        "f0f74faf9294c3606552ca04c5c6f2cddfee27b8fe476ecee8dc9d5640e82aab",
+        "f56282c40778de1df03b48630e96da68341088fac2704e81340f7fafc61eb5c0",
+        "fcbc2a4dd25e21846691a47a243665be9cc1a9fe2c04a88be25bc0934904ed49"
+      ],
+      "trackers_base64_unlinked": [
+        "/LwqTdJeIYRmkaR6JDZlvpzBqf4sBKiL4lvAk0kE7Uk",
+        "1qzZBjegOajI0da9mKl6JdGYK7zVhj53VEMN5sLU9no",
+        "8PdPr5KUw2BlUsoExcbyzd/uJ7j+R27O6NydVkDoKqs",
+        "9WKCxAd43h3wO0hjDpbaaDQQiPrCcE6BNA9/r8YetcA",
+        "GdAqelsIrY0+Z6oorw11kkqkrTyjZaLJFdjFmy4NryI",
+        "JAqNB58wqRWgskydoNtP95tP/k+NkncfIaAGeu32B3M",
+        "Q77GTX1mFXIvONnhWovaCXNvDI52nl7K7LgweK7oDgg",
+        "Q83NGsHehcW7d1P/XDBX2x+EdOx+is6SiX0A+eqYkJg",
+        "SAXzgPmiS8CpCTjp586DN+hFWqiLIDoSqzO+jQ592eE",
+        "YPqH8bnnrUkgV/v0VDX+3NaAhMWEIZAdZtQogjfVCgE"
+      ],
+      "restart_preserved_ballots_and_event_head": true,
+      "old_admin_token_after_restart_http": 401,
+      "obsolete_if_match_http": 412,
+      "duplicate_partial_decryption_http": 409,
+      "one_external_share_release_http": 500,
+      "one_share_did_not_publish": true,
+      "external_threshold": "2/3",
+      "contributing_external_indices": [
+        1,
+        2
+      ],
+      "mandatory_server_key": true,
+      "final_event": {
+        "height": 18,
+        "hash": "a4cf9ad48959a64d1a2659ea1bb1a242696acf857cd277eb8943b38738652e30",
+        "pos": 71168
+      },
+      "result_object_hash": "d835575b647fd7b3cb7438ee8e1cc9eafe5ce378aa8bacc3fec70c9b4fefd382",
+      "public_archive_sha256": "83631af2b4b62eb9afeb5199a191254f4bd89dbb0343202dc013ed3b4c68566a",
+      "public_archive_bytes": 71168,
+      "verification_network": "none",
+      "verification_mount": "public archive only, readonly",
+      "verification": {
+        "exit_code": 0,
+        "stdout": "",
+        "stderr": "I: using directory /audit\nI: fingerprint of encrypted tally is 2+eTlyx26bgSTq51cpBa9GkRybNXQtH55zgm+XEDX4c\nI: no shuffles to check\nI: all checks passed\n"
+      },
+      "tamper_test": {
+        "exit_code": 124,
+        "stdout": "",
+        "stderr": "I: using directory /audit\nbelenios-tool: hash\n               2a711e96493fb3a36b89a573eadfbc7ddf5b042c4902ce30f3131c85dd5c8bbd\n               found instead of\n               d835575b647fd7b3cb7438ee8e1cc9eafe5ce378aa8bacc3fec70c9b4fefd382\n"
+      },
+      "valid_prefix_without_result": {
+        "exit_code": 0,
+        "stdout": "",
+        "stderr": "I: using directory /audit\nI: no shuffles to check\nI: no result to check\nI: all checks passed\n"
+      },
+      "public_archive_has_synthetic_email_strings": false,
+      "public_archive_repository_path": "doc/poc-belenios/evidencias/h2-publico/revote/FvmMAXJvurGXN9.bel"
+    },
+    "single": {
+      "uuid": "51jhBLBdowEGd3",
+      "state": "Tallied",
+      "enabled_synthetic_units": 10,
+      "active_ballots": 10,
+      "result": [
+        6,
+        4
+      ],
+      "expected": [
+        6,
+        4
+      ],
+      "browser_initial_votes": 10,
+      "browser_revote": "Error",
+      "api_revote": "Error",
+      "rejection_error": "RevoteNotAllowed",
+      "active_ballot_hashes_hex_unlinked": [
+        "02b11dcd1f5c4108b31df1657ebfcf0d5359d58e6185849ae9a0b5fabff061a5",
+        "213f451b7f88c9f7c30a52d3899c9766068fc80cf43effac6d70a413ae7bfed6",
+        "2b882afa4a4aad5f0903d58f5ed64435e844481450e1fde284a8a98d01cc727f",
+        "3c65c1cd918c8268055b9e2a789fd93048e4978662c347935f0630f521a05c73",
+        "4099e519e38bd2566e3df68bb03f43f089ef3a1a7c80e44dd1cab8d33957e438",
+        "d6b08f5067dfed2ee1b1a014b914c0384baf2004055d4abcb7249d228bf0c01c",
+        "dd839bd33a86f99105123dc38d236fac892ec0b787a6ec6cd05d602f6f68e35f",
+        "e41b0293248d7f6a4ea54cab2c7fea1db0fada4635bd63969388384b505b334f",
+        "f8b2c05cfe3480c2498a88befdca37e6b30b7368dfe70660511b3ca00ebf6cec",
+        "fd9648831bb388ef22c0e3622390028c5788e6ff7e572087679ea50af56ef52c"
+      ],
+      "trackers_base64_unlinked": [
+        "+LLAXP40gMJJioi+/co35rMLc2jf5wZgURs8oA6/bOw",
+        "/ZZIgxuziO8iwONiI5ACjFeI5v9+VyCHZ56lCvVu9Sw",
+        "1rCPUGff7S7hsaAUuRTAOEuvIAQFXUq8tySdIovwwBw",
+        "3YOb0zqG+ZEFEj3DjSNvrIkuwLeHpuxs0F1gL29o418",
+        "5BsCkySNf2pOpUyrLH/qHbD62kY1vWOWk4g4S1BbM08",
+        "ArEdzR9cQQizHfFlfr/PDVNZ1Y5hhYSa6aC1+r/wYaU",
+        "IT9FG3+IyffDClLTiZyXZgaPyAz0Pv+sbXCkE657/tY",
+        "K4gq+kpKrV8JA9WPXtZENehESBRQ4f3ihKipjQHMcn8",
+        "PGXBzZGMgmgFW54qeJ/ZMEjkl4Ziw0eTXwYw9SGgXHM",
+        "QJnlGeOL0lZuPfaLsD9D8InvOhp8gORN0cq40zlX5Dg"
+      ],
+      "restart_preserved_ballots_and_event_head": true,
+      "old_admin_token_after_restart_http": 401,
+      "obsolete_if_match_http": 412,
+      "duplicate_partial_decryption_http": 409,
+      "one_external_share_release_http": 500,
+      "one_share_did_not_publish": true,
+      "external_threshold": "2/3",
+      "contributing_external_indices": [
+        1,
+        3
+      ],
+      "mandatory_server_key": true,
+      "final_event": {
+        "height": 16,
+        "hash": "65cc5329dde722f8fd5706d6cf5435002ede50cc8cea32c3b56a1b7e6a7a37eb",
+        "pos": 64000
+      },
+      "result_object_hash": "b3100bfe613a4a2ccce5fe2c9e80f80421bff54b74655ca895117ed88a34574d",
+      "public_archive_sha256": "f6e5b070dc232cc093ca0d91d4e7e2528d36a44a0786001f5b04248b88f80539",
+      "public_archive_bytes": 64000,
+      "verification_network": "none",
+      "verification_mount": "public archive only, readonly",
+      "verification": {
+        "exit_code": 0,
+        "stdout": "",
+        "stderr": "I: using directory /audit\nI: fingerprint of encrypted tally is aYzcJ8UCPLwa2v8SpDYr2smJiWshIOjTTTlU9emGroo\nI: no shuffles to check\nI: all checks passed\n"
+      },
+      "tamper_test": {
+        "exit_code": 124,
+        "stdout": "",
+        "stderr": "I: using directory /audit\nbelenios-tool: hash\n               53cf8922f41523701f5e35897e77b64b974dd06f8ebb8a7062923c2e85b842dd\n               found instead of\n               b3100bfe613a4a2ccce5fe2c9e80f80421bff54b74655ca895117ed88a34574d\n"
+      },
+      "valid_prefix_without_result": {
+        "exit_code": 0,
+        "stdout": "",
+        "stderr": "I: using directory /audit\nI: no shuffles to check\nI: no result to check\nI: all checks passed\n"
+      },
+      "public_archive_has_synthetic_email_strings": false,
+      "public_archive_repository_path": "doc/poc-belenios/evidencias/h2-publico/single/51jhBLBdowEGd3.bel"
+    }
+  },
+  "recorded_at_utc": "2026-10-28T15:58:04.210761+00:00",
+  "limitations": [
+    "Same host and operator: custodial separation is simulated",
+    "Manual external credential generation tested; new operator/server protocol not exercised",
+    "Verifier is a separate networkless container, not an independent human or physical machine",
+    "Complete failure matrix and binding-election readiness are not certified"
+  ]
+}

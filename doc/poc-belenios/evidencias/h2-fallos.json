@@ -1,0 +1,61 @@
+{
+  "fixture": "auxiliary weak synthetic fixture, separate from the two threshold elections",
+  "uuid": "vYN7y2KAyLGCJN",
+  "checks": [
+    {
+      "check": "incorrect_credential",
+      "observed": {
+        "http": 400,
+        "active_ballots": 0
+      },
+      "passed": true
+    },
+    {
+      "check": "browser_closed_before_confirmation",
+      "observed": {
+        "active_ballots": 0
+      },
+      "passed": true
+    },
+    {
+      "check": "voter_authentication_state_lost_on_restart",
+      "observed": {
+        "http": 404,
+        "active_ballots": 0
+      },
+      "passed": true
+    },
+    {
+      "check": "refresh_during_authentication",
+      "observed": {
+        "accepted_after_confirmation": 1
+      },
+      "passed": true
+    },
+    {
+      "check": "double_submit",
+      "observed": {
+        "http": 400,
+        "active_ballots": 1
+      },
+      "passed": true
+    },
+    {
+      "check": "closed_election_backend_rejection",
+      "observed": {
+        "error": "ElectionClosed",
+        "active_ballots": 1
+      },
+      "passed": true
+    },
+    {
+      "check": "addressless_identity_input_contract",
+      "observed": {
+        "http": 200,
+        "limitation": "Accepted in draft; real email/OTP delivery is not demonstrated. Draft remains unopened."
+      },
+      "passed": true
+    }
+  ],
+  "limitation": "Restart expiry tested; 900-second natural timeout and full addressless-voter delivery remain untested."
+}
