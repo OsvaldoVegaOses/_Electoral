@@ -21,7 +21,7 @@ RUN git clone /source.bundle /theogen-electoral \
     && test "$(git -C /theogen-electoral rev-parse HEAD)" = "$EXPECTED_SHA" \
     && rm /source.bundle
 WORKDIR /theogen-electoral
-RUN python -m pip install --no-cache-dir --upgrade pip==26.2.2 setuptools==84.2.1 \
+RUN python -m pip install --no-cache-dir --upgrade pip==26.2.2 setuptools==84.2.1 wheel==0.48.0 \
     && python -m pip install --no-cache-dir -r backend/requirements.txt pip-audit==2.10.1
 RUN cd frontend && npm ci && npx playwright install --with-deps chromium
 ENTRYPOINT ["python", "ci/azure/run.py"]

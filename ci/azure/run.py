@@ -69,6 +69,19 @@ def secrets():
     print('Secret scanning passed for tracked files and committed history',flush=True)
 
 
+def python_audit():
+    report=OUTPUT/'pip-audit.json'
+    result=subprocess.run([sys.executable,'-m','pip_audit','--local','--strict',
+        '--progress-spinner','off','--format','json','--output',str(report)],cwd=ROOT,timeout=1200)
+    if report.exists():
+        for package in json.loads(report.read_text())['dependencies']:
+            for vulnerability in package.get('vulns',[]):
+                print('PYTHON_AUDIT_FINDING '+json.dumps({'package':package['name'],
+                    'version':package['version'],'advisory':vulnerability['id'],
+                    'fixed_versions':vulnerability.get('fix_versions',[])}),flush=True)
+    result.check_returncode()
+
+
 def main():
     OUTPUT.mkdir(parents=True,exist_ok=True)
     sha=command(['git','rev-parse','HEAD'],capture=True).decode().strip()
@@ -104,8 +117,7 @@ def main():
         stage('frontend-build',lambda:command(['npm','run','build'],cwd=ROOT/'frontend'))
         stage('e2e-real-http-postgresql',lambda:command([sys.executable,'scripts/verify_s3_e2e.py','--postgres-container',pg]))
         stage('belenios-ui-api-doubles',lambda:command(['npx','playwright','test','--config','playwright.belenios.config.js'],cwd=ROOT/'frontend'))
-        stage('python-dependency-audit',lambda:command([sys.executable,'-m','pip_audit','--local','--strict',
-            '--progress-spinner','off','--format','json','--output',str(OUTPUT/'pip-audit.json')]))
+        stage('python-dependency-audit',python_audit)
         stage('npm-dependency-audit',lambda:(OUTPUT/'npm-audit.json').write_bytes(command(['npm','audit','--audit-level=low','--json'],cwd=ROOT/'frontend',capture=True)))
         stage('secrets-current-and-history',secrets)
         def operations():

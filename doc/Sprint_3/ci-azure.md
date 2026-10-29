@@ -8,12 +8,20 @@ Se usa el registro existente `theogenongtcacr`, grupo `new`, mediante una QuickR
 
 El runner incluye Python 3.11, Node 22, Docker/Compose y Chromium. La tarea construye el runner, ejecuta diez controles obligatorios y conserva evidencia en `electoral-ci/evidence:<run-id>` únicamente si todos pasan. Las imágenes de CI tienen un espacio propio; no se publican imágenes del producto.
 
+Las herramientas Python se fijan en `pip 26.2.2`, `setuptools 84.2.1` y `wheel 0.48.0`. La imagen Python original incluye `wheel 0.45.1`, afectado por [CVE-2026-24049](https://github.com/advisories/GHSA-8rrh-rw8j-w5fx); se actualiza antes de instalar dependencias y auditar el entorno completo. El auditor imprime paquete, versión, aviso y versiones corregidas cuando falla, sin omitir el control.
+
 ```powershell
 python scripts/prepare_azure_ci.py --output .runtime/azure-ci-context-NUEVO
 az acr run --registry theogenongtcacr --resource-group new --file acr-task.yaml --set expected_sha=SHA_COMPLETO --timeout 3600 --no-wait .runtime/azure-ci-context-NUEVO
 az acr task list-runs --registry theogenongtcacr --resource-group new --top 5
 az acr task show-run --registry theogenongtcacr --resource-group new --run-id RUN_ID
 az acr task logs --registry theogenongtcacr --resource-group new --run-id RUN_ID
+```
+
+Si la CLI Windows falla al mostrar Unicode, descargar los logs por la API oficial sin imprimir ni guardar el enlace SAS temporal:
+
+```powershell
+.\scripts\download_azure_ci_logs.ps1 -Registry theogenongtcacr -ResourceGroup new -RunId RUN_ID -Output .runtime/azure-ci-RUN_ID.log
 ```
 
 El empaquetador exige un árbol limpio y un commit exacto. Solo envía un Git bundle, el Dockerfile, la tarea y un manifiesto público: no incluye `.env`, claves, bases, venv, node_modules ni resultados locales. Los procesos de prueba reciben únicamente configuración y credenciales sintéticas.
