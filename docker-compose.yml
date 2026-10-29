@@ -4,17 +4,18 @@ services:
     container_name: theogen_db
     restart: always
     env_file:
-      - .env
+      - path: .env
+        required: false
     environment:
-      POSTGRES_DB: ${POSTGRES_DB}
-      POSTGRES_USER: ${POSTGRES_USER}
-      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD}
+      POSTGRES_DB: ${POSTGRES_DB:-theogen_electoral}
+      POSTGRES_USER: ${POSTGRES_USER:-theogen}
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:-theogen_secret}
     ports:
       - "5432:5432"
     volumes:
       - postgres_data:/var/lib/postgresql/data
     healthcheck:
-      test: ["CMD-SHELL", "pg_isready -U ${POSTGRES_USER} -d ${POSTGRES_DB}"]
+      test: ["CMD-SHELL", "pg_isready -U ${POSTGRES_USER:-theogen} -d ${POSTGRES_DB:-theogen_electoral}"]
       interval: 5s
       timeout: 5s
       retries: 5
@@ -26,17 +27,39 @@ services:
     container_name: theogen_backend
     restart: always
     env_file:
-      - .env
+      - path: .env
+        required: false
     environment:
-      DATABASE_URL: ${DATABASE_URL}
-      SECRET_KEY: ${SECRET_KEY}
-      VOTE_HMAC_KEY: ${VOTE_HMAC_KEY}
-      ENVIRONMENT: ${ENVIRONMENT:-production}
+      DATABASE_URL: ${DATABASE_URL:-postgresql://theogen:theogen_secret@db:5432/theogen_electoral}
+      SECRET_KEY: ${SECRET_KEY:-insecure_development_secret_key_change_in_production}
+      VOTE_HMAC_KEY: ${VOTE_HMAC_KEY:-insecure_development_hmac_key_change_in_production}
+      ENTITLEMENT_HMAC_KEY: ${ENTITLEMENT_HMAC_KEY:-}
+      ENVIRONMENT: ${ENVIRONMENT:-development}
+      RUN_MIGRATIONS_ON_STARTUP: ${RUN_MIGRATIONS_ON_STARTUP:-true}
+      # P13: Redis URL para rate limiting persistente multi-instancia
+      REDIS_URL: ${REDIS_URL:-redis://redis:6379/0}
     ports:
       - "8000:8000"
     depends_on:
       db:
         condition: service_healthy
+      redis:
+        condition: service_healthy
+
+  redis:
+    image: redis:7-alpine
+    container_name: theogen_redis
+    restart: always
+    # Sin persistencia de disco: los datos de rate limiting son efímeros por diseño.
+    # Si se requiere persistencia entre reinicios, descomentar la línea siguiente:
+    # command: redis-server --appendonly yes
+    ports:
+      - "6379:6379"
+    healthcheck:
+      test: ["CMD", "redis-cli", "ping"]
+      interval: 5s
+      timeout: 3s
+      retries: 5
 
   frontend:
     build:

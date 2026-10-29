@@ -1,0 +1,74 @@
+{
+  "initial_votes": 8,
+  "family_revote": {
+    "kind": "Error",
+    "error": "RevoteNotAllowed"
+  },
+  "request_allowlist": {
+    "allowed": 423,
+    "blocked": 0,
+    "observed_hosts": [
+      "127.0.0.1"
+    ]
+  },
+  "cookie_metadata_without_values": [
+    {
+      "domain": "127.0.0.1",
+      "httpOnly": false,
+      "secure": false,
+      "sameSite": "Lax"
+    },
+    {
+      "domain": "127.0.0.1",
+      "httpOnly": false,
+      "secure": false,
+      "sameSite": "Lax"
+    },
+    {
+      "domain": "127.0.0.1",
+      "httpOnly": false,
+      "secure": false,
+      "sameSite": "Lax"
+    },
+    {
+      "domain": "127.0.0.1",
+      "httpOnly": false,
+      "secure": false,
+      "sameSite": "Lax"
+    },
+    {
+      "domain": "127.0.0.1",
+      "httpOnly": false,
+      "secure": false,
+      "sameSite": "Lax"
+    },
+    {
+      "domain": "127.0.0.1",
+      "httpOnly": false,
+      "secure": false,
+      "sameSite": "Lax"
+    },
+    {
+      "domain": "127.0.0.1",
+      "httpOnly": false,
+      "secure": false,
+      "sameSite": "Lax"
+    },
+    {
+      "domain": "127.0.0.1",
+      "httpOnly": false,
+      "secure": false,
+      "sameSite": "Lax"
+    },
+    {
+      "domain": "127.0.0.1",
+      "httpOnly": false,
+      "secure": false,
+      "sameSite": "Lax"
+    }
+  ],
+  "limitations": [
+    "Browser allowlist only; not a host-wide DNS/SMTP packet capture",
+    "HTTP laboratory: Secure cookie/TLS production readiness is not claimed"
+  ]
+}

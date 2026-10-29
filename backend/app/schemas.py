@@ -1,30 +1,20 @@
-from pydantic import BaseModel, EmailStr, Field, field_validator
-from typing import Optional, List
+from pydantic import BaseModel, EmailStr, Field, field_validator, model_validator
+from typing import Optional, List, Literal
 from datetime import datetime
 import re
 
 # --- USUARIOS Y AUTENTICACIÓN ---
 class UserLogin(BaseModel):
     email: EmailStr
-    password: str = Field(..., min_length=8, max_length=128)
-
-    @field_validator("password")
-    @classmethod
-    def validate_password_strength(cls, v: str) -> str:
-        """HIGH-04: Validación mínima de complejidad de contraseña"""
-        if len(v) < 8:
-            raise ValueError("La contraseña debe tener al menos 8 caracteres")
-        if not re.search(r"[A-Za-z]", v):
-            raise ValueError("La contraseña debe contener al menos una letra")
-        if not re.search(r"[0-9]", v):
-            raise ValueError("La contraseña debe contener al menos un número")
-        return v
+    password: str = Field(..., min_length=1, max_length=128)
 
 class UserCreate(BaseModel):
     nombre: str
     email: EmailStr
     password: str = Field(..., min_length=8, max_length=128)
-    rol: Optional[str] = "Comisión Electoral"
+    rol: Optional[str] = None
+    school_id: Optional[int] = None
+    election_id: Optional[int] = None
 
     @field_validator("password")
     @classmethod
@@ -38,9 +28,41 @@ class UserCreate(BaseModel):
             raise ValueError("La contraseña debe contener al menos un número")
         return v
 
+    @model_validator(mode="after")
+    def validate_scope_consistency(self) -> "UserCreate":
+        """S2-A: Valida consistencia obligatoria entre rol y asignación de colegio/elección"""
+        if self.rol is None:
+            if self.school_id is None and self.election_id is None:
+                self.rol = "Administrador General"
+            elif self.school_id is not None and self.election_id is None:
+                self.rol = "Responsable Institucional"
+            elif self.school_id is not None and self.election_id is not None:
+                self.rol = "Comisión Electoral"
+            else:
+                raise ValueError("Asignación inválida: election_id requiere un school_id")
+
+        rol = self.rol
+        if rol in ("Administrador General", "Administrador"):
+            if self.school_id is not None or self.election_id is not None:
+                raise ValueError("Administrador General no debe tener school_id ni election_id asignados")
+        elif rol == "Responsable Institucional":
+            if self.school_id is None:
+                raise ValueError("Responsable Institucional requiere un school_id válido")
+            if self.election_id is not None:
+                raise ValueError("Responsable Institucional no debe tener election_id asignado")
+        elif rol == "Comisión Electoral":
+            if self.school_id is None:
+                raise ValueError("Comisión Electoral requiere un school_id asignado")
+            if self.election_id is None:
+                raise ValueError("Comisión Electoral requiere un election_id asignado")
+        else:
+            raise ValueError(f"Rol desconocido: {rol}")
+        return self
+
 class Token(BaseModel):
     access_token: str
     token_type: str
+    csrf_token: Optional[str] = None
     user: dict
 
 class UserResponse(BaseModel):
@@ -48,6 +70,8 @@ class UserResponse(BaseModel):
     nombre: str
     email: EmailStr
     rol: str
+    school_id: Optional[int] = None
+    election_id: Optional[int] = None
 
     class Config:
         from_attributes = True
@@ -63,6 +87,15 @@ class SchoolBase(BaseModel):
 
 class SchoolCreate(SchoolBase):
     pass
+
+class SchoolUpdate(BaseModel):
+    nombre: Optional[str] = None
+    rbd: Optional[str] = None
+    comuna: Optional[str] = None
+    correo_contacto: Optional[str] = None
+    telefono: Optional[str] = None
+    logo: Optional[str] = None
+
 
 class SchoolResponse(SchoolBase):
     id: int
@@ -122,7 +155,6 @@ class VoterCreate(VoterBase):
 
 class VoterResponse(VoterBase):
     id: int
-    token_votacion: Optional[str] = None
     estado: str
     fecha_voto: Optional[datetime] = None
     election_id: int
@@ -139,6 +171,7 @@ class VoterBulkUploadResult(BaseModel):
 
 # --- ELECCIÓN ---
 class ElectionBase(BaseModel):
+    motor: Literal["mvp", "belenios"] = "mvp"
     nombre: str
     descripcion: Optional[str] = None
     fecha_inicio: Optional[datetime] = None
@@ -162,6 +195,11 @@ class ElectionUpdate(BaseModel):
 class ElectionResponse(ElectionBase):
     id: int
     estado: str
+    config_hash: Optional[str] = None
+    fecha_cierre_efectiva: Optional[datetime] = None
+    total_padron_congelado: Optional[int] = None
+    total_habilitados_congelado: Optional[int] = None
+    config_snapshot: Optional[str] = None
     fecha_creacion: datetime
     school: Optional[SchoolResponse] = None
 
@@ -175,6 +213,9 @@ class ElectionDetailResponse(ElectionResponse):
     voted_count: int = 0
 
 # --- VOTACIÓN PÚBLICA ---
+class TokenValidateRequest(BaseModel):
+    token: str = Field(..., min_length=1, max_length=256)
+
 class TokenValidateResponse(BaseModel):
     valido: bool
     mensaje: str
@@ -227,8 +268,11 @@ class DashboardStatsResponse(BaseModel):
     total_elecciones: int
     elecciones_activas: int
     total_padron: int
-    total_votos_emitidos: int
-    participacion_global: float
+    total_votos_emitidos: Optional[int]
+    participacion_global: Optional[float]
+    total_habilitados: Optional[int] = None
+    resultados_pendientes: int = 0
+    motores: List[dict] = Field(default_factory=list)
     ultimas_elecciones: List[ElectionResponse]
 
 # --- AUDITORÍA ---
@@ -238,6 +282,41 @@ class AuditLogResponse(BaseModel):
     usuario: str
     accion: str
     detalle: Optional[str] = None
+    prev_hash: Optional[str] = None
+    record_hash: Optional[str] = None
 
     class Config:
         from_attributes = True
+
+
+class AuditIntegrityCheckResponse(BaseModel):
+    integro: bool
+    total_revisados: int
+    primer_hash: Optional[str] = None
+    ultimo_hash: Optional[str] = None
+    fallo_en_id: Optional[int] = None
+    razon: Optional[str] = None
+    fecha_verificacion: str
+
+
+class AuditCheckpointArtifact(BaseModel):
+    schema_version: int = 1
+    timestamp: str
+    total_records: int
+    last_record_id: Optional[int] = None
+    head_hash: str
+    digest_sha256: str
+
+
+class AuditCheckpointResponse(BaseModel):
+    success: bool
+    timestamp: str
+    total_records: int
+    last_record_id: Optional[int] = None
+    head_hash: str
+    checkpoint_hash: str
+    firmado_por: str
+    instrucciones_anclaje: str
+    artifact: AuditCheckpointArtifact
+    anchorage_status: str
+    independent_custody_confirmed: bool

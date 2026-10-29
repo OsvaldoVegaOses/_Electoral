@@ -1,0 +1,236 @@
+{
+  "milestone": "H1",
+  "recorded_at_utc": "2026-10-28T15:09:35.732966+00:00",
+  "upstream_commit": "337887bd1862c7cd057080b530fd80941bfc3c69",
+  "image_id": "sha256:479253acf9676c3781a2ff7b1593b73e1f86f1e58354cd478c515086de9ea61f",
+  "image_size_bytes": 2323381000,
+  "elapsed_checks_seconds": 21.34,
+  "checks": [
+    {
+      "check": "revote_compose_loopback",
+      "passed": true,
+      "observed": 18001
+    },
+    {
+      "check": "revote_actual_loopback",
+      "passed": true,
+      "observed": [
+        {
+          "HostIp": "127.0.0.1",
+          "HostPort": "18001"
+        }
+      ]
+    },
+    {
+      "check": "revote_urn_not_published",
+      "passed": true,
+      "observed": "Only fixed-destination ingress is published"
+    },
+    {
+      "check": "revote_network_internal",
+      "passed": true,
+      "observed": {
+        "name": "theogen-belenios33-poc_ballot-a",
+        "internal": true
+      }
+    },
+    {
+      "check": "revote_version",
+      "passed": true,
+      "observed": {
+        "belenios_version": "3.3.0",
+        "belenios_build": "3.3.0",
+        "api_version": 6
+      }
+    },
+    {
+      "check": "revote_/api/elections",
+      "passed": true,
+      "observed": {
+        "http": 401
+      }
+    },
+    {
+      "check": "revote_/api/no-such-route",
+      "passed": true,
+      "observed": {
+        "http": 404
+      }
+    },
+    {
+      "check": "revote_/static/mail.txt",
+      "passed": true,
+      "observed": {
+        "http": 400
+      }
+    },
+    {
+      "check": "revote_no_public_mail_file",
+      "passed": true,
+      "observed": "The fake mail sink is outside the served static tree"
+    },
+    {
+      "check": "revote_revote_configuration",
+      "passed": true,
+      "observed": {
+        "deny_revote": false
+      }
+    },
+    {
+      "check": "revote_no_default_route",
+      "passed": true,
+      "observed": {
+        "default_route": false
+      }
+    },
+    {
+      "check": "revote_outbound_negative_probe",
+      "passed": true,
+      "observed": "TEST-NET-2 destination unreachable; no election data transmitted"
+    },
+    {
+      "check": "single_compose_loopback",
+      "passed": true,
+      "observed": 18002
+    },
+    {
+      "check": "single_actual_loopback",
+      "passed": true,
+      "observed": [
+        {
+          "HostIp": "127.0.0.1",
+          "HostPort": "18002"
+        }
+      ]
+    },
+    {
+      "check": "single_urn_not_published",
+      "passed": true,
+      "observed": "Only fixed-destination ingress is published"
+    },
+    {
+      "check": "single_network_internal",
+      "passed": true,
+      "observed": {
+        "name": "theogen-belenios33-poc_ballot-b",
+        "internal": true
+      }
+    },
+    {
+      "check": "single_version",
+      "passed": true,
+      "observed": {
+        "belenios_version": "3.3.0",
+        "belenios_build": "3.3.0",
+        "api_version": 6
+      }
+    },
+    {
+      "check": "single_/api/elections",
+      "passed": true,
+      "observed": {
+        "http": 401
+      }
+    },
+    {
+      "check": "single_/api/no-such-route",
+      "passed": true,
+      "observed": {
+        "http": 404
+      }
+    },
+    {
+      "check": "single_/static/mail.txt",
+      "passed": true,
+      "observed": {
+        "http": 400
+      }
+    },
+    {
+      "check": "single_no_public_mail_file",
+      "passed": true,
+      "observed": "The fake mail sink is outside the served static tree"
+    },
+    {
+      "check": "single_revote_configuration",
+      "passed": true,
+      "observed": {
+        "deny_revote": true
+      }
+    },
+    {
+      "check": "single_no_default_route",
+      "passed": true,
+      "observed": {
+        "default_route": false
+      }
+    },
+    {
+      "check": "single_outbound_negative_probe",
+      "passed": true,
+      "observed": "TEST-NET-2 destination unreachable; no election data transmitted"
+    },
+    {
+      "check": "restart_persistence",
+      "passed": true,
+      "observed": {
+        "marker_sha256": "16ca78b1be6804f5ae094c0198700040e3df6d5f966d2bb7181e694113235c62"
+      }
+    },
+    {
+      "check": "stopped_service_unresponsive",
+      "passed": true,
+      "observed": {
+        "http": null,
+        "meaning": "Upstream unavailable: explicit 502 or bounded client timeout"
+      }
+    },
+    {
+      "check": "backup_restore_marker",
+      "passed": true,
+      "observed": {
+        "backup_sha256": "b9434936ebc5c5f94614834cd53c163945183d8ff8ac2f6182e38d129663dec5",
+        "bytes": 61440
+      }
+    },
+    {
+      "check": "restored_server_ready",
+      "passed": true,
+      "observed": "Restored full volume starts with original version/configuration"
+    },
+    {
+      "check": "temporary_restore_removed",
+      "passed": true,
+      "observed": "Only H1 restore volume removed; original two volumes retained"
+    }
+  ],
+  "stats_single_sample": [
+    {
+      "BlockIO": "459kB / 90.1kB",
+      "CPUPerc": "0.11%",
+      "Container": "d3b5ec5f881368f02faefa6d7118a944be2d75928b6a7d6841abf8ac1092eb44",
+      "ID": "d3b5ec5f8813",
+      "MemPerc": "2.13%",
+      "MemUsage": "16.39MiB / 768MiB",
+      "Name": "theogen-belenios33-poc-revote-1",
+      "NetIO": "8.83kB / 10.2kB",
+      "PIDs": "7"
+    },
+    {
+      "BlockIO": "0B / 61.4kB",
+      "CPUPerc": "0.11%",
+      "Container": "c66db6e434375cd6e1dd57004b6e62aa311651d69c5ab99b9ac364d640df5ff5",
+      "ID": "c66db6e43437",
+      "MemPerc": "2.02%",
+      "MemUsage": "15.49MiB / 768MiB",
+      "Name": "theogen-belenios33-poc-single-1",
+      "NetIO": "1.6kB / 1.79kB",
+      "PIDs": "7"
+    }
+  ],
+  "limitations": [
+    "Debug laboratory build, not production",
+    "Logical volume removal does not prove physical erasure",
+    "No election, independent authorities or egress packet capture proven by H1"
+  ]
+}

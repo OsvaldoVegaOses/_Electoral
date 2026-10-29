@@ -1,0 +1,28 @@
+{
+  "recorded_at_utc": "2026-10-28T20:28:49.664950+00:00",
+  "postgres_version": "postgres (PostgreSQL) 16.10",
+  "image_id": "sha256:029660641a0cfc575b14f336ba448fb8a75fd595d42e1fa316b9fb4378742297",
+  "image_digests": [
+    "postgres@sha256:029660641a0cfc575b14f336ba448fb8a75fd595d42e1fa316b9fb4378742297"
+  ],
+  "commands": [
+    {
+      "command": "python -m alembic upgrade head",
+      "exit_code": 0
+    },
+    {
+      "command": "python -m alembic downgrade f6a7b8c9d0e1",
+      "exit_code": 0
+    },
+    {
+      "command": "python -m alembic upgrade head",
+      "exit_code": 0
+    },
+    {
+      "command": "python -m pytest tests/test_belenios_postgres.py -q --tb=short --disable-warnings",
+      "exit_code": 0
+    }
+  ],
+  "populated_downgrade_refused": true,
+  "scope": "Dedicated ephemeral container; synthetic data only; no operational database or Sprint 2 worktree altered"
+}

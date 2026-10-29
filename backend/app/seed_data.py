@@ -1,10 +1,11 @@
+import os
 import uuid
 import secrets
 import logging
 from datetime import datetime, timezone, timedelta
 from sqlalchemy.orm import Session
-from app.models import School, Election, ElectoralCommittee, Candidate, Voter, User, AuditLog
-from app.auth import get_password_hash
+from app.models import School, Election, ElectoralCommittee, Candidate, Voter, User, AuditLog, AuditChainHead
+from app.auth import get_password_hash, compute_audit_hash, GENESIS_HASH
 from app.rut_validator import format_rut
 
 logger = logging.getLogger("theogen.seed")
@@ -38,13 +39,17 @@ def seed_initial_data(db: Session):
     db.add_all([admin_user, comision_user])
     db.flush()
 
-    # HIGH-03: Mostrar credenciales generadas solo por consola (una sola vez)
-    logger.warning("=" * 60)
-    logger.warning("  CREDENCIALES DE ACCESO GENERADAS (guárdelas de forma segura)")
-    logger.warning("=" * 60)
-    logger.warning("  Admin:    admin@theogen.cl     / %s", admin_password)
-    logger.warning("  Comisión: comision@theogen.cl  / %s", comision_password)
-    logger.warning("=" * 60)
+    # B2: Provisionamiento sin imprimir contraseñas en logs del sistema
+    logger.info("Usuarios iniciales creados exitosamente (admin@theogen.cl, comision@theogen.cl).")
+    cred_file = os.getenv("PROVISION_CREDENTIALS_FILE")
+    if cred_file:
+        try:
+            with open(cred_file, "w", encoding="utf-8") as f:
+                f.write(f"ADMIN_PASSWORD={admin_password}\n")
+                f.write(f"COMISION_PASSWORD={comision_password}\n")
+            logger.info("Credenciales de aprovisionamiento escritas en %s", cred_file)
+        except Exception as e:
+            logger.error("No se pudo escribir archivo de credenciales: %s", e)
 
     # 2. Crear Colegio de Demostración
     school = School(
@@ -62,7 +67,7 @@ def seed_initial_data(db: Session):
     now = datetime.now(timezone.utc)
     election = Election(
         nombre="Elección Centro General de Padres y Apoderados 2026-2027",
-        descripcion="Elección oficial y vinculante para la directiva del Centro de Padres del Colegio San Gabriel. Proceso supervisado y auditado por la Comisión Electoral independiente.",
+        descripcion="Proceso de demostración técnica (MVP no vinculante) para el Centro de Padres del Colegio San Gabriel. Entorno de pruebas no habilitado para elecciones vinculantes.",
         fecha_inicio=now - timedelta(hours=2),
         fecha_fin=now + timedelta(days=2),
         estado="Abierta",
@@ -71,6 +76,11 @@ def seed_initial_data(db: Session):
         regla_votacion="Un voto por familia"
     )
     db.add(election)
+    db.flush()
+
+    # S2-A: Asignar ámbito explícito a comision_user
+    comision_user.school_id = school.id
+    comision_user.election_id = election.id
     db.flush()
 
     # 4. Crear Miembros de la Comisión Electoral
@@ -217,34 +227,44 @@ def seed_initial_data(db: Session):
         ))
     db.add_all(voters)
 
-    # 7. Registrar Auditoría Inicial
-    logs = [
-        AuditLog(
-            fecha=now - timedelta(hours=2),
-            usuario="admin@theogen.cl",
-            accion="Creó elección",
-            detalle=f"Se creó la elección '{election.nombre}' para la institución '{school.nombre}' con regla '{election.regla_votacion}'."
-        ),
-        AuditLog(
-            fecha=now - timedelta(hours=1, minutes=45),
-            usuario="admin@theogen.cl",
-            accion="Subió padrón",
-            detalle="Se cargaron exitosamente 20 electores habilitados correspondientes a las familias del colegio."
-        ),
-        AuditLog(
-            fecha=now - timedelta(hours=1, minutes=30),
-            usuario="admin@theogen.cl",
-            accion="Generó credenciales",
-            detalle="Se generaron 20 tokens UUID criptográficos únicos de sufragio."
-        ),
-        AuditLog(
-            fecha=now - timedelta(hours=1),
-            usuario="comision@theogen.cl",
-            accion="Abrió votación",
-            detalle="La Comisión Electoral verificó la urna digital vacía y firmó el Acta de Apertura."
-        )
+    # Seed opens a synthetic election directly, so provision its rights too.
+    from app.entitlements import derive_entitlement_key
+    from app.models import VotingEntitlement
+    for family in sorted({voter.familia_id.strip().upper() for voter in voters}):
+        db.add(VotingEntitlement(election_id=election.id,
+                                unit_key=derive_entitlement_key(election.id, f"FAM:{family}"),
+                                estado="Pendiente"))
+
+    # 7. Registrar Auditoría Inicial (P15: Encadenamiento criptográfico append-only)
+    seed_audit_entries = [
+        (now - timedelta(hours=2), "admin@theogen.cl", "Creó elección", f"Se creó la elección '{election.nombre}' para la institución '{school.nombre}' con regla '{election.regla_votacion}'."),
+        (now - timedelta(hours=1, minutes=45), "admin@theogen.cl", "Subió padrón", "Se cargaron exitosamente 20 electores habilitados correspondientes a las familias del colegio."),
+        (now - timedelta(hours=1, minutes=30), "admin@theogen.cl", "Generó credenciales", "Se generaron 20 tokens UUID criptográficos únicos de sufragio."),
+        (now - timedelta(hours=1), "comision@theogen.cl", "Abrió votación", "La Comisión Electoral verificó la urna digital vacía y firmó el Acta de Apertura."),
     ]
-    db.add_all(logs)
+    current_prev = GENESIS_HASH
+    for dt, usr, acc, det in seed_audit_entries:
+        rec_hash = compute_audit_hash(current_prev, dt, usr, acc, det, school.id)
+        log = AuditLog(
+            fecha=dt,
+            usuario=usr,
+            accion=acc,
+            detalle=det,
+            school_id=school.id,
+            prev_hash=current_prev,
+            record_hash=rec_hash,
+        )
+        db.add(log)
+        current_prev = rec_hash
+
+    db.flush()
+    last_seed_log = db.query(AuditLog).order_by(AuditLog.id.desc()).first()
+    chain_head = db.query(AuditChainHead).filter(AuditChainHead.id == 1).first()
+    if chain_head is None:
+        chain_head = AuditChainHead(id=1)
+        db.add(chain_head)
+    chain_head.head_hash = current_prev
+    chain_head.last_log_id = last_seed_log.id if last_seed_log else None
 
     db.commit()
     logger.info("Seed de datos inicial completado exitosamente.")

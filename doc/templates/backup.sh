@@ -6,7 +6,7 @@
 # Programación recomendada en crontab: 0 */6 * * * /usr/local/bin/theogen-backup.sh
 # =============================================================================
 
-set -eo pipefail
+set -euo pipefail
 
 BACKUP_DIR="${BACKUP_DIR:-/var/backups/theogen}"
 CONTAINER_NAME="${DB_CONTAINER:-theogen_db}"
@@ -18,8 +18,12 @@ TIMESTAMP=$(date +"%Y%m%d_%H%M%S")
 BACKUP_FILE="${BACKUP_DIR}/theogen_${DB_NAME}_${TIMESTAMP}.sql.gz"
 CHECKSUM_FILE="${BACKUP_FILE}.sha256"
 
-# 1. Crear directorio de respaldos si no existe
+# 1. Crear directorio de respaldos con permisos estrictos (solo owner/root)
 mkdir -p "${BACKUP_DIR}"
+chmod 700 "${BACKUP_DIR}"
+
+# Aplicar umask restrictivo: los archivos creados solo serán legibles por el owner
+umask 077
 
 echo "[$(date -u +"%Y-%m-%dT%H:%M:%SZ")] INICIO: Respaldo de la base de datos '${DB_NAME}'..."
 
@@ -30,7 +34,10 @@ if ! docker ps --format '{{.Names}}' | grep -q "^${CONTAINER_NAME}$"; then
 fi
 
 # 3. Ejecutar pg_dump y comprimir con gzip nivel 9
-docker exec -t "${CONTAINER_NAME}" pg_dump -U "${DB_USER}" -d "${DB_NAME}" --no-owner --clean --if-exists | gzip -9 > "${BACKUP_FILE}"
+# NOTA: Se usa -i (stdin/stdout) en lugar de -t (TTY) para evitar caracteres
+#       de control que corrompan el archivo comprimido.
+docker exec -i "${CONTAINER_NAME}" pg_dump -U "${DB_USER}" -d "${DB_NAME}" \
+    --no-owner --clean --if-exists | gzip -9 > "${BACKUP_FILE}"
 
 # 4. Validar que el archivo de respaldo exista y no esté vacío
 if [ ! -s "${BACKUP_FILE}" ]; then
@@ -40,7 +47,9 @@ if [ ! -s "${BACKUP_FILE}" ]; then
 fi
 
 # 5. Generar Checksum SHA-256 para verificación de integridad
-sha256sum "${BACKUP_FILE}" > "${CHECKSUM_FILE}"
+#    Se almacena solo el nombre de archivo (sin ruta absoluta) para que
+#    'sha256sum -c' funcione aunque el backup sea movido a otro directorio.
+(cd "${BACKUP_DIR}" && sha256sum "$(basename "${BACKUP_FILE}")") > "${CHECKSUM_FILE}"
 FILESIZE=$(du -h "${BACKUP_FILE}" | cut -f1)
 
 echo "[$(date -u +"%Y-%m-%dT%H:%M:%SZ")] ÉXITO: Respaldo completado (${FILESIZE}): ${BACKUP_FILE}"
@@ -48,7 +57,7 @@ echo "[$(date -u +"%Y-%m-%dT%H:%M:%SZ")] Checksum SHA-256: $(cat "${CHECKSUM_FIL
 
 # 6. Rotación: Eliminar respaldos más antiguos que RETENTION_DAYS
 echo "[$(date -u +"%Y-%m-%dT%H:%M:%SZ")] Limpiando respaldos con más de ${RETENTION_DAYS} días de antigüedad..."
-find "${BACKUP_DIR}" -name "theogen_${DB_NAME}_*.sql.gz" -mtime "+${RETENTION_DAYS}" -delete
-find "${BACKUP_DIR}" -name "theogen_${DB_NAME}_*.sha256" -mtime "+${RETENTION_DAYS}" -delete
+find "${BACKUP_DIR}" -name "theogen_${DB_NAME}_*.sql.gz"  -mtime "+${RETENTION_DAYS}" -delete
+find "${BACKUP_DIR}" -name "theogen_${DB_NAME}_*.sha256"  -mtime "+${RETENTION_DAYS}" -delete
 
 echo "[$(date -u +"%Y-%m-%dT%H:%M:%SZ")] Proceso de respaldo finalizado exitosamente."

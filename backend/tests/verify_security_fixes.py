@@ -19,7 +19,7 @@ from app.routers.audit import _escape_like as audit_escape_like
 from app.routers.voters import _escape_like as voters_escape_like, MAX_UPLOAD_SIZE_BYTES
 from app.routers.elections import VALID_STATE_TRANSITIONS
 from pydantic import ValidationError
-from jose import jwt
+import jwt
 
 
 class TestSecurityFixes(unittest.TestCase):
@@ -74,22 +74,26 @@ class TestSecurityFixes(unittest.TestCase):
         self.assertEqual(VALID_STATE_TRANSITIONS["Finalizada"], [])
 
     def test_high_04_password_validation(self):
-        """HIGH-04: Password complexity enforced in schemas"""
+        """HIGH-04: Password complexity enforced in schemas for user creation without locking login"""
         # Valid password (>=8 chars, with letter and digit)
-        valid = UserLogin(email="user@test.cl", password="StrongPassword123")
+        valid = UserCreate(nombre="Test User", email="user@test.cl", password="StrongPassword123")
         self.assertEqual(valid.email, "user@test.cl")
 
         # Invalid: too short
         with self.assertRaises(ValidationError):
-            UserLogin(email="user@test.cl", password="short1")
+            UserCreate(nombre="Test User", email="user@test.cl", password="short1")
 
         # Invalid: no numbers
         with self.assertRaises(ValidationError):
-            UserLogin(email="user@test.cl", password="OnlyLettersHere")
+            UserCreate(nombre="Test User", email="user@test.cl", password="OnlyLettersHere")
 
         # Invalid: no letters
         with self.assertRaises(ValidationError):
-            UserLogin(email="user@test.cl", password="1234567890")
+            UserCreate(nombre="Test User", email="user@test.cl", password="1234567890")
+
+        # UserLogin allows legacy credentials without artificial blocking
+        login_compat = UserLogin(email="user@test.cl", password="legacy")
+        self.assertEqual(login_compat.password, "legacy")
 
     def test_med_02_file_upload_limit(self):
         """MED-02: File upload limit set to 10MB"""

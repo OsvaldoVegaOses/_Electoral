@@ -13,8 +13,13 @@ from typing import List, Optional
 from app.database import get_db
 from app.models import Voter, Election, User
 from app.schemas import VoterCreate, VoterResponse, VoterBulkUploadResult
-from app.auth import get_current_user, log_audit
-from app.rut_validator import validate_rut, format_rut, clean_rut
+from app.auth import (
+    get_current_user, log_audit, check_election_access, sanitize_formula_injection,
+    hash_voting_token
+)
+from app.rut_validator import validate_rut, format_rut, clean_rut, mask_rut
+from app.credentials import require_credential_delivery
+from app.config import settings
 
 logger = logging.getLogger("theogen.voters")
 
@@ -39,9 +44,15 @@ def list_voters(
     skip: int = Query(0, ge=0),
     limit: int = Query(100, ge=1, le=500),
     db: Session = Depends(get_db),
-    current_user: User = Depends(get_current_user),  # CRIT-03: Autenticación requerida
+    current_user: User = Depends(get_current_user),  # CRIT-03
 ):
-    """Lista los votantes de una elección con filtros opcionales de estado o búsqueda (paginado — LOW-03)"""
+    """Lista los votantes de una elección con verificación anti-IDOR"""
+    election = db.query(Election).filter(Election.id == election_id).first()
+    if not election:
+        raise HTTPException(status_code=404, detail="Elección no encontrada")
+
+    check_election_access(current_user, election, write=False)
+
     query = db.query(Voter).filter(Voter.election_id == election_id)
     if estado:
         query = query.filter(Voter.estado == estado)
@@ -62,10 +73,20 @@ def create_voter(
     db: Session = Depends(get_db),
     current_user: User = Depends(get_current_user)
 ):
-    """Agrega manualmente un elector al padrón con validación rigurosa"""
+    """Agrega manualmente un elector al padrón con verificación anti-IDOR"""
     election = db.query(Election).filter(Election.id == election_id).first()
     if not election:
         raise HTTPException(status_code=404, detail="Elección no encontrada")
+
+    check_election_access(current_user, election, write=True)
+    if election.motor == "mvp":
+        require_credential_delivery()
+
+    if election.estado != "Borrador":
+        raise HTTPException(
+            status_code=409,
+            detail="El padrón electoral se encuentra congelado tras la apertura de la elección."
+        )
 
     # Validar RUT
     if not validate_rut(voter_in.rut):
@@ -77,7 +98,7 @@ def create_voter(
     # Validar duplicados de RUT en la misma elección
     existing = db.query(Voter).filter(
         Voter.election_id == election_id,
-        (Voter.rut == formatted) | (Voter.rut == cleaned)
+        (Voter.rut == formatted) | (Voter.rut == cleaned) | (Voter.rut_normalizado == cleaned)
     ).first()
     if existing:
         raise HTTPException(status_code=400, detail=f"El elector con RUT {formatted} ya se encuentra registrado")
@@ -86,28 +107,36 @@ def create_voter(
     if voter_in.correo and not re.match(EMAIL_REGEX, voter_in.correo):
         raise HTTPException(status_code=400, detail="El formato del correo electrónico es inválido")
 
-    token = str(uuid.uuid4())
+    clean_nombre = sanitize_formula_injection(voter_in.nombre.strip())
+    clean_curso = sanitize_formula_injection(voter_in.curso.strip()) if voter_in.curso else None
+    clean_familia = sanitize_formula_injection(voter_in.familia_id.strip()) if voter_in.familia_id else None
+
+    token = str(uuid.uuid4()) if election.motor == "mvp" and settings.ENVIRONMENT != "production" else None
     voter = Voter(
         rut=formatted,
-        nombre=voter_in.nombre.strip(),
-        curso=voter_in.curso.strip() if voter_in.curso else None,
+        rut_normalizado=cleaned,
+        nombre=clean_nombre,
+        curso=clean_curso,
         correo=voter_in.correo.strip().lower() if voter_in.correo else None,
-        familia_id=voter_in.familia_id.strip() if voter_in.familia_id else None,
-        token_votacion=token,
+        familia_id=clean_familia,
+        token_votacion=None,
+        token_hash=hash_voting_token(token) if token else None,
         estado="Pendiente",
         election_id=election_id
     )
     db.add(voter)
-    db.commit()
-    db.refresh(voter)
-
     log_audit(
         db,
         accion="Agregó elector",
-        detalle=f"Elector {voter.nombre} (RUT: {voter.rut}) añadido al padrón",
-        usuario=current_user.email
+        detalle=f"Elector {voter.nombre} (RUT: {mask_rut(voter.rut)}) añadido al padrón",
+        usuario=current_user.email,
+        school_id=election.school_id,
+        commit=False
     )
+    db.commit()
+    db.refresh(voter)
     return voter
+
 
 @router.post("/upload-excel", response_model=VoterBulkUploadResult)
 async def upload_voters_file(
@@ -117,35 +146,65 @@ async def upload_voters_file(
     current_user: User = Depends(get_current_user)
 ):
     """
-    Módulo 2: Carga masiva de padrón desde archivo Excel (.xlsx, .xls) o CSV.
+    Módulo 2: Carga masiva de padrón desde archivo Excel (.xlsx) o CSV.
     Valida:
-    - RUT con Módulo 11
+    - Lectura en streaming por chunks (máx 10 MB) para prevenir saturación de memoria RAM
+    - Rechazo de formato .xls legado por motivos de seguridad
+    - Tipos de datos forzados a string (dtype=str) para evitar pérdida de ceros a la izquierda
+    - Neutralización de inyección de fórmulas CSV/Excel (CSV Formula Injection)
+    - RUT con Módulo 11 chileno
     - Correo electrónico válido
     - Duplicados en el archivo y contra la BD
-    Devuelve lista de errores detallados por fila.
+    - Registro de auditoría atómico con la inserción del lote
     """
     election = db.query(Election).filter(Election.id == election_id).first()
     if not election:
         raise HTTPException(status_code=404, detail="Elección no encontrada")
 
-    contents = await file.read()
+    check_election_access(current_user, election, write=True)
+    if election.motor == "mvp":
+        require_credential_delivery()
 
-    # MED-02: Validar tamaño máximo del archivo
-    if len(contents) > MAX_UPLOAD_SIZE_BYTES:
+    if election.estado != "Borrador":
         raise HTTPException(
-            status_code=413,
-            detail=f"El archivo excede el tamaño máximo permitido de {MAX_UPLOAD_SIZE_BYTES // (1024*1024)} MB."
+            status_code=409,
+            detail="El padrón electoral se encuentra congelado tras la apertura de la elección."
         )
 
-    filename = file.filename.lower()
+    # MED-02: Streaming de archivo en chunks para evitar saturación de memoria RAM
+    CHUNK_SIZE = 1024 * 1024  # 1 MB por chunk
+    total_bytes = 0
+    buffer = io.BytesIO()
+
+    while True:
+        chunk = await file.read(CHUNK_SIZE)
+        if not chunk:
+            break
+        total_bytes += len(chunk)
+        if total_bytes > MAX_UPLOAD_SIZE_BYTES:
+            raise HTTPException(
+                status_code=status.HTTP_413_REQUEST_ENTITY_TOO_LARGE,
+                detail=f"El archivo excede el tamaño máximo permitido de {MAX_UPLOAD_SIZE_BYTES // (1024*1024)} MB."
+            )
+        buffer.write(chunk)
+
+    buffer.seek(0)
+    filename = file.filename.lower() if file.filename else ""
+
+    # Rechazar explícitamente formato .xls legado por motivos de seguridad e interoperabilidad
+    if filename.endswith(".xls"):
+        raise HTTPException(
+            status_code=status.HTTP_400_BAD_REQUEST,
+            detail="El formato .xls legado no está permitido por motivos de seguridad e interoperabilidad. Por favor guarde o exporte su archivo en formato .xlsx moderno o .csv."
+        )
 
     try:
         if filename.endswith(".csv"):
-            df = pd.read_csv(io.BytesIO(contents))
-        elif filename.endswith((".xlsx", ".xls")):
-            df = pd.read_excel(io.BytesIO(contents))
+            df = pd.read_csv(buffer, dtype=str)
+        elif filename.endswith(".xlsx"):
+            df = pd.read_excel(buffer, dtype=str)
         else:
-            raise HTTPException(status_code=400, detail="Formato de archivo no soportado. Debe ser .xlsx, .xls o .csv")
+            raise HTTPException(status_code=400, detail="Formato de archivo no soportado. Debe ser .xlsx o .csv")
     except HTTPException:
         raise
     except Exception as e:
@@ -217,30 +276,38 @@ async def upload_voters_file(
         else:
             raw_correo = None
 
+        # Sanitizar inyección de fórmulas CSV en campos alfanuméricos
+        clean_nombre = sanitize_formula_injection(raw_nombre)
+        clean_curso = sanitize_formula_injection(raw_curso) if raw_curso and raw_curso.lower() != 'nan' else None
+        clean_familia = sanitize_formula_injection(raw_familia) if raw_familia and raw_familia.lower() != 'nan' else None
+
         # Preparar voter
-        token = str(uuid.uuid4())
+        token = str(uuid.uuid4()) if election.motor == "mvp" and settings.ENVIRONMENT != "production" else None
         voters_to_insert.append(Voter(
             rut=formatted,
-            nombre=raw_nombre,
-            curso=raw_curso if raw_curso and raw_curso.lower() != 'nan' else None,
+            rut_normalizado=cleaned,
+            nombre=clean_nombre,
+            curso=clean_curso,
             correo=raw_correo.lower() if raw_correo else None,
-            familia_id=raw_familia if raw_familia and raw_familia.lower() != 'nan' else None,
-            token_votacion=token,
+            familia_id=clean_familia,
+            token_votacion=None,
+            token_hash=hash_voting_token(token) if token else None,
             estado="Pendiente",
             election_id=election_id
         ))
 
-    # Guardar en base de datos
+    # Guardar en base de datos con auditoría atómica en la misma transacción
     if voters_to_insert:
         db.add_all(voters_to_insert)
-        db.commit()
-
         log_audit(
             db,
             accion="Subió padrón",
             detalle=f"Se cargaron {len(voters_to_insert)} electores desde archivo '{file.filename}'. {len(errores)} filas con error.",
-            usuario=current_user.email
+            usuario=current_user.email,
+            school_id=election.school_id,
+            commit=False
         )
+        db.commit()
 
     return {
         "total_leidos": len(df),
@@ -256,68 +323,87 @@ def generate_all_tokens(
     db: Session = Depends(get_db),
     current_user: User = Depends(get_current_user)
 ):
-    """Genera tokens UUID únicos para todos los electores de la elección que no lo posean"""
-    voters = db.query(Voter).filter(Voter.election_id == election_id, Voter.token_votacion.is_(None)).all()
+    """Genera tokens UUID únicos para todos los electores de la elección con validación anti-IDOR"""
+    election = db.query(Election).filter(Election.id == election_id).first()
+    if not election:
+        raise HTTPException(status_code=404, detail="Elección no encontrada")
+
+    check_election_access(current_user, election, write=True)
+    if election.motor == "mvp":
+        require_credential_delivery()
+
+    if election.estado != "Borrador":
+        raise HTTPException(
+            status_code=409,
+            detail="No se pueden generar o modificar credenciales tras la apertura de la elección."
+        )
+
+    if election.motor != "mvp":
+        raise HTTPException(409, "Las credenciales Belenios son responsabilidad de su autoridad externa.")
+    if settings.ENVIRONMENT == "production":
+        raise HTTPException(409, "Use entrega individual con identificador de operación y conciliación; no se emiten tokens sin entrega.")
+    voters = db.query(Voter).filter(Voter.election_id == election_id, Voter.token_hash.is_(None)).all()
     count = 0
     for v in voters:
-        v.token_votacion = str(uuid.uuid4())
+        raw_token = str(uuid.uuid4())
+        v.token_votacion = None
+        v.token_hash = hash_voting_token(raw_token)
         count += 1
-    db.commit()
 
     log_audit(
         db,
         accion="Generó credenciales",
         detalle=f"Generados {count} tokens UUID de votación",
-        usuario=current_user.email
+        usuario=current_user.email,
+        school_id=election.school_id,
+        commit=False
     )
+    db.commit()
     return {"mensaje": f"Se generaron {count} credenciales únicas.", "generados": count}
+
 
 @router.get("/simulate-email-dispatch")
 def simulate_email_dispatch(
     election_id: int,
     db: Session = Depends(get_db),
-    current_user: User = Depends(get_current_user),  # CRIT-03 + CRIT-04: Proteger con autenticación
+    current_user: User = Depends(get_current_user),  # CRIT-03
 ):
     """
-    Módulo 4: Simulación de despacho de credenciales.
-    Genera la vista previa de correos electrónicos con enlaces directos /votar?token=...
-    CRIT-04: Los tokens se enmascaran para reducir la exposición.
+    Módulo 4: Simulación de despacho de credenciales con validación anti-IDOR.
     """
     election = db.query(Election).filter(Election.id == election_id).first()
     if not election:
         raise HTTPException(status_code=404, detail="Elección no encontrada")
 
+    check_election_access(current_user, election, write=False)
+
+
     voters = db.query(Voter).filter(Voter.election_id == election_id).limit(50).all()
     emails = []
 
-    for v in voters:
-        token = v.token_votacion or "SIN-TOKEN"
-        # CRIT-04: Enmascarar token en la respuesta — solo mostrar primeros y últimos 4 chars
-        if len(token) > 12:
-            masked_token = f"{token[:4]}...{token[-4:]}"
-        else:
-            masked_token = "****"
+    # Enlace genérico seguro sin credenciales expuestas en la URL
+    vote_url = "http://localhost:5173/votar"
 
-        vote_url = f"http://localhost:5173/votar?token={token}"
+    for v in voters:
         html_preview = f"""
         <div style="font-family: Arial, sans-serif; max-width: 600px; border: 1px solid #e2e8f0; border-radius: 8px; padding: 20px;">
             <div style="background-color: #0d233a; color: white; padding: 15px; border-radius: 6px; text-align: center;">
                 <h2 style="margin: 0;">TheoGen Electoral</h2>
-                <p style="margin: 5px 0 0 0; font-size: 12px; color: #94a3b8;">Participación transparente y verificable</p>
+                <p style="margin: 5px 0 0 0; font-size: 12px; color: #94a3b8;">Plataforma de Gestión Electoral (MVP)</p>
             </div>
             <div style="padding: 20px 0;">
                 <p>Estimado/a <strong>{v.nombre}</strong> (RUT: {v.rut}):</p>
                 <p>Se encuentra habilitado/a para emitir su sufragio en el proceso: <strong>{election.nombre}</strong>.</p>
                 <div style="background-color: #f8fafc; border-left: 4px solid #1e40af; padding: 12px; margin: 15px 0;">
                     <p style="margin: 0; font-size: 13px;"><strong>Tu Token Único de Votación:</strong></p>
-                    <code style="font-size: 16px; font-weight: bold; color: #0f172a;">{masked_token}</code>
+                    <code style="font-size: 14px; font-weight: bold; color: #0f172a;">[Entrega de credenciales no habilitada]</code>
                 </div>
                 <p style="text-align: center; margin: 25px 0;">
                     <a href="{vote_url}" style="background-color: #1e40af; color: white; padding: 12px 24px; text-decoration: none; border-radius: 6px; font-weight: bold;">
-                        Ingresar a la Sala de Votación
+                        Ingresar a la Sala de Votación (/votar)
                     </a>
                 </p>
-                <p style="font-size: 11px; color: #64748b;">Este voto es personal, secreto e irreversible. No comparta este enlace con terceros.</p>
+                <p style="font-size: 11px; color: #64748b;">Este MVP no ofrece secreto criptográfico del voto ni auditoría independiente. No comparta su credencial con terceros.</p>
             </div>
         </div>
         """
@@ -326,8 +412,8 @@ def simulate_email_dispatch(
             "nombre": v.nombre,
             "rut": v.rut,
             "correo": v.correo or "sin_correo@demo.cl",
-            "token": masked_token,  # CRIT-04: Token enmascarado
-            "enlace_votacion": "[protegido - se envía directamente al correo del elector]",
+            "token": "[protegido por secreto electoral]",
+            "enlace_votacion": vote_url,
             "preview_html": html_preview,
             "estado": v.estado
         })

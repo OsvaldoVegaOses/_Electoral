@@ -56,6 +56,10 @@ const PublicVote = () => {
   useEffect(() => {
     if (initialToken) {
       handleValidateToken(initialToken);
+      // Sanitizar la barra de direcciones del navegador inmediatamente para no exponer el token en historial/URL
+      if (typeof window !== 'undefined' && window.history && window.history.replaceState) {
+        window.history.replaceState({}, document.title, window.location.pathname);
+      }
     }
   }, [initialToken]);
 
@@ -144,7 +148,7 @@ const PublicVote = () => {
             Sala de Votación Digital
           </Typography>
           <Typography variant="body2" color="text.secondary">
-            Proceso de sufragio electrónico confidencial, auditable e irreversible
+            MVP de gestión de votación. No ofrece secreto criptográfico del voto ni auditoría independiente.
           </Typography>
         </Box>
 
@@ -181,13 +185,13 @@ const PublicVote = () => {
                 ¡Sufragio Registrado Exitosamente!
               </Typography>
               <Typography variant="body1" sx={{ color: '#047857', fontWeight: 600 }}>
-                Tu voto fue sellado y depositado de forma segura en la urna digital.
+                La plataforma informa que registró la operación. Este comprobante no demuestra secreto del voto ni verificación independiente.
               </Typography>
             </Box>
 
             <CardContent sx={{ p: 4 }}>
               <Typography variant="subtitle2" sx={{ fontWeight: 700, color: '#475569', mb: 2, textTransform: 'uppercase', letterSpacing: '0.05em' }}>
-                Comprobante Digital de Participación
+                Comprobante de Participación (MVP)
               </Typography>
 
               <Paper variant="outlined" sx={{ p: 2.5, mb: 3, backgroundColor: '#f8fafc', borderRadius: 2 }}>
@@ -216,7 +220,7 @@ const PublicVote = () => {
 
                   <Grid item xs={12}>
                     <Typography variant="caption" color="text.secondary">
-                      Hash Criptográfico de Integridad (SHA-256):
+                      Identificador hash reportado por la plataforma (SHA-256):
                     </Typography>
                     <Box sx={{ display: 'flex', alignItems: 'center', gap: 1, mt: 0.5 }}>
                       <code
@@ -240,7 +244,7 @@ const PublicVote = () => {
                       </Tooltip>
                     </Box>
                     <Typography variant="caption" sx={{ color: '#64748b', display: 'block', mt: 1 }}>
-                      Este identificador único garantiza que su voto fue contabilizado en la urna sin vincularlo públicamente a su identidad.
+                      Este identificador técnico no acredita que el voto sea secreto ni que el conteo pueda verificarse de forma independiente.
                     </Typography>
                   </Grid>
                 </Grid>
@@ -253,7 +257,7 @@ const PublicVote = () => {
                   startIcon={<HowToVoteIcon />}
                   sx={{ fontWeight: 700 }}
                 >
-                  Probar con Otro Token Demo
+                  Ingresar otra credencial
                 </Button>
                 <Button
                   component={Link}
@@ -275,12 +279,12 @@ const PublicVote = () => {
               <Box sx={{ display: 'flex', alignItems: 'center', gap: 1.5, mb: 2 }}>
                 <LockIcon sx={{ color: '#1e40af' }} />
                 <Typography variant="h6" sx={{ fontWeight: 700, color: '#0d233a' }}>
-                  Ingrese su Token Único de Votación
+                  Ingrese su credencial de votación
                 </Typography>
               </Box>
 
               <Typography variant="body2" color="text.secondary" sx={{ mb: 3 }}>
-                El token UUID es su credencial digital intransferible enviada por la Comisión Electoral a su correo.
+                Use la credencial entregada por el canal autorizado de su elección.
               </Typography>
 
               {errorMsg && (
@@ -292,7 +296,7 @@ const PublicVote = () => {
               <Box sx={{ display: 'flex', gap: 1.5, mb: 3, flexWrap: { xs: 'wrap', sm: 'nowrap' } }}>
                 <TextField
                   fullWidth
-                  placeholder="3a8f803d-0ccb-48b7-89f7-d92aa4c729de"
+                  label="Credencial de votación" placeholder="Pegue su credencial"
                   value={tokenInput}
                   onChange={(e) => setTokenInput(e.target.value)}
                   onKeyDown={(e) => e.key === 'Enter' && handleValidateToken()}
@@ -318,68 +322,6 @@ const PublicVote = () => {
 
               {loading && <LinearProgress sx={{ mb: 3 }} />}
 
-              {/* Botones de Prueba Rápida para el Evaluador */}
-              <Divider sx={{ my: 3 }}>
-                <Typography variant="caption" sx={{ color: '#94a3b8', textTransform: 'uppercase', letterSpacing: '0.05em' }}>
-                  Tokens de Prueba Demo Incluidos
-                </Typography>
-              </Divider>
-
-              <Grid container spacing={2}>
-                <Grid item xs={12} sm={6}>
-                  <Paper
-                    variant="outlined"
-                    sx={{
-                      p: 2,
-                      cursor: 'pointer',
-                      borderRadius: 2,
-                      backgroundColor: '#f8fafc',
-                      '&:hover': { borderColor: '#1e40af', backgroundColor: '#eff6ff' },
-                    }}
-                    onClick={() => {
-                      setTokenInput('3a8f803d-0ccb-48b7-89f7-d92aa4c729de');
-                      handleValidateToken('3a8f803d-0ccb-48b7-89f7-d92aa4c729de');
-                    }}
-                  >
-                    <Typography variant="subtitle2" sx={{ fontWeight: 700, color: '#1e40af' }}>
-                      Token Demo 1 (Francisca Silva)
-                    </Typography>
-                    <Typography variant="caption" color="text.secondary">
-                      Familia: FAM-101 • 1° Básico A
-                    </Typography>
-                    <code style={{ display: 'block', fontSize: '0.72rem', color: '#64748b', marginTop: 4 }}>
-                      3a8f803d-0ccb-48b7-89f7-d92aa4c729de
-                    </code>
-                  </Paper>
-                </Grid>
-
-                <Grid item xs={12} sm={6}>
-                  <Paper
-                    variant="outlined"
-                    sx={{
-                      p: 2,
-                      cursor: 'pointer',
-                      borderRadius: 2,
-                      backgroundColor: '#f8fafc',
-                      '&:hover': { borderColor: '#1e40af', backgroundColor: '#eff6ff' },
-                    }}
-                    onClick={() => {
-                      setTokenInput('b1c2d3e4-5f6a-7b8c-9d0e-1f2a3b4c5d6e');
-                      handleValidateToken('b1c2d3e4-5f6a-7b8c-9d0e-1f2a3b4c5d6e');
-                    }}
-                  >
-                    <Typography variant="subtitle2" sx={{ fontWeight: 700, color: '#1e40af' }}>
-                      Token Demo 2 (Rodrigo Silva)
-                    </Typography>
-                    <Typography variant="caption" color="text.secondary">
-                      Misma familia FAM-101 (Para probar bloqueo familiar)
-                    </Typography>
-                    <code style={{ display: 'block', fontSize: '0.72rem', color: '#64748b', marginTop: 4 }}>
-                      b1c2d3e4-5f6a-7b8c-9d0e-1f2a3b4c5d6e
-                    </code>
-                  </Paper>
-                </Grid>
-              </Grid>
             </CardContent>
           </Card>
         ) : (
@@ -554,7 +496,7 @@ const PublicVote = () => {
               )}
             </Paper>
             <Alert severity="warning" sx={{ borderRadius: 2 }}>
-              <strong>Advertencia:</strong> Una vez confirmado, su voto es <strong>irreversible</strong> y su credencial quedará inutilizada permanentemente.
+              <strong>Advertencia:</strong> Este MVP no ofrece secreto criptográfico del voto ni auditoría independiente. Al confirmar, la plataforma dejará de permitir el uso de esta credencial en el flujo actual.
             </Alert>
           </DialogContent>
           <DialogActions sx={{ p: 2 }}>

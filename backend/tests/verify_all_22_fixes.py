@@ -5,7 +5,7 @@ import hmac
 import hashlib
 import inspect
 from datetime import datetime, timezone
-from jose import jwt
+import jwt
 from pydantic import ValidationError
 
 # Add backend to sys.path
@@ -128,15 +128,18 @@ class TestAll22SecurityVulnerabilities(unittest.TestCase):
         self.assertNotEqual(pwd1, "admin123")
 
     def test_09_high_04_password_strength_enforced(self):
-        """HIGH-04: Passwords must be at least 8 characters with letters and numbers"""
+        """HIGH-04: User creation passwords must be at least 8 characters with letters and numbers"""
         with self.assertRaises(ValidationError):
-            UserLogin(email="test@theogen.cl", password="bad")
+            UserCreate(nombre="Test User", email="test@theogen.cl", password="bad")
         with self.assertRaises(ValidationError):
-            UserLogin(email="test@theogen.cl", password="onlyletters")
+            UserCreate(nombre="Test User", email="test@theogen.cl", password="onlyletters")
         with self.assertRaises(ValidationError):
-            UserLogin(email="test@theogen.cl", password="1234567890")
-        valid = UserLogin(email="test@theogen.cl", password="SecurePassword2026")
+            UserCreate(nombre="Test User", email="test@theogen.cl", password="1234567890")
+        valid = UserCreate(nombre="Test User", email="test@theogen.cl", password="SecurePassword2026")
         self.assertEqual(valid.email, "test@theogen.cl")
+        # UserLogin accepts credentials without blocking legacy accounts
+        login = UserLogin(email="test@theogen.cl", password="legacy_password")
+        self.assertEqual(login.password, "legacy_password")
 
     def test_10_high_05_concurrency_lock_in_voting(self):
         """HIGH-05: SELECT FOR UPDATE present in voting endpoint logic"""
@@ -146,11 +149,11 @@ class TestAll22SecurityVulnerabilities(unittest.TestCase):
         self.assertIn("with_for_update()", code)
 
     def test_11_high_06_candidates_hide_votes_when_open(self):
-        """HIGH-06: Candidate vote counts hidden during open election"""
+        """HIGH-06: Candidate vote counts hidden during open election (only shown when Cerrada or Finalizada)"""
         candidates_path = os.path.abspath(os.path.join(os.path.dirname(__file__), "..", "app", "routers", "candidates.py"))
         with open(candidates_path, "r", encoding="utf-8") as f:
             code = f.read()
-        self.assertIn("election.estado == \"Abierta\"", code)
+        self.assertIn('election.estado in ["Cerrada", "Finalizada"]', code)
         self.assertIn("v_count = 0", code)
 
     def test_12_high_07_cors_restricted(self):

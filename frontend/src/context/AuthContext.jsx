@@ -12,35 +12,39 @@ export const AuthProvider = ({ children }) => {
 
   useEffect(() => {
     const checkAuth = async () => {
-      const token = localStorage.getItem('theogen_token');
-      if (token) {
-        try {
-          const userData = await authService.getMe();
-          setUser(userData);
-          localStorage.setItem('theogen_user', JSON.stringify(userData));
-        } catch {
-          setUser(null);
-          localStorage.removeItem('theogen_token');
-          localStorage.removeItem('theogen_user');
-        }
+      try {
+        // P2: Verificar sesión activa contra el servidor usando la cookie HttpOnly
+        const userData = await authService.getMe();
+        setUser(userData);
+        localStorage.setItem('theogen_user', JSON.stringify(userData));
+      } catch {
+        setUser(null);
+        localStorage.removeItem('theogen_user');
+        localStorage.removeItem('theogen_token');
+      } finally {
+        setLoading(false);
       }
-      setLoading(false);
     };
     checkAuth();
   }, []);
 
   const login = async (email, password) => {
     const data = await authService.login(email, password);
-    localStorage.setItem('theogen_token', data.access_token);
+    // P2: El JWT ya NO se guarda en localStorage; viaja protegido en cookie HttpOnly
+    localStorage.removeItem('theogen_token');
     localStorage.setItem('theogen_user', JSON.stringify(data.user));
     setUser(data.user);
     return data.user;
   };
 
-  const logout = () => {
-    localStorage.removeItem('theogen_token');
-    localStorage.removeItem('theogen_user');
-    setUser(null);
+  const logout = async () => {
+    try {
+      await authService.logout();
+    } finally {
+      localStorage.removeItem('theogen_token');
+      localStorage.removeItem('theogen_user');
+      setUser(null);
+    }
   };
 
   return (

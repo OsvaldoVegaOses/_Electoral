@@ -1,11 +1,25 @@
 import axios from 'axios';
 
+function getCookie(name) {
+  if (typeof document === 'undefined') return null;
+  const match = document.cookie.match(new RegExp('(^|;\\s*)(' + name + ')=([^;]*)'));
+  return match ? decodeURIComponent(match[3]) : null;
+}
+
 const api = axios.create({
   baseURL: '/api',
+  withCredentials: true, // P2: Habilitar envío automático de cookies HttpOnly y CSRF
 });
 
-// Interceptor para inyectar token JWT automáticamente
+// Interceptor para inyectar token CSRF y credenciales de autenticación
 api.interceptors.request.use((config) => {
+  // P2: Adjuntar token CSRF desde cookie en cabecera X-CSRF-Token para mutaciones
+  const csrfToken = getCookie('csrf_token');
+  if (csrfToken) {
+    config.headers['X-CSRF-Token'] = csrfToken;
+  }
+
+  // Fallback retrocompatible para Authorization si existiera token en almacenamiento
   const token = localStorage.getItem('theogen_token');
   if (token) {
     config.headers.Authorization = `Bearer ${token}`;
@@ -18,7 +32,7 @@ api.interceptors.response.use(
   (response) => response,
   (error) => {
     if (error.response && error.response.status === 401) {
-      // Si el token expira o es inválido en rutas protegidas
+      // Si la sesión expira o es inválida en rutas protegidas
       if (!window.location.pathname.startsWith('/votar') && window.location.pathname !== '/login') {
         localStorage.removeItem('theogen_token');
         localStorage.removeItem('theogen_user');
@@ -32,6 +46,15 @@ export const authService = {
   login: async (email, password) => {
     const res = await api.post('/auth/login', { email, password });
     return res.data;
+  },
+  logout: async () => {
+    try {
+      const res = await api.post('/auth/logout');
+      return res.data;
+    } catch {
+      // Proceder localmente si la red falla
+      return null;
+    }
   },
   getMe: async () => {
     const res = await api.get('/auth/me');
@@ -85,6 +108,16 @@ export const electionService = {
   },
 };
 
+export const beleniosService = {
+  status: async id => (await api.get(`/elections/${id}/belenios`)).data,
+  prepare: async (id, body) => (await api.post(`/elections/${id}/belenios/prepare`, body)).data,
+  transition: async (id, action) => (await api.post(`/elections/${id}/belenios/transition`, { action, request_id: crypto.randomUUID() })).data,
+  verify: async (id, body) => (await api.post(`/elections/${id}/belenios/verify`, body)).data,
+  units: async id => (await api.get(`/elections/${id}/belenios/units`)).data,
+  record: async id => (await api.get(`/elections/${id}/belenios/record`)).data,
+  reconcile: async (id, body) => (await api.post(`/elections/${id}/belenios/reconcile`, body)).data,
+};
+
 export const voterService = {
   getByElection: async (electionId, params = {}) => {
     const res = await api.get(`/elections/${electionId}/voters`, { params });
@@ -113,6 +146,19 @@ export const voterService = {
   getTemplateDownloadUrl: (electionId) => `/api/elections/${electionId}/voters/template`,
 };
 
+export const credentialDeliveryService = {
+  list: async (election, voter) => (await api.get(`/elections/${election}/voters/${voter}/deliveries`)).data,
+  issue: async (election, voter, operation) => (await api.post(`/elections/${election}/voters/${voter}/deliveries`, { operation_id: operation })).data,
+  reconcile: async (election, voter, operation) => (await api.post(`/elections/${election}/voters/${voter}/deliveries/${operation}/reconcile`)).data,
+};
+
+export async function downloadBeleniosRecord(election) {
+  const response = await api.get(`/elections/${election}/belenios/record/pdf`, { responseType: 'blob' });
+  const url = URL.createObjectURL(new Blob([response.data], { type: 'application/pdf' }));
+  const link = document.createElement('a'); link.href = url; link.download = `Expediente_Belenios_${election}.pdf`;
+  link.click(); URL.revokeObjectURL(url);
+}
+
 export const candidateService = {
   getByElection: async (electionId) => {
     const res = await api.get(`/elections/${electionId}/candidates`);
@@ -130,7 +176,7 @@ export const candidateService = {
 
 export const votingService = {
   validateToken: async (token) => {
-    const res = await api.post(`/voting/validate-token?token=${encodeURIComponent(token)}`);
+    const res = await api.post('/voting/validate-token', { token });
     return res.data;
   },
   submitVote: async (token, candidateId) => {
@@ -148,13 +194,31 @@ export const reportService = {
     const res = await api.get('/reports/dashboard-stats');
     return res.data;
   },
-  getActaAperturaPdfUrl: (electionId) => {
-    const token = localStorage.getItem('theogen_token');
-    return `/api/reports/election/${electionId}/acta-apertura/pdf${token ? `?token=${encodeURIComponent(token)}` : ''}`;
+  downloadActaAperturaPdf: async (electionId, fileName) => {
+    const res = await api.get(`/reports/election/${electionId}/acta-apertura/pdf`, {
+      responseType: 'blob',
+    });
+    const url = window.URL.createObjectURL(new Blob([res.data], { type: 'application/pdf' }));
+    const link = document.createElement('a');
+    link.href = url;
+    link.setAttribute('download', fileName || `Acta_Apertura_Eleccion_${electionId}.pdf`);
+    document.body.appendChild(link);
+    link.click();
+    link.remove();
+    window.URL.revokeObjectURL(url);
   },
-  getActaCierrePdfUrl: (electionId) => {
-    const token = localStorage.getItem('theogen_token');
-    return `/api/reports/election/${electionId}/acta-cierre/pdf${token ? `?token=${encodeURIComponent(token)}` : ''}`;
+  downloadActaCierrePdf: async (electionId, fileName) => {
+    const res = await api.get(`/reports/election/${electionId}/acta-cierre/pdf`, {
+      responseType: 'blob',
+    });
+    const url = window.URL.createObjectURL(new Blob([res.data], { type: 'application/pdf' }));
+    const link = document.createElement('a');
+    link.href = url;
+    link.setAttribute('download', fileName || `Acta_Cierre_Eleccion_${electionId}.pdf`);
+    document.body.appendChild(link);
+    link.click();
+    link.remove();
+    window.URL.revokeObjectURL(url);
   },
 };
 

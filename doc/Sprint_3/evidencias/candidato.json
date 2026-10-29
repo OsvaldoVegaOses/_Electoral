@@ -1,0 +1,962 @@
+{
+  "recorded_at_utc": "2026-10-29T14:29:30.566338+00:00",
+  "base_head": "d9a6def287ee2bb18aeb4dfc2ece18dcd24300a9",
+  "branch": "feat/sprint3-integration",
+  "working_tree": true,
+  "content_sha256": "bf5143ae0406ff11cbcf97336cdf7a638ab6bfd8d7b711f2d00a7684f5d04073",
+  "files": [
+    {
+      "path": ".env.example",
+      "sha256": "b6c75d7d0218e228b795d121d3726f41cc89e774eca2e2bcac2a500216b6aa41"
+    },
+    {
+      "path": ".gitattributes",
+      "sha256": "7eb767ead7ceebf7d09a721d09877a3340632b5dc846124d5932d698090b1466"
+    },
+    {
+      "path": ".github/workflows/ci.yml",
+      "sha256": "306ab25c0a102bd32c5fc386cac347143f2bdf2938a5234a22cb4034331a1c84"
+    },
+    {
+      "path": ".gitignore",
+      "sha256": "ae4518b2545fafa832f26d93f391d321a305798076bf0207a2d179731f0665d5"
+    },
+    {
+      "path": ".gitleaks.toml",
+      "sha256": "b65df1703e11168f32b884ebe6b604abf821312d14db490cb3e56743461748bf"
+    },
+    {
+      "path": "README.md",
+      "sha256": "00ec3c3aa0d29c1081847b40b4a1901be6bca1d6da5366456098421bfd729978"
+    },
+    {
+      "path": "backend/Dockerfile",
+      "sha256": "21613ef55c8441947bf520597972d787fedc487016fd6191e834f2e2a206f717"
+    },
+    {
+      "path": "backend/alembic.ini",
+      "sha256": "8a70641ffa66bb1c228e16a62d8b7a2111810888819c9c662c17ea72e2d70b49"
+    },
+    {
+      "path": "backend/alembic/README",
+      "sha256": "31595cf53626af9ed16e15c44fa43183209cc163fbc3ebcb904b22ac436a8884"
+    },
+    {
+      "path": "backend/alembic/env.py",
+      "sha256": "4729d7b480e6fa079e5393f1d110146cce0bb9da349bab017d5c10ab7fce75e4"
+    },
+    {
+      "path": "backend/alembic/script.py.mako",
+      "sha256": "a60ec52443699fdc2aec93254f06dfdcdfb7f9a5fc7432b7a7e12b9c253713db"
+    },
+    {
+      "path": "backend/alembic/versions/a1b2c3d4e5f6_add_s2_c_legal_hold_to_elections.py",
+      "sha256": "fafa19e45b65acb080604b0779e172dc941a4d3f1a88180d9aa93fb94e37b9d7"
+    },
+    {
+      "path": "backend/alembic/versions/a65f5ab1bc4a_initial_schema_pr1_pr3.py",
+      "sha256": "04ac0abc61307a6e6a30926558ebfdac7a4e1264927ba0a8c48313498fea47c2"
+    },
+    {
+      "path": "backend/alembic/versions/b2c3d4e5f6a7_hmac_voting_entitlements.py",
+      "sha256": "df12f55dccc15bd8783ae69529ba0b7abcc467607c0e8e21114ad2a2560683d5"
+    },
+    {
+      "path": "backend/alembic/versions/bel001_20261028_management.py",
+      "sha256": "dbfed089d6cb14543e8de3077675898a493ed08b032cad7639effe38ddcbc859"
+    },
+    {
+      "path": "backend/alembic/versions/c3d4e5f6a7b8_serialize_audit_chain_writers.py",
+      "sha256": "1b5deed7117bf9452b980d71d75b40dd4d2b207e1740b52f532c13b403b09e6c"
+    },
+    {
+      "path": "backend/alembic/versions/c78d9e0f1a2b_add_token_hash_to_voters.py",
+      "sha256": "b569c94412a95d09417cf179eec1baeb50e04812c24db0754e27e3b1496b8421"
+    },
+    {
+      "path": "backend/alembic/versions/d4e5f6a7b8c9_add_pii_eliminado_en.py",
+      "sha256": "7a51bdd8ea967720b5d6b03bacdd6c0217c180c416ea3848161d7bd1abc76671"
+    },
+    {
+      "path": "backend/alembic/versions/e5f6a7b8c9d0_add_audit_log_hash_chain.py",
+      "sha256": "58d96b91fb8c39bcd504da8de96371dd772b48d8b39d51f3a90dfa5d90648ce1"
+    },
+    {
+      "path": "backend/alembic/versions/f6a7b8c9d0e1_add_s2_b_election_snapshot_and_freezing.py",
+      "sha256": "7cfdb5607a15968e7617e57d4da7a36330f8da1425ba7428ca392f7b5060c55d"
+    },
+    {
+      "path": "backend/alembic/versions/s3001_merge_s2_and_belenios.py",
+      "sha256": "5077d870684683afaf57a126e3ab9be1e27f54e69174548ba5ba5beffb2fbecd"
+    },
+    {
+      "path": "backend/alembic/versions/s3002_delivery_and_engine.py",
+      "sha256": "04c9beade6a0af3dd299d19cb077a1df9d71b93a9e087d983f22b7590c07e335"
+    },
+    {
+      "path": "backend/app/__init__.py",
+      "sha256": "758518b12124c372beb1229792ad595f888bb8b00c064212c67c74f1a7ebb8b9"
+    },
+    {
+      "path": "backend/app/auth.py",
+      "sha256": "fe0cc35d07f842065c1aa46cd401a6325a24bd650f9f1c2b484a1a477e44894c"
+    },
+    {
+      "path": "backend/app/belenios/__init__.py",
+      "sha256": "9cb62d9b9a11f899c41ac3dbbe5937656291cf619d523a39597c323f33bd0353"
+    },
+    {
+      "path": "backend/app/belenios/client.py",
+      "sha256": "343fe9d5c562a992c4d0c68a9326976be8b37b14310a8a0b7061fcac17426db9"
+    },
+    {
+      "path": "backend/app/belenios/deployment.py",
+      "sha256": "99eae99ddd6ea4c2d28b72c89ab5cc02c21406ed33327dd01f4ee89321b3bfe6"
+    },
+    {
+      "path": "backend/app/belenios/record.py",
+      "sha256": "69eb0a60a06522ef9fddc65bfe05925ea242f3ebfafbacb778bcc5c05f0006ac"
+    },
+    {
+      "path": "backend/app/belenios/service.py",
+      "sha256": "c22b54a737d580c1aa9391bc81a8ed74a5a710682f559b6bbdf5b9b2f1f69717"
+    },
+    {
+      "path": "backend/app/belenios/verification.py",
+      "sha256": "685b7314c1e5daf699f7e3c7215159b10f2532a22289606f86b4aad158f3a895"
+    },
+    {
+      "path": "backend/app/brevo.py",
+      "sha256": "52e81ffa51b4c73678bfd1c58be0cfc0eda1cb4a5fad112730a029ad92953192"
+    },
+    {
+      "path": "backend/app/config.py",
+      "sha256": "40982456233cb3c7356b7e36d32d9251f746afa2b4a1b2f801df097e8255a7c3"
+    },
+    {
+      "path": "backend/app/credentials.py",
+      "sha256": "bc11e59d729ac9cc2bc357280df4691c9c976bbf369a9f130eac5b384dad27e9"
+    },
+    {
+      "path": "backend/app/database.py",
+      "sha256": "3c653a4fe08c0e2443a1cc36cd4df1f06e706365b314153178dfaed08d987e56"
+    },
+    {
+      "path": "backend/app/entitlements.py",
+      "sha256": "849082a0d6ed8729f39cdb2305617647e205536a9c8369799b6b56dbfced16da"
+    },
+    {
+      "path": "backend/app/models.py",
+      "sha256": "8c83067b71b382278da0ea62a388e9a4cad10cac17e48992151aa4b6354f81f7"
+    },
+    {
+      "path": "backend/app/pdf_generator.py",
+      "sha256": "b3b4915a583df10401c6f62ff11b9d5025512876cccc397feb14adb64be3df7c"
+    },
+    {
+      "path": "backend/app/rate_limiter.py",
+      "sha256": "c4e79f0697437832ee8435147b2ea14c28c776e8e7da4d9e9ad2afb373d1ca4f"
+    },
+    {
+      "path": "backend/app/routers/__init__.py",
+      "sha256": "b400215fa21feb33fb125f57bd87f4f0df16351a8a8519254180bb3e33aebb91"
+    },
+    {
+      "path": "backend/app/routers/audit.py",
+      "sha256": "8f88463a50a4b4ea4afb707f646d3e8590b05e6af72294516d6e0695bcb89c31"
+    },
+    {
+      "path": "backend/app/routers/auth.py",
+      "sha256": "0cb05c606329482e90d18f5904af756a51b81122853d5074b0ce5a6251c5b3c8"
+    },
+    {
+      "path": "backend/app/routers/belenios.py",
+      "sha256": "271edcc2df793e76f95854e871dc68665e1be3ce79ff0b3d566ad4423e7cbb50"
+    },
+    {
+      "path": "backend/app/routers/candidates.py",
+      "sha256": "072f52e2c029ef6557fad3ad12139867d1f30a2bf2ff2795f3e6046b0b7f4b8c"
+    },
+    {
+      "path": "backend/app/routers/credential_deliveries.py",
+      "sha256": "bf3e27161fe7f73bd58ae19efc45b0b8f1b576de525a87e4d3a89c16c1abd19b"
+    },
+    {
+      "path": "backend/app/routers/elections.py",
+      "sha256": "9b80679f028b528768beec073e036d5acfbab392ec7e2fe6670d00d1ee1bf242"
+    },
+    {
+      "path": "backend/app/routers/pii.py",
+      "sha256": "7f5932cb3367e3db45499284841df58db508ec9ab33dd5a64878f7af320a9da3"
+    },
+    {
+      "path": "backend/app/routers/reports.py",
+      "sha256": "90ab86033fcac9b3344ce63e6aae9dcb4f68053d4adc57dfda3c29968511f14e"
+    },
+    {
+      "path": "backend/app/routers/schools.py",
+      "sha256": "42749b771253bb00c53bc287198bbdef39a783ecf1606aa4d158a3188b958045"
+    },
+    {
+      "path": "backend/app/routers/voters.py",
+      "sha256": "d10ba504e696ed406b28a1402958aeb3237ff245c3c4100184754abd22fdb2d6"
+    },
+    {
+      "path": "backend/app/routers/voting.py",
+      "sha256": "669319f89db989f1da8613dac268bbe853a2a4039eca8a6836f1254f008654c6"
+    },
+    {
+      "path": "backend/app/rut_validator.py",
+      "sha256": "5bc17faf41de9edc25b520879eb1522d6d452cc63bb5cf404a19a761a0356f73"
+    },
+    {
+      "path": "backend/app/schemas.py",
+      "sha256": "f9e41298d64dbe5eabaa573d5e523c8b7dc3acb540ed9ca579d7b3e41f474883"
+    },
+    {
+      "path": "backend/app/seed_data.py",
+      "sha256": "247aaeaec2b368b56f3555dee87be060b4e826463406e50aaf6a2191d6c59f8f"
+    },
+    {
+      "path": "backend/entrypoint.sh",
+      "sha256": "5cd04e55424529466a7ab97dbe7a1003346ece1979bbd5a8b3ae589e127167fa"
+    },
+    {
+      "path": "backend/main.py",
+      "sha256": "4e4bf8a501553f09ddf6b8f1e8860fcb6ba954ee8811fb25f37f6bc3ad7c71a1"
+    },
+    {
+      "path": "backend/requirements.txt",
+      "sha256": "cf136e67fff8d4c28770c62b0a77b24e34302864a6b609a82761fb8eba65520f"
+    },
+    {
+      "path": "backend/test_setup.py",
+      "sha256": "c6812e533dc96829b2c81d2c1259f55b68d476e8e2966a11b7ba50e9a7e88f5e"
+    },
+    {
+      "path": "backend/tests/conftest.py",
+      "sha256": "d875cac2cc1d6cc4aaa7b88f64b3c68f869c2b258a5e9857b2f6d7d9b7b63108"
+    },
+    {
+      "path": "backend/tests/prepare_s2_migration_data.py",
+      "sha256": "5fe766208ea3502a4618efcf4c47791c07bcecc98f561bd559d8c20a80b34c6c"
+    },
+    {
+      "path": "backend/tests/run_belenios_postgres.py",
+      "sha256": "c6c7c2dee639bcdad5b8b8d0a6519272d4b0d3d4028814b34f28016c87c2ed46"
+    },
+    {
+      "path": "backend/tests/smoke_belenios_local.py",
+      "sha256": "daa27dcaf446eb7db90efc81942c96a94236f2b66e04a140fd5660ecb7d4e4a2"
+    },
+    {
+      "path": "backend/tests/test_belenios_integration.py",
+      "sha256": "b874919e2663c26d0b956218ef9b366f4c95bfb676bd5866f0946bd8d6bb714d"
+    },
+    {
+      "path": "backend/tests/test_belenios_postgres.py",
+      "sha256": "7756ae471c5ef0c7f8ce60949c9e65d51258c78606e73ac12673ec3a7606b53e"
+    },
+    {
+      "path": "backend/tests/test_brevo_transport.py",
+      "sha256": "97a7079d37ff35395e0498c0882135ceef11225bcb0ca123b5afc817fbc58620"
+    },
+    {
+      "path": "backend/tests/test_p10_docker_and_nginx_validation.py",
+      "sha256": "f23d485a8c3712ba0b2ba1b39ca6a5a0f42e43b716ee4bb5fde6b20db23cc0b0"
+    },
+    {
+      "path": "backend/tests/test_p13_rate_limiting_redis.py",
+      "sha256": "ca1e848db68587bca78787093a77a51af39309f50595bcd4f78eab79025de6da"
+    },
+    {
+      "path": "backend/tests/test_p14_pii_retention.py",
+      "sha256": "48846d6e9931637696c1e739cef493bccbf6b6ee2f2dfa2f916cf2229abde213"
+    },
+    {
+      "path": "backend/tests/test_p15_append_only_audit.py",
+      "sha256": "93e6a6725e8f429a1b7d2db4cdaa390663bbe0e21956e07510b04649a7b67a90"
+    },
+    {
+      "path": "backend/tests/test_p2_httponly_cookies_csrf.py",
+      "sha256": "d68c6cb065a35e3b94d1dd11fd740b749610cf75cacaa79e02b2c10979b95973"
+    },
+    {
+      "path": "backend/tests/test_p8_token_hashing.py",
+      "sha256": "7097dbcd656660fde6b3648f72b826d12f77850d066eea1dcfb65598e13b487d"
+    },
+    {
+      "path": "backend/tests/test_pr1_security_containment.py",
+      "sha256": "f8d0eb37751a244d7630113056adfb09dfe34af7cc1bbfeb5c4e152fa1edd2e4"
+    },
+    {
+      "path": "backend/tests/test_pr2_rbac_multitenancy.py",
+      "sha256": "a2f4b90db62472c7a3ad6ff374421d2ca3ac9f0ccc9258284cc7c2a6a466c1b4"
+    },
+    {
+      "path": "backend/tests/test_pr3_state_machine_concurrency.py",
+      "sha256": "d662debea16b70932ce55af54bef0ce575ffa875d1f278034542c89798aa75d3"
+    },
+    {
+      "path": "backend/tests/test_pr4_migrations_audit_operations.py",
+      "sha256": "bc55c1c1681a1151d24b2c988442923b9789b2b31a7de8d3eb1c27c6d5cf8be0"
+    },
+    {
+      "path": "backend/tests/test_s2_07_entitlement_privacy.py",
+      "sha256": "c968d03aad06f3f7008d91cfb8abee3d1c94d7db08c1d563ecd182d6a5ca56df"
+    },
+    {
+      "path": "backend/tests/test_s2_07_postgres.py",
+      "sha256": "3d49b48efb54bcf286e2894c56411abcce76689c83e3c0dfcae0bb252d67855d"
+    },
+    {
+      "path": "backend/tests/test_s2_a_permissions_and_guards.py",
+      "sha256": "9325e1511e6eb366751122ec61b527fbfc135e6bebeadbd96046def9b65033eb"
+    },
+    {
+      "path": "backend/tests/test_s2_b_election_snapshot.py",
+      "sha256": "f0432a3688c25966c3067bb3278d8dd9d8a10919ad7426bf9e9b20161f926fad"
+    },
+    {
+      "path": "backend/tests/test_s2_b_migration_backfill.py",
+      "sha256": "f6d426ce2477dbba8ffa81bd905f3c757d1472cfe557d5f3d262106a3e4f61f7"
+    },
+    {
+      "path": "backend/tests/test_s2_c_entitlement_migration.py",
+      "sha256": "2f9c37f854a4d874b011cbe7123a2044d85cdb3fac4b1c3eb0d6e5f7505646f0"
+    },
+    {
+      "path": "backend/tests/test_s2_c_pii_and_tokens.py",
+      "sha256": "8338ab2e319235aedc27375a315e2ac89839e32ee690f2f1cad2bb9ef376a416"
+    },
+    {
+      "path": "backend/tests/test_s2_d_audit_concurrency.py",
+      "sha256": "08e83468af9daf6ff479c2dac8aef5cb2ba5cc2ad7b135593f631b205685090b"
+    },
+    {
+      "path": "backend/tests/test_s2_d_audit_migration.py",
+      "sha256": "6f701be80391417c758be0fc404f1f7656c12f37ab9ce2fe70364b2cf14890b4"
+    },
+    {
+      "path": "backend/tests/test_s2_e_redis_integration.py",
+      "sha256": "f5f89776e08e7a938891b67fbdda5390ce80f5f291bc9020e12b0cc5a396a21c"
+    },
+    {
+      "path": "backend/tests/test_s2_migration_postgres.py",
+      "sha256": "cae1ebd77b576e39890ad35af60ec0e4a8498ceede6f8018c008cd3d92914006"
+    },
+    {
+      "path": "backend/tests/test_s3_delivery_and_engines.py",
+      "sha256": "5b2e7f561f6672f90eb7d33c32638af01519eca2bffda0686e06d3691d784c1a"
+    },
+    {
+      "path": "backend/tests/test_s3_pilot_configuration.py",
+      "sha256": "116477be7d3c2082ae431ac2f2bb565873da5b9b3868126bbdd6b452eaddd954"
+    },
+    {
+      "path": "backend/tests/test_s3_postgres_workers.py",
+      "sha256": "2c91e3b501f12e665fa81a41c8ce7ead9d13098e34d98ba3002d9e75699d2d10"
+    },
+    {
+      "path": "backend/tests/test_s3_release_bootstrap.py",
+      "sha256": "895fe8aec52675ff53899afca5172b0043208f6dbb65cd494b24b5966fbadfef"
+    },
+    {
+      "path": "backend/tests/test_s3_upgrade_paths.py",
+      "sha256": "dbbf3592d34d018cd4b04389c7b6f89511e0379bc7f0954c14e7b5791ef582cc"
+    },
+    {
+      "path": "backend/tests/verify_all_22_fixes.py",
+      "sha256": "1512e0d5b72e7f21a483de713bec498d172daccf726d910d68a7f105c45852b7"
+    },
+    {
+      "path": "backend/tests/verify_security_fixes.py",
+      "sha256": "2c51ed12402fc3a99c423245137b06ab52ef1483d6e492f5472e3c123de4b690"
+    },
+    {
+      "path": "doc/01-arquitectura-infraestructura.md",
+      "sha256": "442888451736c8c0aa827541d4890e8203b34efd68ca5f93b6b1d90cae3c8f6d"
+    },
+    {
+      "path": "doc/02-guia-despliegue-produccion.md",
+      "sha256": "4a717eba590bd0ece446118b8b35c98496ea63ed84d21574fa277d35a0a8f0c4"
+    },
+    {
+      "path": "doc/03-seguridad-y-hardening.md",
+      "sha256": "de0f66bf5084c0ae1f3a2d9d55d3799aef9bf8c4d361409e722c9114b55c2e69"
+    },
+    {
+      "path": "doc/04-respaldos-y-recuperacion.md",
+      "sha256": "6da8c65d19f93cd6f4b32123c8bb256a6e2b8ada9cef7f4d690d7c7ed537795a"
+    },
+    {
+      "path": "doc/05-monitoreo-y-mantenimiento.md",
+      "sha256": "b3c0017a052243176e71335cf1ab4e5616b8bb74f1c62bcf33b4e9a19aeed24a"
+    },
+    {
+      "path": "doc/README.md",
+      "sha256": "ae2376920acd0c943ba9653301394644294b2089539c1e2ad0f02460ef55a0a3"
+    },
+    {
+      "path": "doc/Sprint_2/plan-cierre-sprint2.md",
+      "sha256": "f8963abf3481b3eb405b4076ee139c415384dd489027ff9a2c84e472f66a1c53"
+    },
+    {
+      "path": "doc/Sprint_2/sprint2.md",
+      "sha256": "81df5fb050cda890c1698441fd9619751eda971db2dd5d250a6e6d705262ea7f"
+    },
+    {
+      "path": "doc/Sprint_3/activacion-belenios.md",
+      "sha256": "25ae45019487006526db7b793b70520090ce4b60a4cd2e24c959dcf2338845d3"
+    },
+    {
+      "path": "doc/Sprint_3/estado-implementacion.md",
+      "sha256": "c07eca56c602be91003baa0841981b85837fe594d1846498e09f4996c9ebf5bd"
+    },
+    {
+      "path": "doc/Sprint_3/evidencias/validacion-local.json",
+      "sha256": "4a7062fe0b94da79cc008295cac91b8f620f2b56a994a5cdf7312a526d2809de"
+    },
+    {
+      "path": "doc/Sprint_3/integracion-main.md",
+      "sha256": "372f1400ab1d7f0375bd73baeaccf69d46bd837625c8588b1c5f8d393d89a0f6"
+    },
+    {
+      "path": "doc/adr/001-motor-de-votacion.md",
+      "sha256": "30cc3ae8d519f71648dd88de73e1199ddb757c5f23d8754bec6a45767706283e"
+    },
+    {
+      "path": "doc/motor/evidencias/adr001-live.json",
+      "sha256": "27d6bcb1a053e210702c11fc6ff51ffbba98bcc377cc40e82b682594ee7b5f2b"
+    },
+    {
+      "path": "doc/motor/evidencias/adr001-postgres.json",
+      "sha256": "6040119c59811714134e9f64913cc9bbb6833bab39a13d0916389bdad6255cd9"
+    },
+    {
+      "path": "doc/motor/evidencias/adr001-ui-bound.png",
+      "sha256": "697c55bb46d256c927e20b6331f0fd12c991a860490771d40618f172adcfa879"
+    },
+    {
+      "path": "doc/motor/evidencias/adr001-ui-result.png",
+      "sha256": "1528a8651d5936e8c9558b2a7d93ac081dff6a158ec6900629b70bdbe1d2b92b"
+    },
+    {
+      "path": "doc/motor/evidencias/ryjsGZ7D6RoAkc.bel",
+      "sha256": "6171ba4df17095272a671b716900a485cc583a45aeb6d1ea17e1b21feb6ce858"
+    },
+    {
+      "path": "doc/motor/implementacion_adr001.md",
+      "sha256": "7eeac7347f701e7f6f5ee5df73a29c6b44158b8ed264eb28013b88bf7e1f4276"
+    },
+    {
+      "path": "doc/motor/propuestas_motor.md",
+      "sha256": "c02d8ffbc98286c75e863e4c5d48da77a945ad80e76ee7f06ec21593d594eafd"
+    },
+    {
+      "path": "doc/poc-belenios/00-mandato-spike-autohospedado.md",
+      "sha256": "4342f31e2fc9fb1bf4581c9bd2dde81b2272bc784e9cf32625120567f0a4fbb6"
+    },
+    {
+      "path": "doc/poc-belenios/00a-autorizacion-g1.md",
+      "sha256": "c8e6b76c73edd68bcc6552f893a1be2cab26ab5dcfd650aab05e99158c6250c8"
+    },
+    {
+      "path": "doc/poc-belenios/01-factibilidad-y-contrato.md",
+      "sha256": "f8d2faecba6ce007f5940fb2fc7c5ab12f00656c4d5e7c692c2494b2ed5fb700"
+    },
+    {
+      "path": "doc/poc-belenios/02-instalacion-aislada.md",
+      "sha256": "92f0317da56123684fee0c238286055d0e7a7d24bee8d629a56691725d862b08"
+    },
+    {
+      "path": "doc/poc-belenios/03-protocolos-y-matriz-pruebas.md",
+      "sha256": "4a971cec8e05136ba631cfc982be440834384eb28a5a7c5ea13d7e34467847b4"
+    },
+    {
+      "path": "doc/poc-belenios/04-resultados-verificacion.md",
+      "sha256": "9c86e3bc21afff1b47daf1370dd6a276ba93890ae082f90d7cf1d7b1cec1fc5a"
+    },
+    {
+      "path": "doc/poc-belenios/05-adaptador-experimental.md",
+      "sha256": "913098ecef1bdf776ebaf36e8acf95814aebc3b4518b11faa5490ee5b494da78"
+    },
+    {
+      "path": "doc/poc-belenios/05-compatibilidad-theogen-chile.md",
+      "sha256": "0e3b99196e2ed798efe3cda18a9b96bd2f286f993d047168e4d77fbd2db5fa27"
+    },
+    {
+      "path": "doc/poc-belenios/06-informe-go-no-go.md",
+      "sha256": "dc75c0e9c8083b10c8cd0f40646c338b574ddfd51b2052c8c6d5e3e793b9f72b"
+    },
+    {
+      "path": "doc/poc-belenios/evidencias/h0-2026-10-28.json",
+      "sha256": "4f9f39091c4cd51f78f83e4edf36775684a7a587f6850b7f0ba6dd8cb370c886"
+    },
+    {
+      "path": "doc/poc-belenios/evidencias/h1-resultados.json",
+      "sha256": "b73d1992587e0c05accf443c755417d9cf42594af858ba19b07121973b982781"
+    },
+    {
+      "path": "doc/poc-belenios/evidencias/h2-fallos.json",
+      "sha256": "723da59e8d0ffbeda5f16cecb557e833739b61ee3ef03364782e9a57f83db9d4"
+    },
+    {
+      "path": "doc/poc-belenios/evidencias/h2-publico/revote/FvmMAXJvurGXN9.bel",
+      "sha256": "83631af2b4b62eb9afeb5199a191254f4bd89dbb0343202dc013ed3b4c68566a"
+    },
+    {
+      "path": "doc/poc-belenios/evidencias/h2-publico/single/51jhBLBdowEGd3.bel",
+      "sha256": "f6e5b070dc232cc093ca0d91d4e7e2528d36a44a0786001f5b04248b88f80539"
+    },
+    {
+      "path": "doc/poc-belenios/evidencias/h2-resultados.json",
+      "sha256": "c0712a7fa1df1f2c5b263c9506c12589a1b597dc4de6433749dd7faa43188975"
+    },
+    {
+      "path": "doc/poc-belenios/evidencias/h2-revote-resultado.png",
+      "sha256": "64e7a5bc5f9357cf33edd304cb3b3ba490ecd22c5c9bdac1b24cf52c97bd78a0"
+    },
+    {
+      "path": "doc/poc-belenios/evidencias/h2-single-resultado.png",
+      "sha256": "3d1e27f1fe0359163ab36f99a11240c73dc810c1a8a72c7e59488298763a4054"
+    },
+    {
+      "path": "doc/poc-belenios/evidencias/h3-resultados.json",
+      "sha256": "d8771d25dbe185becfc3b576cf93cebe0cb41fb59b1f029e6aa811b36a95de28"
+    },
+    {
+      "path": "doc/poc-belenios/evidencias/h4-acta-pruebas.json",
+      "sha256": "fa353f4a272af7d3f1b5e280d7c861cb478a5675cfcc8733b20f89c6c10e774e"
+    },
+    {
+      "path": "doc/poc-belenios/evidencias/h4-acta.json",
+      "sha256": "1e7eb86cdbfab7942389564350e3eb8eade0d05c2c4912441a703421302e6454"
+    },
+    {
+      "path": "doc/poc-belenios/evidencias/h4-acta.md",
+      "sha256": "4b938fe23d3e8e1ce01741a866003c8b3d255fbccfcb25a262d0e04672cae926"
+    },
+    {
+      "path": "doc/poc-belenios/evidencias/h4-navegador.json",
+      "sha256": "99342cdc643d945936abfdeaffd5a1f32c6ba66dfbec8500d46ae26508566b40"
+    },
+    {
+      "path": "doc/poc-belenios/evidencias/h4-privacidad.json",
+      "sha256": "eca337a759528715c97a55b085e098b334bef00d228087b73a725cadaac0ca74"
+    },
+    {
+      "path": "doc/poc-belenios/evidencias/h4-publico/CvnVFmybmHMb19.bel",
+      "sha256": "a232536b85c901bf5bd681a100720683746746f74aa025bb5691f3bad02bd337"
+    },
+    {
+      "path": "doc/poc-belenios/evidencias/h4-recursos.json",
+      "sha256": "cb5c16c4d7f77cc3648dea0d4f332876927af3c4d4f27f2d681615edf42fb1bf"
+    },
+    {
+      "path": "doc/poc-belenios/evidencias/h4-resultados.json",
+      "sha256": "2481e44198fdc76f184f76db95b6674470aad876205f8b53b63785eb5697e3d6"
+    },
+    {
+      "path": "doc/poc-belenios/evidencias/verificar-fuentes.py",
+      "sha256": "17101c85f24b321152cc7cbde324112b4ec78eacb09fa879dfd08f5ccdcb91e2"
+    },
+    {
+      "path": "doc/remediacion/00-diagnostico.md",
+      "sha256": "2380122750b0b1f196b760eaf76e2293d6eb0b9fa5bef89ca64145ef39c67838"
+    },
+    {
+      "path": "doc/remediacion/01-informe-pr1-contencion.md",
+      "sha256": "9fb63ae2468a4055e229cc29ca156380e3a1fb36f498497c3edcbc0517b75092"
+    },
+    {
+      "path": "doc/remediacion/02-informe-pr2-rbac-multitenancy.md",
+      "sha256": "810c0784ebb56f629efb12bc908c3408df53140551db75faf6a25196c6c36d2b"
+    },
+    {
+      "path": "doc/remediacion/03-informe-pr3-maquina-estados-concurrencia.md",
+      "sha256": "5260322b4abc17efecdf42f8711571abc114e549bdecd51e7ff5c4fef1c93da7"
+    },
+    {
+      "path": "doc/remediacion/04-informe-pr4-migraciones-auditoria-operaciones.md",
+      "sha256": "8f8380485597080e525235d4857b12e87c3c9a107bd030498bf82dc4b8e7c361"
+    },
+    {
+      "path": "doc/remediacion/05-politica-retencion-pii.md",
+      "sha256": "8042512cfa28572c1a32795b404099a338db8081f8bc1777d024ac826bfa8838"
+    },
+    {
+      "path": "doc/remediacion/06-arquitectura-bitacora-append-only.md",
+      "sha256": "f9d52683051ddd7b6cc0eb2bdecfe1d3476f90f882edb4f7600d0c0142e2cb11"
+    },
+    {
+      "path": "doc/remediacion/07-informe-final-consolidado-sprint1.md",
+      "sha256": "23c22bffd23ddc5a4a6c57ed4236aef668bfd45a7ffd76e4a4eaf3dda580257e"
+    },
+    {
+      "path": "doc/remediacion/07-informe-sprint2-cierre.md",
+      "sha256": "96840688fff9bb87e4fb1036e858598c95dd3ef99163d733bf7537dd5ea02f74"
+    },
+    {
+      "path": "doc/sprint1.md",
+      "sha256": "c66cc3ee5adfcaaa8ee5aa556799d9094c136eb25c2c3aabc0010041222b6c90"
+    },
+    {
+      "path": "doc/sprint2.md",
+      "sha256": "81df5fb050cda890c1698441fd9619751eda971db2dd5d250a6e6d705262ea7f"
+    },
+    {
+      "path": "doc/sprint3.md",
+      "sha256": "477fa0b7ff042c1f924f517039db53cf4f3a9ec85dbea0f7aacfdf9c3f7c9ba5"
+    },
+    {
+      "path": "doc/templates/.env.production.example",
+      "sha256": "56a4579c4bbf673953d8123834bb5f65f363a9c57cfc86f79e504ff4903f39c5"
+    },
+    {
+      "path": "doc/templates/backup.sh",
+      "sha256": "85c13c62e8e82cb5ba16d4432e0340ca7d30a5971b0bb6cf5c604d444e5a7fd7"
+    },
+    {
+      "path": "doc/templates/docker-compose.prod.yml",
+      "sha256": "81bd678c4de8de372e47160f0f3b42a331d6dc7c917c364e4a4018ce3cb7af70"
+    },
+    {
+      "path": "doc/templates/nginx-ssl.conf",
+      "sha256": "82cc6f738ffabf4bbf7f666bf9b1167a40da553ab3fd1ae65119e952cc23ef04"
+    },
+    {
+      "path": "doc/templates/restore.sh",
+      "sha256": "d303d8470feb4c1a20a89d6c2383c2a6f75819b5bda812a02ef8181fb3391c03"
+    },
+    {
+      "path": "docker-compose.yml",
+      "sha256": "973da9427cb440e6efbcd7ac889d902537de031813e62658810e20f4b07af6f1"
+    },
+    {
+      "path": "frontend/.gitignore",
+      "sha256": "d50ab07e11fa4bf3b1c7c3312e1d7baeab56cca756832ccf40476823ad2a38b7"
+    },
+    {
+      "path": "frontend/.oxlintrc.json",
+      "sha256": "9a11085b48d1ea2c1cdd18c3438a669abcc635f5586019e5df87161369af70ef"
+    },
+    {
+      "path": "frontend/Dockerfile",
+      "sha256": "faeb1b2ebd291658a61736b1bf23939615c1de961fe4a755b89abeb7c97b0d5d"
+    },
+    {
+      "path": "frontend/README.md",
+      "sha256": "3fde43cae789b2a7011b266f6925d928e52d99012c7673141a22952eeef7a3c0"
+    },
+    {
+      "path": "frontend/e2e-belenios/belenios.spec.js",
+      "sha256": "b89a7fda96d2f54b810a14fd5bd9b15bbe84872107f0445965e473aec2eaafdf"
+    },
+    {
+      "path": "frontend/e2e/auth-flow.spec.js",
+      "sha256": "3a6eb066aa0999e3693bca324ff0a8fc6c354a45ecb7d6a1e4fca6461b4a89d9"
+    },
+    {
+      "path": "frontend/e2e/belenios-native.mjs",
+      "sha256": "9582e44bc2a50944ac7d2ae4dce18f2f03f1ce767a06b3308260af5e76920806"
+    },
+    {
+      "path": "frontend/e2e/scope-and-engines.spec.js",
+      "sha256": "7da6b2dfb269591609c99988520395ada22ab0b1f77ddc18fcd08203cfe900ad"
+    },
+    {
+      "path": "frontend/e2e/voting-flow.spec.js",
+      "sha256": "e8522edea2fb8c531ed715eb9ed4e4c799ac80bd18e7b38e4f42e22a2b728864"
+    },
+    {
+      "path": "frontend/index.html",
+      "sha256": "caa5f17926c511ab64436c6ba6a4ef8d78336a91220f598ae50ddf3607fdc29d"
+    },
+    {
+      "path": "frontend/nginx.conf",
+      "sha256": "78ab72d18abb96da65bb3a5e42571687fb46e78a390a84eedbf09abfbb729402"
+    },
+    {
+      "path": "frontend/package-lock.json",
+      "sha256": "66bb6f4c74d470a7ca1d63918a5d1b9d04307aa3a489edb78e6f7f98ccf81d9f"
+    },
+    {
+      "path": "frontend/package.json",
+      "sha256": "9f54d4c880f5758f92c94d7537ff2fb3ea7d08e81b5120e9a6bee6f47846785b"
+    },
+    {
+      "path": "frontend/playwright.belenios.config.js",
+      "sha256": "98fd2e88429bfff89fba717dff2e6972b35607cd2665cb82068887ad4b9d9ef4"
+    },
+    {
+      "path": "frontend/playwright.config.js",
+      "sha256": "857829233bac44aa72cceaa1f580227bb2c6894a63a9e6110373d827c4345123"
+    },
+    {
+      "path": "frontend/public/favicon.svg",
+      "sha256": "61bc9a161de58248288e6905425d7180f0624c2865007b97d763fdac12043a66"
+    },
+    {
+      "path": "frontend/public/icons.svg",
+      "sha256": "7ca2d67c9c3aebf50cdc8709ee8aacf8cdb8cc7ea6325ea94939caef5da1c53d"
+    },
+    {
+      "path": "frontend/src/App.css",
+      "sha256": "c2571ce7245629994b8adc84f6c48e1920f047a4e7e29c89a4aeb51eeb1b5433"
+    },
+    {
+      "path": "frontend/src/App.jsx",
+      "sha256": "36b94b42bd91a5bbe3aa6a0416daad3e4709429cd6468a5881f09992cef24a52"
+    },
+    {
+      "path": "frontend/src/assets/hero.png",
+      "sha256": "881ffbcaafc212e49addad08846a5b82761355fa20624253af3477ba33262c5c"
+    },
+    {
+      "path": "frontend/src/assets/react.svg",
+      "sha256": "35ef61ed53b323ae94a16a8ec659b3d0af3880698791133f23b084085ab1c2e5"
+    },
+    {
+      "path": "frontend/src/assets/vite.svg",
+      "sha256": "2f1f6c6f90a0ef7422cbb4cfafcd8ad329c507a18afdc34cc21fa72179b9c54a"
+    },
+    {
+      "path": "frontend/src/components/BeleniosPanel.jsx",
+      "sha256": "0d177db1fb1e79cf31321dff5c7c818bf163efa5360d10ce19cfddba9ceba58d"
+    },
+    {
+      "path": "frontend/src/components/CredentialDeliveriesPanel.jsx",
+      "sha256": "17c784b651f307d6700dee6c5a94d3329fef5361e54586bd00d0f1f5a6286611"
+    },
+    {
+      "path": "frontend/src/components/Navbar.jsx",
+      "sha256": "fec95103845a9f25803fa45bf3d87521fc8379bf5b88a02e58421c974b0b97ce"
+    },
+    {
+      "path": "frontend/src/components/StatusBadge.jsx",
+      "sha256": "04326c12d3c07b6243f71e06561cecabcfb9eda28764e943d05eda9a8f965fd8"
+    },
+    {
+      "path": "frontend/src/components/TheoGenLogo.jsx",
+      "sha256": "b09756ce3e2dabe824ae46c9c7a28b49b551b9b06ab78eb558a4489d35bca7c8"
+    },
+    {
+      "path": "frontend/src/context/AuthContext.jsx",
+      "sha256": "b80739e1439b881093b023d62545fbdf2babe87f2b63eab57bb31bca779c775a"
+    },
+    {
+      "path": "frontend/src/index.css",
+      "sha256": "b52d753bb416ca07641ede9849f1561a531a565fa49e20d9f647281a187eb780"
+    },
+    {
+      "path": "frontend/src/main.jsx",
+      "sha256": "ae81f1c01f2c8018a1ba5cf73171921c8982d90b049bb6b039ea82f8e1dec958"
+    },
+    {
+      "path": "frontend/src/pages/AuditLogs.jsx",
+      "sha256": "cb8e40911c208d4620624f9c717b86234c225c057aea1dd54c4aa25bbaeda298"
+    },
+    {
+      "path": "frontend/src/pages/Dashboard.jsx",
+      "sha256": "a616f5242f5975647532f8d4f6baa960062517e2a00105698ff995047a8585b1"
+    },
+    {
+      "path": "frontend/src/pages/ElectionCreate.jsx",
+      "sha256": "26a1f69b669e39c8816d4f01615d7102653ee7c4f898ba0f5a320389cb20dc63"
+    },
+    {
+      "path": "frontend/src/pages/ElectionDetail.jsx",
+      "sha256": "d5ff18df62c40d06ab13610a895b5c7d845cfacbfd4b008c62d0657ecac50006"
+    },
+    {
+      "path": "frontend/src/pages/ElectionsList.jsx",
+      "sha256": "9d138d9277f2c5dca907e6227d4eef78737e84a4dc4dbb302f3e733b78fc4e12"
+    },
+    {
+      "path": "frontend/src/pages/Login.jsx",
+      "sha256": "293684e57d1bff2110206587b3a35a6b478549eb73cec30f59b36b46caca46c2"
+    },
+    {
+      "path": "frontend/src/pages/PublicVote.jsx",
+      "sha256": "9270af6613a394ccbe50899451da049f4d02b390427a42de718138f5a25edf4d"
+    },
+    {
+      "path": "frontend/src/pages/SchoolsManagement.jsx",
+      "sha256": "025d919806bae58b864b68bf5f3ce1aaf0fc7e1ffd8124e567c8031a6eacfcc8"
+    },
+    {
+      "path": "frontend/src/services/api.js",
+      "sha256": "6a38a8611be01b827d16722d19e7b4d8929e8d79285647c0408e778f42f4694c"
+    },
+    {
+      "path": "frontend/src/theme.js",
+      "sha256": "91c396fb64572653db16dfaaa5fd68227c8b1a1e6cf271fcf236d89c80fd7ee3"
+    },
+    {
+      "path": "frontend/vite.config.js",
+      "sha256": "6efc6ef234b3640683dd72e11d2b7e1ba3b468326a09cc71be6a00be0583812c"
+    },
+    {
+      "path": "poc/belenios-3.3.0/.gitattributes",
+      "sha256": "8cf1680bb2362f8cc288654c04b4b50ec60ecc840efc83cc992500943b54ab37"
+    },
+    {
+      "path": "poc/belenios-3.3.0/.gitignore",
+      "sha256": "56c78a0a2f26a75c82603e78a29595950d8c3bfee0db41ea4dcc3c9dabe565cd"
+    },
+    {
+      "path": "poc/belenios-3.3.0/Dockerfile.poc",
+      "sha256": "4df6077db82a6e2f9a563dabc3363cc41d09248eccccfcb9e8bac9eff383d206"
+    },
+    {
+      "path": "poc/belenios-3.3.0/README.md",
+      "sha256": "a3e5ff05d835919835a507566dc65a900a533e58b4e6176ba7f0cf718ed55088"
+    },
+    {
+      "path": "poc/belenios-3.3.0/adapter/family_registry.py",
+      "sha256": "f9727b001c3ed7b6e914a8097a126aa4b24066cfd830cc947b546ff41754ff29"
+    },
+    {
+      "path": "poc/belenios-3.3.0/adapter/lab_adapter.py",
+      "sha256": "c1ceb7af73fc484438b30b97965d856e391745614a89910bb1797d55d8b78b40"
+    },
+    {
+      "path": "poc/belenios-3.3.0/adapter/technical_record.py",
+      "sha256": "8f0b0249d5da75c6f82fabb551b150c0106e469c4ff8c7e3776a4d9e799e9e43"
+    },
+    {
+      "path": "poc/belenios-3.3.0/docker-compose.poc.yml",
+      "sha256": "2453ba3f0deb5c98c4001a1f2ca534a931006c4b579f467fa02c1bd4af0ea916"
+    },
+    {
+      "path": "poc/belenios-3.3.0/scripts/check_h1.py",
+      "sha256": "69f52d92adf8bd59921ae5b927e8a6faafb4fb0b844269ef10a798123f13d7fa"
+    },
+    {
+      "path": "poc/belenios-3.3.0/scripts/entrypoint.sh",
+      "sha256": "d89e5af4e3a161623abe4b0d3fd2024ba37e7b5fb7c265f583da4f8522b2a0ec"
+    },
+    {
+      "path": "poc/belenios-3.3.0/scripts/ingress.js",
+      "sha256": "9274b7fd708f9bc7fb6a2a23fb28b218382b1f51d101fcccc65f6425af10912d"
+    },
+    {
+      "path": "poc/belenios-3.3.0/scripts/prepare.py",
+      "sha256": "1c0fe9ebd98d6609db42cc797036b66d373b1fabd55d59c8eac6e325cc37951a"
+    },
+    {
+      "path": "poc/belenios-3.3.0/scripts/sendmail-fake.sh",
+      "sha256": "119553897ecaa740777f2dc43cdf1450787ebb90e4efb3a0d504cc042a6c5441"
+    },
+    {
+      "path": "poc/belenios-3.3.0/tests/capture_results.mjs",
+      "sha256": "392061b7885ea28ad8ea8feba4b1f49cb3e89f9036ce77f44c55455ede4eed77"
+    },
+    {
+      "path": "poc/belenios-3.3.0/tests/check_adapter.py",
+      "sha256": "1b28bf9953a57edea6aeef2b234a8d074428add40139de429939c8d3dbd7458b"
+    },
+    {
+      "path": "poc/belenios-3.3.0/tests/check_adapter_failures.py",
+      "sha256": "697d2ba77ce3ed6ab1bfb59022959c246a530d63af7ebb5e81a54012ad502cf1"
+    },
+    {
+      "path": "poc/belenios-3.3.0/tests/check_h4_privacy.py",
+      "sha256": "49e708d28eb96870f18b131754c05f6c7cfc0d75dc2079a62054d5c339863f1a"
+    },
+    {
+      "path": "poc/belenios-3.3.0/tests/check_h4_record.py",
+      "sha256": "c2c2b374c76cbe3f3007924fe5149fb5181baa34fb5ee095c238ed878f9890db"
+    },
+    {
+      "path": "poc/belenios-3.3.0/tests/faults.mjs",
+      "sha256": "d78816bb9a9d20a9ffee831d076cbfa93359da36230ba1a62a5e40c6c6b882b1"
+    },
+    {
+      "path": "poc/belenios-3.3.0/tests/measure_h4.py",
+      "sha256": "bf8e3817a692e2965aba69bd5513441ff25b52196e2b39e4c610bca0d8463738"
+    },
+    {
+      "path": "poc/belenios-3.3.0/tests/package-lock.json",
+      "sha256": "7cb1db0932cec6ceb9f99df7e3babff5b513e794e10792d70acb8a9023dd3b58"
+    },
+    {
+      "path": "poc/belenios-3.3.0/tests/package.json",
+      "sha256": "f752eb0d962c9c04cbe235974f6faf9c2069ca7e498706f5eeb9dfe843d09878"
+    },
+    {
+      "path": "poc/belenios-3.3.0/tests/prepare_api_ballots.py",
+      "sha256": "ff2385f23e06db787d50b772cd2038a0cd60083de250adf1b9ec2feaf69578f4"
+    },
+    {
+      "path": "poc/belenios-3.3.0/tests/prepare_faults.py",
+      "sha256": "836158b481db326b963704ebdfe18f342cfccb8279497d1fa1144cdd8865f48c"
+    },
+    {
+      "path": "poc/belenios-3.3.0/tests/publish_public.py",
+      "sha256": "25bc07827d2064d4066ccc8d2d8e46656bac6c82d188749d6fba0ff89d2f5b88"
+    },
+    {
+      "path": "poc/belenios-3.3.0/tests/setup_h2.py",
+      "sha256": "dea60565b606bb96cabf5fc027f73ffa28829fe277857eae453168497d42b189"
+    },
+    {
+      "path": "poc/belenios-3.3.0/tests/setup_h4.py",
+      "sha256": "413af381c7273a3ff18af3672177fbb9eb6514f6ad6d6dde9d0a96c2e578bb39"
+    },
+    {
+      "path": "poc/belenios-3.3.0/tests/tally_h2.py",
+      "sha256": "bb7d4a5d64ed1fe0a5ef5d0512d74993c0e75fdbc9b2add266b3b4766254ba32"
+    },
+    {
+      "path": "poc/belenios-3.3.0/tests/tally_h4.py",
+      "sha256": "30f7a605ae3132fac9f1e027a2999b59aa3530cdb1f2a01400e25d463d1aae57"
+    },
+    {
+      "path": "poc/belenios-3.3.0/tests/vote_api.mjs",
+      "sha256": "dae113b1325707cd2d109c405de94befb35223959129c3b133b0c2c4b39bf6e8"
+    },
+    {
+      "path": "poc/belenios-3.3.0/tests/vote_ui.mjs",
+      "sha256": "475435212f113a10d87734ad22607e8f6463c4a6962ca27a5c27dc8f30d11cf1"
+    },
+    {
+      "path": "scripts/check_brevo.py",
+      "sha256": "250e766d8d1622fb08b90e1d82a93c735afa81e0c332a74bb977e01affe19ca9"
+    },
+    {
+      "path": "scripts/prepare_s3_e2e.py",
+      "sha256": "a02b9ff287f3b955ba5fc2b021713294b8f335eb702467a02586a5e6db340598"
+    },
+    {
+      "path": "scripts/s3_candidate_manifest.py",
+      "sha256": "84a6540c057c654e264bd0c20fa9597b363029459973e66c11aadf2807edabb3"
+    },
+    {
+      "path": "scripts/verify_s2_local.py",
+      "sha256": "7a6085e619a49a8ba9f93f1e5ef21622ba2eb159c8ac0e0be7e45b3ee8f1045e"
+    },
+    {
+      "path": "scripts/verify_s3_e2e.py",
+      "sha256": "a670172a5093888247bbaf297ca4108b56a5739f258636a18c29b68ae7af2486"
+    },
+    {
+      "path": "scripts/verify_s3_local.py",
+      "sha256": "92ff4ee096b28a8b9d23780b2831c291ae8776df5bdb56899aaae46d859755f1"
+    },
+    {
+      "path": "start.bat",
+      "sha256": "11838c7b1b01c99c8e7cc4464911eeec81e30094b07ed5f1d1b856c4875dd5eb"
+    },
+    {
+      "path": "start.ps1",
+      "sha256": "eae1050d4cb398fe9245858e8f75b06c59c3a4f4f5e3173d1ed0546ad3052ad4"
+    },
+    {
+      "path": "verifier/service.py",
+      "sha256": "daba0676f8c85cff3aeae84fbf4f4608f52abc085a3bb2ccb49cc0975d75f7ff"
+    }
+  ],
+  "exclusions": "Git-ignored files and this manifest; no runtime mail, keys, dumps or browser traces"
+}

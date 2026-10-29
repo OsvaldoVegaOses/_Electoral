@@ -1,0 +1,51 @@
+{
+  "tested_at_utc": "2026-10-28T20:16:42.336977+00:00",
+  "result": {
+    "schema": "theogen-belenios-result/v1",
+    "experimental": true,
+    "uuid": "ryjsGZ7D6RoAkc",
+    "policy": "R2",
+    "total_people": 3,
+    "enabled_units": 2,
+    "counted_ballots": 2,
+    "participation": 1.0,
+    "options": [
+      {
+        "label": "Lista A",
+        "votes": 1
+      },
+      {
+        "label": "Lista B",
+        "votes": 1
+      }
+    ],
+    "blank": null,
+    "null": null,
+    "ballot_mode": "mandatory_single_choice_no_blank_no_null",
+    "archive_sha256": "6171ba4df17095272a671b716900a485cc583a45aeb6d1ea17e1b21feb6ce858",
+    "final_event_hash": "aae509d7f85bc2005df9cae42584e02b4883127050b532268c52ec838a099a4c",
+    "result_object_hash": "8a5646da41b7a04bddaa59854056afbb063a9f54f935501e2e4e6f698019e07d",
+    "verifier_image": "sha256:479253acf9676c3781a2ff7b1593b73e1f86f1e58354cd478c515086de9ea61f",
+    "upstream_commit": "337887bd1862c7cd057080b530fd80941bfc3c69",
+    "verification_exit_code": 0,
+    "anchor_reference": "poc-review-same-host",
+    "independent_custody_confirmed": false,
+    "legal_status": "PROTOTIPO_SIN_VALIDEZ_JURIDICA",
+    "quorum_assessed": false,
+    "signatures": []
+  },
+  "operations": [
+    "Prepare",
+    "ValidateElection",
+    "Open",
+    "Close",
+    "ComputeEncryptedTally",
+    "ReleaseTally"
+  ],
+  "limits": [
+    "Same host/operator; simulated independence",
+    "SQLite application DB for this live protocol; PostgreSQL tested separately",
+    "Original Belenios UI; no private keys/ballots sent to TheoGen"
+  ],
+  "public_archive_repository_path": "doc/motor/evidencias/ryjsGZ7D6RoAkc.bel"
+}
