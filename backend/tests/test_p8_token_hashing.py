@@ -15,6 +15,7 @@ from main import app
 from app.config import settings
 from app.database import Base, get_db
 from app.models import User, School, Election, Candidate, Voter, VotingEntitlement, Vote
+from app.entitlements import derive_entitlement_key
 from app.auth import get_password_hash, create_access_token, hash_voting_token, ROLE_SUPERADMIN
 
 # In-memory SQLite for isolated testing
@@ -119,6 +120,8 @@ class TestP8TokenHashingAndCredentialConsumption(unittest.TestCase):
             election_id=self.election.id
         )
         self.db.add(voter)
+        self.db.add(VotingEntitlement(election_id=self.election.id,
+                                     unit_key=derive_entitlement_key(self.election.id, "RUT:123456789")))
         self.db.commit()
 
         # 1. Validar el token con la credencial en texto plano que tiene el elector
@@ -175,6 +178,8 @@ class TestP8TokenHashingAndCredentialConsumption(unittest.TestCase):
             election_id=self.election.id
         )
         self.db.add_all([madre, padre])
+        self.db.add(VotingEntitlement(election_id=self.election.id,
+                                     unit_key=derive_entitlement_key(self.election.id, "FAM:FAM-TEST-01")))
         self.db.commit()
 
         # Madre emite sufragio

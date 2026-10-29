@@ -19,7 +19,7 @@ from app.routers.audit import _escape_like as audit_escape_like
 from app.routers.voters import _escape_like as voters_escape_like, MAX_UPLOAD_SIZE_BYTES
 from app.routers.elections import VALID_STATE_TRANSITIONS
 from pydantic import ValidationError
-from jose import jwt
+import jwt
 
 
 class TestSecurityFixes(unittest.TestCase):

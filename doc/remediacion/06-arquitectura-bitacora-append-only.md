@@ -5,7 +5,7 @@
 - **Fecha:** 27 de Octubre de 2026
 - **Rol:** Ingeniero Principal de Software & Especialista en Seguridad de Sistemas Electorales
 - **Tarea Sprint 1:** P15 — Bitácora append-only real (no tabla convencional)
-- **Estado:** Implementada, verificada con suite de pruebas unitarias y de integración (13/13 tests PASSED)
+- **Estado:** Implementación parcial. La cadena local existe; la serialización PostgreSQL y las pruebas concurrentes deben pasar en CI, y el anclaje externo aún no está acreditado.
 
 ---
 
@@ -44,8 +44,8 @@ Si el sistema solo almacena `hash(prev_hash, datos)` dentro de la misma base de 
 ┌─────────────────────────────────────────────────────────────────────────────┐
 │                       CAPA 2: MOTOR DE BASE DE DATOS                        │
 │   Disparador PostgreSQL trg_audit_logs_append_only:                          │
-│   - Bloquea cualquier UPDATE (excepción fatal inmediata).                    │
-│   - Bloquea DELETE no autorizados (solo habilitado con bandera de purga).   │
+│   - Bloquea UPDATE y DELETE desde los roles de aplicación.                   │
+│   - Un DBA privilegiado puede modificar o desactivar el trigger.             │
 └──────────────────────────────────────┬──────────────────────────────────────┘
                                        │ (Enfuerza comportamiento append-only en BD)
                                        ▼
@@ -65,7 +65,7 @@ Cada entrada de auditoría contiene dos campos criptográficos:
 ### Capa 2: Restricciones a Nivel de Motor de Base de Datos
 A través de la migración Alembic `e5f6a7b8c9d0`, se instala en PostgreSQL un disparador procedural (`BEFORE UPDATE OR DELETE`):
 - **`UPDATE`**: Prohibido incondicionalmente. Cualquier intento arroja excepción `RAISE EXCEPTION 'Tabla audit_logs es append-only. Operacion % denegada por politica de inmutabilidad.'`.
-- **`DELETE`**: Prohibido por defecto. Únicamente se permite si la transacción ejecutora activó explícitamente `SET LOCAL theogen.allow_audit_purge = 'on'`, mecanismo exclusivo del endpoint de purga de PII (P14) tras registrar un evento de auditoría previo.
+- **`DELETE`**: Prohibido para los roles normales. Aunque el trigger conserva un mecanismo técnico de mantenimiento, el endpoint de purga está bloqueado con HTTP 409 hasta diseñar retención por épocas y verificar un checkpoint externo. Un DBA privilegiado puede cambiar el trigger; por eso no se declara inmutabilidad.
 
 ### Capa 3: Anclaje Externo y Puntos de Verificación (Checkpoints)
 La API expone el endpoint `POST /api/audit/checkpoint`. Este endpoint toma el hash del último registro (`head_hash`), el recuento total de eventos y una marca de tiempo en UTC, generando un digest de control (`checkpoint_hash`).
@@ -74,7 +74,7 @@ Este hash de control está diseñado para:
 2. Enviarse a una Autoridad de Sellado de Tiempo (RFC 3161 TSA).
 3. Escribirse en un almacenamiento WORM (Write-Once-Read-Many) en la nube (e.g., AWS S3 Object Lock en modo Compliance).
 
-Una vez que un `checkpoint_hash` ha sido exportado al exterior, **ningún atacante, ni siquiera con control total del servidor y la base de datos, puede reescribir la historia electoral pasada** sin generar una discrepancia evidente con el checkpoint previamente publicado.
+Solo después de guardar y verificar el artefacto en un custodio independiente se obtiene comparación externa. El endpoint de TheoGen no realiza ese depósito. Su respuesta declara `anchorage_status: PENDIENTE_ANCLAJE_EXTERNO` e `independent_custody_confirmed: false`; no es evidencia de anclaje ni no repudio.
 
 ---
 
@@ -103,18 +103,21 @@ def compute_audit_hash(prev_hash, fecha, usuario, accion, detalle, school_id) ->
 
 ### 3.2 Registro Atómico y Concurrencia
 En `log_audit()` ([`backend/app/auth.py`](file:///c:/Users/osval/OneDrive%20-%20ONG%20Tren%20Ciudadano/digital%20skills/theogen-electoral/backend/app/auth.py)):
-1. Se consulta el hash del último registro existente: `last_log = db.query(AuditLog).order_by(AuditLog.id.desc()).first()`.
-2. Se genera `record_hash = compute_audit_hash(prev_hash, ...)`.
-3. Se invoca `db.flush()` inmediatamente tras `db.add(log)`. Esto asegura que si una misma transacción de negocio registra múltiples eventos sucesivos con `commit=False`, el segundo evento leerá el `record_hash` del primero sin fallas de concurrencia ni eslabones duplicados.
-4. Si la transacción principal hace `rollback()`, todos los registros agregados se descartan atómicamente.
+1. En PostgreSQL se bloquea la fila singleton `audit_chain_heads` con `SELECT ... FOR UPDATE`, obteniendo un head serializado entre procesos. La fila y el evento se actualizan en la misma transacción.
+2. Se genera `record_hash = compute_audit_hash(prev_hash, ...)` y se avanza el head después de insertar el evento.
+3. `commit=False` mantiene el evento y el head dentro de la transacción de negocio; `rollback()` descarta ambos.
+4. SQLite conserva un camino de desarrollo sin garantías de concurrencia PostgreSQL. La prueba requerida de 100 escritores independientes PostgreSQL 16 solo se considera cumplida cuando CI la ejecuta.
 
 ### 3.3 Algoritmo de Verificación de Integridad
 Función `verify_audit_log_chain(db)` en [`backend/app/auth.py`](file:///c:/Users/osval/OneDrive%20-%20ONG%20Tren%20Ciudadano/digital%20skills/theogen-electoral/backend/app/auth.py):
 1. Itera por todos los registros ordenados por `id ASC`.
 2. Para cada registro $R_i$:
-   - Si $i > 0$: comprueba que $R_i.\text{prev\_hash} == R_{i-1}.\text{record\_hash}$. Si no coincide, reporta **eslabón roto** (supresión o inserción no autorizada).
+   - Comprueba que el primer `prev_hash` sea `GENESIS_HASH` y que cada registro posterior enlace con el hash anterior. Si no coincide, reporta **eslabón roto** (supresión o inserción no autorizada).
+   - Si algún registro legacy no tiene `record_hash`, la verificación falla explícitamente; no se trata como una génesis válida.
    - Recalcula $\text{expected\_hash} = \text{compute\_audit\_hash}(R_i.\text{prev\_hash}, R_i.\text{fecha}, \dots)$. Si difiere de $R_i.\text{record\_hash}$, reporta **contenido alterado** (manipulación de datos).
 3. Si todos los eslabones son consistentes, retorna `{"integro": True, "total_revisados": N, ...}`.
+
+La migración S2-D detiene el upgrade si encuentra eventos sin `prev_hash` o `record_hash`: no reescribe historial ni fabrica una génesis retrospectiva. La resolución requiere respaldo, conciliación aprobada y evidencia de que los registros legacy se conservaron. Esta condición puede bloquear el upgrade de una base existente y debe resolverse antes del despliegue.
 
 ---
 
@@ -125,6 +128,7 @@ Función `verify_audit_log_chain(db)` en [`backend/app/auth.py`](file:///c:/User
 | `GET` | `/api/audit/logs` | Autenticado (con scoping) | Retorna bitácora con `prev_hash` y `record_hash`. |
 | `GET` | `/api/audit/verify-integrity` | `Administrador General` | Ejecuta la verificación criptográfica completa de la cadena. |
 | `POST` | `/api/audit/checkpoint` | `Administrador General` | Genera digest SHA-256 para anclaje externo y registra el evento. |
+| `POST` | `/api/audit/checkpoint/verify` | `Administrador General` | Verifica un artefacto guardado externamente y el prefijo local correspondiente. |
 
 ### Ejemplo de respuesta `/api/audit/verify-integrity`:
 ```json
@@ -139,7 +143,7 @@ Función `verify_audit_log_chain(db)` en [`backend/app/auth.py`](file:///c:/User
 }
 ```
 
-### Ejemplo de respuesta `/api/audit/checkpoint`:
+### Forma de respuesta `/api/audit/checkpoint`:
 ```json
 {
   "success": true,
@@ -148,10 +152,13 @@ Función `verify_audit_log_chain(db)` en [`backend/app/auth.py`](file:///c:/User
   "last_record_id": 1420,
   "head_hash": "f9e8d7c6e5d4c3b2a1...",
   "checkpoint_hash": "3d4f5e6a7b8c9d0e1f2a3b4c5d6e7f8a...",
-  "firmado_por": "admin@theogen.cl",
+  "anchorage_status": "PENDIENTE_ANCLAJE_EXTERNO",
+  "independent_custody_confirmed": false,
   "instrucciones_anclaje": "Exportar 'checkpoint_hash' a almacenamiento WORM (Write-Once-Read-Many), servidor syslog remoto independiente o Autoridad de Sellado de Tiempo (RFC 3161 TSA) para garantizar no repudio."
 }
 ```
+
+Este objeto ilustra un checkpoint local; no es una constancia de depósito ni una firma externa. El texto y el estado de respuesta deben acompañar siempre cualquier exportación.
 
 ---
 
@@ -175,7 +182,7 @@ Implementada en [`backend/tests/test_p15_append_only_audit.py`](file:///c:/Users
 | `TestAuditEndpointsP15` | `test_endpoint_checkpoint_forbidden_for_non_admin` | **PASSED** |
 | `TestAuditEndpointsP15` | `test_audit_logs_listing_includes_prev_hash_and_record_hash` | **PASSED** |
 
-**Resultado total:** 13/13 pruebas aprobadas.
+Las pruebas unitarias locales de cadena y endpoints se han ejecutado. Este resultado no incluye la concurrencia entre procesos en PostgreSQL 16 ni valida custodia externa; la evidencia automatizada de esos gates debe provenir de CI.
 
 ---
 
@@ -189,14 +196,15 @@ Implementada en [`backend/tests/test_p15_append_only_audit.py`](file:///c:/Users
 3. **Al Cierre de la Jornada:**
    - Se ejecuta nuevamente `POST /api/audit/checkpoint`.
    - El `checkpoint_hash` de cierre se imprime en el Acta de Escrutinio y Cierre firmada por los comisionados.
-   - Cualquier auditor independiente puede verificar la bitácora confrontándola contra los dos hashes de anclaje (apertura y cierre).
+   - La Comisión debe guardar cada artefacto en custodia independiente y registrar el recibo verificable. Hasta entonces, el checkpoint permanece sin anclaje y no permite confrontación externa.
 
 ---
 
 ## 7. Conclusión
 
-Con la implementación de P15:
+Estado actual:
 - Se erradica la denominación engañosa de "tabla inmutable" para la estructura relacional ordinaria.
 - Se cuenta con detección criptográfica matemática de manipulación o truncamiento de eventos.
-- Se implementa control de motor append-only mediante triggers PostgreSQL.
-- Se habilita un protocolo operativo de anclaje externo (checkpoints) apto para auditorías electorales formales.
+- Hay un mecanismo de serialización PostgreSQL de escritores y un mecanismo de append-only mediante migración; falta la evidencia de ejecución PostgreSQL 16 en CI.
+- El endpoint genera y verifica artefactos de checkpoint locales; no existe evidencia de custodio independiente ni anclaje externo confirmado.
+- Por tanto, esto no acredita por sí solo no repudio ni habilita GO operacional.

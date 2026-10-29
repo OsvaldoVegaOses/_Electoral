@@ -1,19 +1,22 @@
 import hmac
 import hashlib
+import json
 import bcrypt
 import uuid
 import logging
 from datetime import datetime, timedelta, timezone
 from typing import Optional
 
-from jose import JWTError, jwt
+import jwt
+from jwt import InvalidTokenError as JWTError
 from fastapi import Depends, HTTPException, status, Request, Query
 from fastapi.security import OAuth2PasswordBearer
 from sqlalchemy.orm import Session
+from sqlalchemy.dialects.postgresql import insert as pg_insert
 
 from app.config import settings
 from app.database import get_db
-from app.models import User, AuditLog
+from app.models import User, AuditLog, AuditChainHead
 
 logger = logging.getLogger("theogen.auth")
 
@@ -107,7 +110,7 @@ def get_current_user(
         raise credentials_exception
     try:
         payload = jwt.decode(
-            effective_token, settings.SECRET_KEY, algorithms=[settings.ALGORITHM]
+            effective_token, settings.SECRET_KEY, algorithms=[settings.ALGORITHM], options={"require": ["exp", "sub"]}
         )
         email: str = payload.get("sub")
         if email is None:
@@ -363,7 +366,11 @@ def compute_audit_hash(
     return hashlib.sha256(canonical.encode("utf-8")).hexdigest()
 
 
-def verify_audit_log_chain(db: Session, school_id: Optional[int] = None) -> dict:
+def verify_audit_log_chain(
+    db: Session,
+    school_id: Optional[int] = None,
+    last_log_id: Optional[int] = None,
+) -> dict:
     """
     P15: Verifica la integridad de la cadena criptográfica de la bitácora.
     Retorna un reporte detallando si la cadena está íntegra o el punto exacto de alteración.
@@ -371,11 +378,33 @@ def verify_audit_log_chain(db: Session, school_id: Optional[int] = None) -> dict
     query = db.query(AuditLog).order_by(AuditLog.id.asc())
     if school_id is not None:
         query = query.filter(AuditLog.school_id == school_id)
+    if last_log_id is not None:
+        query = query.filter(AuditLog.id <= last_log_id)
     logs = query.all()
 
     now_iso = datetime.now(timezone.utc).isoformat()
 
     if not logs:
+        if (
+            db.bind.dialect.name == "postgresql"
+            and school_id is None
+            and last_log_id is None
+        ):
+            head = (
+                db.query(AuditChainHead)
+                .filter(AuditChainHead.id == 1)
+                .one_or_none()
+            )
+            if head is None or head.last_log_id is not None or head.head_hash != GENESIS_HASH:
+                return {
+                    "integro": False,
+                    "total_revisados": 0,
+                    "primer_hash": None,
+                    "ultimo_hash": None,
+                    "fallo_en_id": None,
+                    "razon": "El head de auditoría no coincide con una bitácora vacía.",
+                    "fecha_verificacion": now_iso,
+                }
         return {
             "integro": True,
             "total_revisados": 0,
@@ -386,12 +415,51 @@ def verify_audit_log_chain(db: Session, school_id: Optional[int] = None) -> dict
             "fecha_verificacion": now_iso,
         }
 
-    expected_prev = GENESIS_HASH
     first_hash = logs[0].record_hash
+    if (
+        db.bind.dialect.name == "postgresql"
+        and school_id is None
+        and last_log_id is None
+    ):
+        head = (
+            db.query(AuditChainHead)
+            .filter(AuditChainHead.id == 1)
+            .one_or_none()
+        )
+        if (
+            head is None
+            or head.last_log_id != logs[-1].id
+            or head.head_hash != logs[-1].record_hash
+        ):
+            return {
+                "integro": False,
+                "total_revisados": len(logs),
+                "primer_hash": first_hash,
+                "ultimo_hash": logs[-1].record_hash,
+                "fallo_en_id": logs[-1].id,
+                "razon": "El head PostgreSQL no coincide con el último registro de auditoría.",
+                "fecha_verificacion": now_iso,
+            }
+
+    expected_prev = GENESIS_HASH
 
     for i, log in enumerate(logs):
-        # 1. Verificar prev_hash en eslabones intermedios
-        if i > 0 and log.prev_hash != expected_prev:
+        if not log.record_hash:
+            return {
+                "integro": False,
+                "total_revisados": i,
+                "primer_hash": first_hash,
+                "ultimo_hash": logs[i - 1].record_hash if i > 0 else None,
+                "fallo_en_id": log.id,
+                "razon": (
+                    f"Registro legacy sin hash en ID {log.id}; la cadena no puede "
+                    "declararse íntegra hasta reconciliar el historial."
+                ),
+                "fecha_verificacion": now_iso,
+            }
+
+        # 1. Verificar el origen y todos los eslabones de la cadena.
+        if log.prev_hash != expected_prev:
             return {
                 "integro": False,
                 "total_revisados": i,
@@ -407,31 +475,28 @@ def verify_audit_log_chain(db: Session, school_id: Optional[int] = None) -> dict
             }
 
         # 2. Recomputar y verificar hash propio
-        if log.record_hash:
-            calculated = compute_audit_hash(
-                log.prev_hash or GENESIS_HASH,
-                log.fecha,
-                log.usuario,
-                log.accion,
-                log.detalle,
-                log.school_id
-            )
-            if log.record_hash != calculated:
-                return {
-                    "integro": False,
-                    "total_revisados": i,
-                    "primer_hash": first_hash,
-                    "ultimo_hash": logs[i - 1].record_hash if i > 0 else None,
-                    "fallo_en_id": log.id,
-                    "razon": (
-                        f"Contenido alterado en registro ID {log.id}: record_hash almacenado "
-                        f"no coincide con el digest recomputado de los datos (posible manipulación de datos)."
-                    ),
-                    "fecha_verificacion": now_iso,
-                }
-            expected_prev = log.record_hash
-        else:
-            expected_prev = log.prev_hash or GENESIS_HASH
+        calculated = compute_audit_hash(
+            log.prev_hash,
+            log.fecha,
+            log.usuario,
+            log.accion,
+            log.detalle,
+            log.school_id
+        )
+        if log.record_hash != calculated:
+            return {
+                "integro": False,
+                "total_revisados": i,
+                "primer_hash": first_hash,
+                "ultimo_hash": logs[i - 1].record_hash if i > 0 else None,
+                "fallo_en_id": log.id,
+                "razon": (
+                    f"Contenido alterado en registro ID {log.id}: record_hash almacenado "
+                    f"no coincide con el digest recomputado de los datos (posible manipulación de datos)."
+                ),
+                "fecha_verificacion": now_iso,
+            }
+        expected_prev = log.record_hash
 
     return {
         "integro": True,
@@ -441,6 +506,61 @@ def verify_audit_log_chain(db: Session, school_id: Optional[int] = None) -> dict
         "fallo_en_id": None,
         "razon": None,
         "fecha_verificacion": now_iso,
+    }
+
+
+def verify_audit_checkpoint(db: Session, artifact: dict) -> dict:
+    """Verify a checkpoint artifact against its digest and retained audit-chain prefix."""
+    fields = {
+        "schema_version": artifact.get("schema_version"),
+        "timestamp": artifact.get("timestamp"),
+        "total_records": artifact.get("total_records"),
+        "last_record_id": artifact.get("last_record_id"),
+        "head_hash": artifact.get("head_hash"),
+    }
+    if fields["schema_version"] != 1:
+        return {"integro": False, "razon": "Versión de checkpoint no soportada."}
+
+    canonical = json.dumps(fields, sort_keys=True, separators=(",", ":"))
+    digest = hashlib.sha256(canonical.encode("utf-8")).hexdigest()
+    if not hmac.compare_digest(digest, str(artifact.get("digest_sha256", ""))):
+        return {"integro": False, "razon": "Digest del artefacto no coincide."}
+
+    last_record_id = fields["last_record_id"]
+    query = db.query(AuditLog)
+    if last_record_id is not None:
+        query = query.filter(AuditLog.id <= last_record_id)
+    record_count = query.count()
+    if record_count != fields["total_records"]:
+        return {
+            "integro": False,
+            "razon": "El recuento almacenado no coincide con el checkpoint externo.",
+        }
+
+    if last_record_id is None:
+        if fields["head_hash"] != GENESIS_HASH:
+            return {"integro": False, "razon": "Head inválido para una bitácora vacía."}
+    else:
+        last_record = db.query(AuditLog).filter(AuditLog.id == last_record_id).first()
+        if last_record is None or last_record.record_hash != fields["head_hash"]:
+            return {
+                "integro": False,
+                "razon": "El head de la bitácora no coincide con el checkpoint externo.",
+            }
+
+    chain_result = verify_audit_log_chain(db, last_log_id=last_record_id)
+    if not chain_result["integro"]:
+        return {
+            "integro": False,
+            "razon": chain_result["razon"],
+            "fallo_en_id": chain_result["fallo_en_id"],
+        }
+    return {
+        "integro": True,
+        "total_revisados": record_count,
+        "head_hash": fields["head_hash"],
+        "digest_sha256": digest,
+        "razon": None,
     }
 
 
@@ -463,9 +583,31 @@ def log_audit(
       misma transacción.
     """
     try:
-        # Obtener el último hash registrado en la cadena de auditoría
-        last_log = db.query(AuditLog).order_by(AuditLog.id.desc()).first()
-        prev_hash = last_log.record_hash if (last_log and last_log.record_hash) else GENESIS_HASH
+        if db.bind.dialect.name == "postgresql":
+            db.execute(
+                pg_insert(AuditChainHead)
+                .values(
+                    id=1,
+                    head_hash=GENESIS_HASH,
+                    updated_at=datetime.now(timezone.utc),
+                )
+                .on_conflict_do_nothing(index_elements=["id"])
+            )
+            chain_head = (
+                db.query(AuditChainHead)
+                .filter(AuditChainHead.id == 1)
+                .with_for_update()
+                .one_or_none()
+            )
+            if chain_head is None:
+                raise RuntimeError(
+                    "Falta audit_chain_heads; ejecute la migración S2-D antes de escribir auditoría."
+                )
+            prev_hash = chain_head.head_hash
+        else:
+            chain_head = None
+            last_log = db.query(AuditLog).order_by(AuditLog.id.desc()).first()
+            prev_hash = last_log.record_hash if (last_log and last_log.record_hash) else GENESIS_HASH
 
         now = datetime.now(timezone.utc)
         record_hash = compute_audit_hash(prev_hash, now, usuario, accion, detalle, school_id)
@@ -481,6 +623,11 @@ def log_audit(
         )
         db.add(log)
         db.flush()
+        if chain_head is not None:
+            chain_head.head_hash = record_hash
+            chain_head.last_log_id = log.id
+            chain_head.updated_at = now
+            db.flush()
         if commit:
             db.commit()
         return log
@@ -488,7 +635,4 @@ def log_audit(
         logger.error("Error al registrar auditoría: %s", e)
         if commit:
             db.rollback()
-        else:
-            raise
-
-
+        raise

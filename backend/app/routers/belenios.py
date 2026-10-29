@@ -11,6 +11,7 @@ from app.models import BeleniosBinding, BeleniosOperation, Election, User
 from app.belenios import service
 from app.belenios.client import BeleniosClient, ProviderError, require_enabled
 from app.belenios.verification import verify_result
+from app.belenios.deployment import enabled, public_url
 
 def private_response(response: Response):
     response.headers["Cache-Control"] = "no-store"
@@ -30,7 +31,7 @@ class PrepareInput(StrictInput):
     representative_ids: list[int] = Field(min_length=1, max_length=100)
     approval_ref: str = Field(pattern=r"^[A-Za-z0-9_.-]{1,100}$")
     ballot_mode: Literal["mandatory_single_choice_no_blank_no_null"]
-    synthetic_laboratory: Literal[True]
+    synthetic_laboratory: bool
 
 
 class TransitionInput(StrictInput):
@@ -56,6 +57,8 @@ def context(election_id, db, user, write=False):
     if election is None:
         raise HTTPException(404, "Elección no encontrada.")
     check_election_access(user, election, write=write, allow_belenios=True)
+    if write:
+        require_enabled(election)
     return election, db.query(BeleniosBinding).filter_by(election_id=election_id).first()
 
 
@@ -67,23 +70,28 @@ def required(binding):
 
 @router.get("")
 def status(election_id: int, db: Session = Depends(get_db), user: User = Depends(get_current_user)):
-    _, binding = context(election_id, db, user)
+    election, binding = context(election_id, db, user)
     data = service.summary(binding)
     if data and binding.remote_uuid:
-        base = getattr(settings, f"BELENIOS_{binding.policy}_URL").rstrip("/")
-        if base == ("http://127.0.0.1:18001" if binding.policy == "R1" else "http://127.0.0.1:18002"):
+        try:
+            base = public_url(binding.policy)
+        except HTTPException:
+            base = None
+        if base:
             data["public_url"] = base + "/election#" + binding.remote_uuid
             data["admin_url"] = base + "/admin#elections/" + binding.remote_uuid
     if data:
         closed = db.query(BeleniosOperation.id).filter_by(binding_id=binding.id, kind="Close", phase="CONFIRMED").first() is not None
         data["available_actions"] = [action for action, (before, _, _) in service.TRANSITIONS.items() if before == binding.phase
                                      and not binding.inflight and not (action == "Open" and closed) and not (action == "ComputeEncryptedTally" and not closed)]
-    return {"enabled": settings.BELENIOS_MODE == "laboratory" and settings.ENVIRONMENT == "development", "binding": data}
+    return {"enabled": enabled(election), "mode": settings.BELENIOS_MODE, "max_units": 100, "binding": data}
 
 
 @router.post("/prepare", status_code=201)
 def prepare(election_id: int, body: PrepareInput, db: Session = Depends(get_db), user: User = Depends(get_current_user)):
     election, _ = context(election_id, db, user, write=True)
+    if not body.synthetic_laboratory and settings.BELENIOS_MODE != "pilot":
+        raise HTTPException(422, "Participantes reales requieren el piloto aprobado.")
     return service.prepare(db, election, user, body)
 
 
@@ -111,7 +119,7 @@ def reconcile(election_id: int, body: ReconcileInput, db: Session = Depends(get_
 @router.post("/verify")
 def verify(election_id: int, body: VerifyInput, db: Session = Depends(get_db), user: User = Depends(get_current_user)):
     _, binding = context(election_id, db, user, write=True)
-    require_enabled()
+    require_enabled(db.get(Election, election_id))
     binding = required(binding)
     try:
         return verify_result(db, binding, body, BeleniosClient(binding.policy))
@@ -127,3 +135,12 @@ def record(election_id: int, db: Session = Depends(get_db), user: User = Depends
         raise HTTPException(409, "Todavía no existe resultado verificado.")
     import json
     return json.loads(binding.verified_result)
+
+
+@router.get("/record/pdf")
+def record_pdf(election_id: int, db: Session = Depends(get_db), user: User = Depends(get_current_user)):
+    from fastapi.responses import StreamingResponse
+    from app.belenios.record import pdf_record
+    evidence=record(election_id,db,user)
+    return StreamingResponse(pdf_record(evidence),media_type="application/pdf",
+        headers={"Content-Disposition":f'attachment; filename="Expediente_Belenios_{election_id}.pdf"',"Cache-Control":"no-store"})

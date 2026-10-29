@@ -17,6 +17,7 @@ import {
   Paper,
   CircularProgress,
   LinearProgress,
+  Alert,
 } from '@mui/material';
 import { Link, useNavigate } from 'react-router-dom';
 import HowToVoteIcon from '@mui/icons-material/HowToVote';
@@ -81,11 +82,12 @@ const Dashboard = () => {
     tipo: el.tipo_votacion,
   }));
 
-  const pieData = [
-    { name: 'Votos Emitidos', value: stats?.total_votos_emitidos || 0, color: '#059669' },
+  const hasTotals = stats?.total_votos_emitidos != null && stats?.participacion_global != null;
+  const pieData = !hasTotals ? [] : [
+    { name: 'Votos Emitidos', value: stats?.total_votos_emitidos ?? 'Pendiente', color: '#059669' },
     {
       name: 'Votos Pendientes',
-      value: Math.max(0, (stats?.total_padron || 0) - (stats?.total_votos_emitidos || 0)),
+      value: (hasTotals ? Math.max(0, (stats?.total_habilitados ?? stats?.total_padron ?? 0) - stats.total_votos_emitidos) : 'Pendiente'),
       color: '#3b82f6',
     },
   ];
@@ -101,7 +103,7 @@ const Dashboard = () => {
     },
     {
       title: 'Total Votos Emitidos',
-      value: stats?.total_votos_emitidos || 0,
+      value: stats?.total_votos_emitidos ?? 'Pendiente',
       subtitle: 'Sufragios verificados con integridad',
       icon: <CheckCircleOutlinedIcon sx={{ fontSize: 28, color: '#059669' }} />,
       bgColor: '#ecfdf5',
@@ -109,7 +111,7 @@ const Dashboard = () => {
     },
     {
       title: 'Participación Global',
-      value: `${stats?.participacion_global || 0}%`,
+      value: hasTotals ? `${stats.participacion_global}%` : 'Pendiente',
       subtitle: 'Tasa de sufragio promedio',
       icon: <TrendingUpIcon sx={{ fontSize: 28, color: '#d97706' }} />,
       bgColor: '#fffbeb',
@@ -117,7 +119,7 @@ const Dashboard = () => {
     },
     {
       title: 'Votos Pendientes',
-      value: Math.max(0, (stats?.total_padron || 0) - (stats?.total_votos_emitidos || 0)),
+      value: (hasTotals ? Math.max(0, (stats?.total_habilitados ?? stats?.total_padron ?? 0) - stats.total_votos_emitidos) : 'Pendiente'),
       subtitle: 'Electores por sufragar',
       icon: <HourglassTopIcon sx={{ fontSize: 28, color: '#7c3aed' }} />,
       bgColor: '#f5f3ff',
@@ -127,6 +129,8 @@ const Dashboard = () => {
 
   return (
     <Container maxWidth="xl" sx={{ py: 4 }}>
+      {(stats?.resultados_pendientes > 0) && <Alert severity="info" sx={{ mb: 2 }}>Hay {stats.resultados_pendientes} elecciones Belenios sin resultado final verificado. Los agregados de votos y participación se publicarán cuando estén disponibles.</Alert>}
+      {(stats?.motores || []).map(item => <Chip key={item.motor} sx={{ mr: 1, mb: 2 }} label={`${item.motor}: ${item.elecciones} elecciones · ${item.resultados_pendientes} resultados pendientes`} />)}
       {/* Banner de Bienvenida y Acceso Directo al Demo */}
       <Card
         sx={{
@@ -260,7 +264,7 @@ const Dashboard = () => {
                     Porcentaje de sufragios recibidos respecto al padrón habilitado
                   </Typography>
                 </Box>
-                <Chip label={`${stats?.participacion_global || 0}% Participación`} color="success" size="small" />
+                <Chip label={hasTotals ? `${stats.participacion_global}% Participación` : 'Resultados pendientes de verificación'} color="success" size="small" />
               </Box>
 
               <Box sx={{ mb: 3 }}>
@@ -269,11 +273,11 @@ const Dashboard = () => {
                     Progreso General de Sufragios
                   </Typography>
                   <Typography variant="body2" sx={{ fontWeight: 700, color: '#059669' }}>
-                    {stats?.total_votos_emitidos || 0} de {stats?.total_padron || 0} electores
+                    {stats?.total_votos_emitidos ?? 'Pendiente'} de {stats?.total_padron || 0} electores
                   </Typography>
                 </Box>
                 <LinearProgress
-                  variant="determinate"
+                  variant={hasTotals ? 'determinate' : 'indeterminate'}
                   value={Number(stats?.participacion_global) || 0}
                   sx={{
                     height: 12,
@@ -341,13 +345,13 @@ const Dashboard = () => {
                 <Box sx={{ display: 'flex', alignItems: 'center', gap: 1 }}>
                   <Box sx={{ width: 12, height: 12, borderRadius: '50%', backgroundColor: '#059669' }} />
                   <Typography variant="caption" sx={{ fontWeight: 600 }}>
-                    Emitidos ({stats?.total_votos_emitidos || 0})
+                    Emitidos ({stats?.total_votos_emitidos ?? 'Pendiente'})
                   </Typography>
                 </Box>
                 <Box sx={{ display: 'flex', alignItems: 'center', gap: 1 }}>
                   <Box sx={{ width: 12, height: 12, borderRadius: '50%', backgroundColor: '#3b82f6' }} />
                   <Typography variant="caption" sx={{ fontWeight: 600 }}>
-                    Pendientes ({Math.max(0, (stats?.total_padron || 0) - (stats?.total_votos_emitidos || 0))})
+                    Pendientes ({(hasTotals ? Math.max(0, (stats?.total_habilitados ?? stats?.total_padron ?? 0) - stats.total_votos_emitidos) : 'Pendiente')})
                   </Typography>
                 </Box>
               </Box>

@@ -56,7 +56,7 @@ Este documento define qué datos personales (PII — *Personally Identifiable In
 | `usuario` | Email enmascarado | 🟡 Media | Trazabilidad de acciones |
 | `detalle` | Texto libre | 🟡 Variable | Descripción de la acción |
 
-> ⚠️ El campo `audit_logs.usuario` almacena emails enmascarados (ej. `d***r@colegio.cl`) — NO el email completo — gracias a la función `mask_email()` implementada en `app/auth.py`.
+> ⚠️ No se debe asumir que `audit_logs.usuario` o `detalle` estén enmascarados: deben revisarse antes de uso productivo y no deben contener PII innecesaria.
 
 ### 2.5 Tabla `schools` — Instituciones
 
@@ -75,10 +75,10 @@ Este documento define qué datos personales (PII — *Personally Identifiable In
 | **Credenciales** (`token_votacion`, `token_hash`) | Eliminadas al votar (inmediato) | No se requieren tras el canje | `NULL` en ambos campos al emitir voto (ya implementado en P8) |
 | **Miembros de comisión** (`electoral_committees`) | 90 días tras finalizar la elección | Mismo período de recurso | Anonimización de RUT, nombre y correo |
 | **Usuarios administradores** (`users`) | Indefinido mientras la cuenta esté activa | Necesidad operativa | Eliminación manual por superadmin |
-| **Bitácora de auditoría** (`audit_logs`) | 365 días | Cumplimiento y trazabilidad | Eliminación de registros antiguos |
+| **Bitácora de auditoría** (`audit_logs`) | 365 días como parámetro sujeto a aprobación | Cumplimiento y trazabilidad | Purga física bloqueada; requiere retención por épocas y checkpoint externo verificado |
 | **Logs de aplicación** (archivos) | 90 días | Seguridad operacional | Rotación automática (logrotate) |
 
-> **Nota:** Los períodos aquí definidos son valores por defecto razonables para el contexto chileno. La organización responsable de la instalación puede ajustarlos en el archivo `.env` mediante las variables `PII_VOTER_RETENTION_DAYS`, `PII_AUDIT_RETENTION_DAYS`.
+> **Nota:** Los valores configurados son parámetros técnicos, no plazos legales aprobados. La organización responsable debe obtener revisión jurídica y aprobar los períodos y legal holds antes de ejecutar tratamientos reales.
 
 ---
 
@@ -95,7 +95,7 @@ Al ejecutar la anonimización de un registro `voters`:
 
 ```
 rut              → "[ANONIMIZADO]"
-rut_normalizado  → "[ANONIMIZADO]"
+rut_normalizado  → NULL
 nombre           → "[Elector Anonimizado]"
 correo           → NULL
 familia_id       → NULL (si no afecta estadísticas de voto familiar)
@@ -113,15 +113,19 @@ rut      → "[ANONIMIZADO]"
 correo   → NULL
 ```
 
-### 4.3 Proceso de Eliminación de Auditoría Antigua
+### 4.3 Purga Física de Auditoría — Bloqueada
 
-Los registros de `audit_logs` con más de `PII_AUDIT_RETENTION_DAYS` días se **eliminan físicamente** (no hay referencia de integridad que preservar).
+Los registros candidatos a purga se cuentan con `dry_run=true`. La eliminación física está bloqueada con HTTP 409: borrar elementos de una cadena hash rompería su continuidad y no hay todavía retención por épocas con checkpoint externo verificado.
 
 ---
 
 ## 5. Procedimiento Operativo
 
-### 5.1 Ejecución Manual (recomendada)
+### 5.1 Consulta y simulación
+
+Las operaciones destructivas no deben automatizarse ni ejecutarse sobre datos operacionales sin aprobación jurídica y autorización del titular. En producción, la anonimización está deshabilitada por defecto; la purga de auditoría permanece bloqueada.
+
+El comando de anonimización que aparece abajo es solo una referencia del endpoint y **no debe ejecutarse** sin esos controles. Para validar el conteo sin modificar registros, use exclusivamente `dry_run=true`.
 
 ```bash
 # Verificar qué elecciones son candidatas a anonimización
@@ -130,14 +134,16 @@ curl -H "Authorization: Bearer <JWT_ADMIN>" \
 
 # Ejecutar anonimización para una elección específica
 curl -X POST -H "Authorization: Bearer <JWT_ADMIN>" \
-  https://tu-dominio.com/api/admin/pii/anonymize-election/{election_id}
+  'https://tu-dominio.com/api/admin/pii/anonymize-election/{election_id}?dry_run=true'
 
-# Ejecutar limpieza de logs de auditoría antiguos
+# Solo simular; la purga física está bloqueada hasta verificar retención por épocas y custodia externa
 curl -X POST -H "Authorization: Bearer <JWT_ADMIN>" \
-  https://tu-dominio.com/api/admin/pii/purge-audit-logs
+  'https://tu-dominio.com/api/admin/pii/purge-audit-logs?dry_run=true'
 ```
 
-### 5.2 Automatización (crontab recomendado)
+### 5.2 Automatización
+
+No habilitar una tarea automática de anonimización hasta que se aprueben los plazos, los legal holds, la estrategia de recuperación y la custodia de evidencia. El ejemplo de cron histórico no constituye autorización operativa.
 
 ```bash
 # Ejecutar limpieza de PII diariamente a las 02:00 AM
@@ -151,7 +157,7 @@ curl -X POST -H "Authorization: Bearer <JWT_ADMIN>" \
 set -euo pipefail
 # Requiere: ADMIN_JWT configurado como secreto del sistema
 API_BASE="${API_BASE:-https://localhost:8000}"
-curl -sf -X POST "${API_BASE}/api/admin/pii/purge-audit-logs" \
+curl -sf -X POST "${API_BASE}/api/admin/pii/purge-audit-logs?dry_run=true" \
   -H "Authorization: Bearer ${ADMIN_JWT}" | jq .
 ```
 
@@ -175,27 +181,35 @@ PII_AUDIT_RETENTION_DAYS=365
 
 | Dato | Razón de retención permanente |
 |---|---|
-| `votes.candidate_id` + `votes.election_id` | Resultado electoral; no contiene PII directa tras anonimizar `voters` |
+| `votes.voter_id` junto a `candidate_id` | Permite correlacionar elector y opción; el secreto del voto no está demostrado |
 | `votes.hash_integridad` | Prueba criptográfica de integridad del acta |
 | `elections.*` | Registro histórico del proceso electoral (sin PII) |
-| `voting_entitlements.unit_key` | `"FAM:X"` o `"RUT:XX"` sin nombre/correo; conservar para integridad estadística |
+| `voting_entitlements.unit_key` | HMAC contextual de unidad y elección; conservar para integridad estadística |
 
-> ⚠️ `voting_entitlements.unit_key` puede contener el RUT normalizado en formato `"RUT:XXXXXXXX-X"`. Tras la anonimización del padrón, este campo queda como un identificador técnico sin correlación visible con el nombre o correo del elector.
+> ⚠️ El `unit_key` es seudónimo, no anonimización. `ENTITLEMENT_HMAC_KEY` debe ser persistente, de al menos 32 bytes, independiente de `SECRET_KEY` y `VOTE_HMAC_KEY`, y custodiada fuera de la base de datos. Sin la clave correcta, los derechos existentes dejan de resolverse; la migración de vuelta no puede reconstruir los identificadores originales y requiere restaurar un respaldo protegido.
 
 ---
 
 ## 8. Registro de Ejecuciones
 
-Cada ejecución de anonimización o purga debe quedar registrada en la bitácora de auditoría (`audit_logs`) con la acción `"PII: Anonimización de padrón"` o `"PII: Purga de auditoría"`, el número de registros afectados, y el usuario administrador que la solicitó.
+Cada anonimización efectivamente ejecutada queda registrada en `audit_logs` con la acción `"PII: Anonimización de padrón"`, el número de registros afectados y el administrador solicitante. Una simulación no modifica datos; una purga bloqueada no crea un evento que sugiera que hubo eliminación.
+
+## 9. Controles S2-C y límites operacionales
+
+- La elegibilidad se calcula exclusivamente desde `fecha_cierre_efectiva` o `fecha_fin`; `fecha_creacion` no acredita el cierre. La ejecución manual también exige que venza `PII_VOTER_RETENTION_DAYS` y que `legal_hold` esté desactivado. Si falta fecha de cierre verificable, se bloquea.
+- La anonimización establece `rut_normalizado = NULL` para preservar la restricción única de padrones activos y evitar colisiones. El denominador electoral proviene de la instantánea congelada S2-B.
+- No existe un canal real de entrega de credenciales. En producción, altas, importaciones, reemisiones y apertura que requiera credenciales responden 503; no se debe habilitar uso electoral productivo hasta implementar y probar ese canal. No se revocan silenciosamente credenciales legadas; deben inventariarse y migrarse con autorización.
+- La purga física de auditoría queda bloqueada con 409; `dry_run=true` solo informa candidatos. Falta retención por épocas y una verificación de checkpoint guardado en custodia independiente.
+- `Vote.voter_id` junto a `candidate_id` sigue vinculando voto y elector. Estas medidas no demuestran secreto ni anonimato del sufragio.
 
 ---
 
-## 9. Riesgos Residuales Conocidos
+## 10. Riesgos Residuales Conocidos
 
 | Riesgo | Nivel | Mitigación |
 |---|---|---|
 | Correlación `voter_id` ↔ `candidate_id` en tabla `votes` | 🔴 Alto | Bloqueado por ADR de motor criptográfico (pendiente P1) |
-| `voting_entitlements.unit_key` contiene RUT normalizado | 🟡 Medio | Valor técnico sin nombre; riesgo bajo post-anonimización |
+| `voting_entitlements.unit_key` es seudónimo HMAC | 🟡 Medio | Clave persistente y separada; no equivale a anonimización |
 | Backups anteriores a la anonimización contienen PII | 🟡 Medio | Política de retención de backups: eliminar backups > 90 días (ver `backup.sh`) |
 | Logs de aplicación en disco con PII en trazas de error | 🟠 Medio-Alto | Revisar nivel de logging; nunca loguear RUT/nombre en nivel DEBUG en producción |
 

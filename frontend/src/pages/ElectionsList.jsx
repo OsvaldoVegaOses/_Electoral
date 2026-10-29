@@ -64,7 +64,7 @@ const ElectionsList = () => {
             Procesos Electorales
           </Typography>
           <Typography variant="body1" color="text.secondary">
-            Administración de votaciones, padrones, comisiones y actas oficiales
+            Administración de votaciones, padrones, comisiones e informes de cierre
           </Typography>
         </Box>
         <Button

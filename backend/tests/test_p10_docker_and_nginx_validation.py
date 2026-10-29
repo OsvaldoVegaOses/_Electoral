@@ -40,7 +40,10 @@ class TestP10DockerComposeAndNginxValidation(unittest.TestCase):
             ["docker", "compose", "-f", prod_compose_path, "config"],
             cwd=ROOT_DIR,
             capture_output=True,
-            text=True
+            text=True,
+            env={**os.environ,
+                 "DATABASE_URL": "postgresql://synthetic_app:unused@db/synthetic",
+                 "MIGRATION_DATABASE_URL": "postgresql://synthetic_migrator:unused@db/synthetic"},
         )
         self.assertEqual(
             res.returncode, 0,

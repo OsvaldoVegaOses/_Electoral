@@ -1,21 +1,24 @@
 from datetime import datetime, timezone
 import hashlib
+import json
 from fastapi import APIRouter, Depends, Query, status
 from sqlalchemy.orm import Session
 from sqlalchemy import or_, func
 from typing import List, Optional
 from app.database import get_db
-from app.models import AuditLog, User
+from app.models import AuditLog, AuditChainHead, User
 from app.schemas import (
     AuditLogResponse,
     AuditIntegrityCheckResponse,
     AuditCheckpointResponse,
+    AuditCheckpointArtifact,
 )
 from app.auth import (
     get_current_user,
     is_superadmin,
     require_role,
     verify_audit_log_chain,
+    verify_audit_checkpoint,
     log_audit,
     ROLE_SUPERADMIN,
     ROLE_LEGACY_ADMIN,
@@ -29,6 +32,16 @@ def _escape_like(value: str) -> str:
 
 
 router = APIRouter(prefix="/audit", tags=["Trazabilidad y Auditoría"])
+
+
+@router.post("/checkpoint/verify")
+def verify_checkpoint_artifact(
+    artifact: AuditCheckpointArtifact,
+    db: Session = Depends(get_db),
+    current_user: User = Depends(require_role(ROLE_SUPERADMIN, ROLE_LEGACY_ADMIN)),
+):
+    """Compara un artefacto conservado externamente con la cadena local."""
+    return verify_audit_checkpoint(db, artifact.model_dump())
 
 
 @router.get("/logs", response_model=List[AuditLogResponse])
@@ -87,39 +100,68 @@ def create_audit_checkpoint(
 ):
     """
     P15: Genera un anclaje criptográfico (checkpoint) del estado actual de la bitácora.
-    El digest resultante debe exportarse o enviarse a un repositorio externo/TSA
-    para proporcionar evidencia de inmutabilidad verificable e independiente.
+    El digest resultante debe exportarse o enviarse a un repositorio externo/TSA.
+    Generarlo localmente no acredita custodia independiente ni anclaje verificable.
     """
-    total = db.query(func.count(AuditLog.id)).scalar() or 0
-    last_log = db.query(AuditLog).order_by(AuditLog.id.desc()).first()
-    head_hash = last_log.record_hash if (last_log and last_log.record_hash) else GENESIS_HASH
-    last_id = last_log.id if last_log else None
-
     now = datetime.now(timezone.utc)
-    raw_payload = f"CHECKPOINT|{now.isoformat()}|{total}|{last_id}|{head_hash}|{current_user.email}"
-    checkpoint_hash = hashlib.sha256(raw_payload.encode("utf-8")).hexdigest()
+    timestamp = now.isoformat()
+    if db.bind.dialect.name == "postgresql":
+        head = (
+            db.query(AuditChainHead)
+            .filter(AuditChainHead.id == 1)
+            .with_for_update()
+            .one_or_none()
+        )
+        if head is None:
+            raise RuntimeError("Falta audit_chain_heads; ejecute la migración S2-D.")
+        head_hash = head.head_hash
+        last_id = head.last_log_id
+        count_query = db.query(func.count(AuditLog.id))
+        if last_id is not None:
+            count_query = count_query.filter(AuditLog.id <= last_id)
+        total = count_query.scalar() or 0
+    else:
+        last_log = db.query(AuditLog).order_by(AuditLog.id.desc()).first()
+        head_hash = last_log.record_hash if (last_log and last_log.record_hash) else GENESIS_HASH
+        last_id = last_log.id if last_log else None
+        total = db.query(func.count(AuditLog.id)).scalar() or 0
+
+    artifact_fields = {
+        "schema_version": 1,
+        "timestamp": timestamp,
+        "total_records": total,
+        "last_record_id": last_id,
+        "head_hash": head_hash,
+    }
+    canonical_artifact = json.dumps(artifact_fields, sort_keys=True, separators=(",", ":"))
+    checkpoint_hash = hashlib.sha256(canonical_artifact.encode("utf-8")).hexdigest()
 
     # Registrar el evento en la propia bitácora
     log_audit(
         db,
         accion="AUDIT: Generación de anclaje de bitácora",
-        detalle=f"Checkpoint hash: {checkpoint_hash} (total: {total} registros, head: {head_hash[:16]}...).",
+        detalle=(
+            f"Checkpoint exportable generado; digest {checkpoint_hash}. "
+            "Custodia independiente pendiente."
+        ),
         usuario=current_user.email,
         commit=True,
     )
 
     return {
         "success": True,
-        "timestamp": now.isoformat(),
+        "timestamp": timestamp,
         "total_records": total,
         "last_record_id": last_id,
         "head_hash": head_hash,
         "checkpoint_hash": checkpoint_hash,
         "firmado_por": current_user.email,
+        "artifact": {**artifact_fields, "digest_sha256": checkpoint_hash},
+        "anchorage_status": "PENDIENTE_ANCLAJE_EXTERNO",
+        "independent_custody_confirmed": False,
         "instrucciones_anclaje": (
-            "Exportar 'checkpoint_hash' a almacenamiento WORM (Write-Once-Read-Many), "
-            "servidor syslog remoto independiente o Autoridad de Sellado de Tiempo (RFC 3161 TSA) "
-            "para garantizar no repudio."
+            "Guardar el artifact fuera de este servidor en custodia independiente "
+            "(WORM o TSA) y conservar el recibo verificable. La generación local "
+            "no demuestra anclaje externo ni no repudio."
         ),
     }
-

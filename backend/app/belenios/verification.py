@@ -17,6 +17,31 @@ TOOL = "/home/belenios/belenios/_run/usr/bin/belenios-tool"
 
 
 def public_archive(policy, uuid):
+    if settings.BELENIOS_MODE == "pilot":
+        import httpx
+        from app.belenios.deployment import https_destination
+        base = https_destination(settings.BELENIOS_VERIFIER_URL)
+        token = settings.BELENIOS_VERIFIER_TOKEN.get_secret_value()
+        if not token:
+            raise ProviderError("Verificador sin configurar")
+        try:
+            with httpx.Client(verify=settings.BELENIOS_CA_FILE or True, timeout=60, follow_redirects=False, trust_env=False) as client:
+                with client.stream("POST", base + "/verify", json={"policy": policy, "uuid": uuid},
+                                   headers={"Authorization": "Bearer " + token}) as response:
+                    if response.status_code != 200:
+                        raise ProviderError("Verificación no confirmada")
+                    chunks, size = [], 0
+                    for chunk in response.iter_bytes():
+                        size += len(chunk)
+                        if size > 8 * 1024 * 1024:
+                            raise ProviderError("Archivo demasiado grande")
+                        chunks.append(chunk)
+                    archive = b"".join(chunks)
+            if not archive:
+                raise ProviderError("Archivo vacío")
+            return archive
+        except httpx.HTTPError:
+            raise ProviderError("Verificación externa no disponible") from None
     image = settings.BELENIOS_VERIFIER_IMAGE
     if not re.fullmatch(r"sha256:[0-9a-f]{64}", image):
         raise ProviderError("Falta imagen verificadora inmutable")
@@ -44,7 +69,7 @@ def public_archive(policy, uuid):
 
 
 def verify_result(db, binding, body, client, archive_runner=public_archive):
-    require_enabled()
+    require_enabled(db.get(Election, binding.election_id))
     if binding.phase not in ("Tallied", "Verified") or binding.inflight or not binding.remote_uuid:
         raise HTTPException(409, "Se requiere un escrutinio completo confirmado, sin operaciones pendientes.")
     route = "elections/" + binding.remote_uuid

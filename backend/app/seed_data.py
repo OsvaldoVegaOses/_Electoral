@@ -4,7 +4,7 @@ import secrets
 import logging
 from datetime import datetime, timezone, timedelta
 from sqlalchemy.orm import Session
-from app.models import School, Election, ElectoralCommittee, Candidate, Voter, User, AuditLog
+from app.models import School, Election, ElectoralCommittee, Candidate, Voter, User, AuditLog, AuditChainHead
 from app.auth import get_password_hash, compute_audit_hash, GENESIS_HASH
 from app.rut_validator import format_rut
 
@@ -227,6 +227,14 @@ def seed_initial_data(db: Session):
         ))
     db.add_all(voters)
 
+    # Seed opens a synthetic election directly, so provision its rights too.
+    from app.entitlements import derive_entitlement_key
+    from app.models import VotingEntitlement
+    for family in sorted({voter.familia_id.strip().upper() for voter in voters}):
+        db.add(VotingEntitlement(election_id=election.id,
+                                unit_key=derive_entitlement_key(election.id, f"FAM:{family}"),
+                                estado="Pendiente"))
+
     # 7. Registrar Auditoría Inicial (P15: Encadenamiento criptográfico append-only)
     seed_audit_entries = [
         (now - timedelta(hours=2), "admin@theogen.cl", "Creó elección", f"Se creó la elección '{election.nombre}' para la institución '{school.nombre}' con regla '{election.regla_votacion}'."),
@@ -248,6 +256,15 @@ def seed_initial_data(db: Session):
         )
         db.add(log)
         current_prev = rec_hash
+
+    db.flush()
+    last_seed_log = db.query(AuditLog).order_by(AuditLog.id.desc()).first()
+    chain_head = db.query(AuditChainHead).filter(AuditChainHead.id == 1).first()
+    if chain_head is None:
+        chain_head = AuditChainHead(id=1)
+        db.add(chain_head)
+    chain_head.head_hash = current_prev
+    chain_head.last_log_id = last_seed_log.id if last_seed_log else None
 
     db.commit()
     logger.info("Seed de datos inicial completado exitosamente.")

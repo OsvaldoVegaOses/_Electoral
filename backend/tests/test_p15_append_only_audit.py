@@ -150,6 +150,35 @@ class TestAuditIntegrityVerification:
         assert result["total_revisados"] == 0
         db.close()
 
+    def test_legacy_record_without_hash_is_not_declared_integral(self):
+        db = TestingSessionLocal()
+        legacy = AuditLog(accion="Evento legacy sin hash")
+        db.add(legacy)
+        db.commit()
+
+        result = verify_audit_log_chain(db)
+
+        assert result["integro"] is False
+        assert result["fallo_en_id"] == legacy.id
+        assert "legacy sin hash" in result["razon"]
+        db.close()
+
+    def test_first_record_must_use_genesis_hash(self):
+        db = TestingSessionLocal()
+        log = log_audit(db, accion="Genesis alterada")
+        log.prev_hash = "a" * 64
+        log.record_hash = compute_audit_hash(
+            log.prev_hash, log.fecha, log.usuario, log.accion, log.detalle, log.school_id
+        )
+        db.commit()
+
+        result = verify_audit_log_chain(db)
+
+        assert result["integro"] is False
+        assert result["fallo_en_id"] == log.id
+        assert "Eslabón roto" in result["razon"]
+        db.close()
+
     def test_tamper_detection_modifying_record_action_fails(self):
         db = TestingSessionLocal()
         for i in range(4):
@@ -246,6 +275,9 @@ class TestAuditEndpointsP15:
         assert len(data["checkpoint_hash"]) == 64
         assert data["head_hash"] is not None
         assert data["firmado_por"] == admin.email
+        assert data["anchorage_status"] == "PENDIENTE_ANCLAJE_EXTERNO"
+        assert data["independent_custody_confirmed"] is False
+        assert data["artifact"]["digest_sha256"] == data["checkpoint_hash"]
 
         # El checkpoint debe haber registrado un evento en la propia bitácora
         db2 = TestingSessionLocal()
@@ -255,6 +287,26 @@ class TestAuditEndpointsP15:
         assert checkpoint_audit is not None
         assert data["checkpoint_hash"] in checkpoint_audit.detalle
         db2.close()
+
+    def test_external_checkpoint_artifact_can_be_verified_and_tampering_is_rejected(self):
+        db = TestingSessionLocal()
+        admin = _make_user(db, email="checkpoint@test.cl", rol="Administrador General")
+        log_audit(db, accion="Synthetic checkpoint event", usuario=admin.email)
+        db.close()
+
+        client = _client_for(admin)
+        checkpoint_response = client.post("/api/audit/checkpoint")
+        assert checkpoint_response.status_code == 200
+        artifact = checkpoint_response.json()["artifact"]
+
+        valid = client.post("/api/audit/checkpoint/verify", json=artifact)
+        assert valid.status_code == 200
+        assert valid.json()["integro"] is True
+
+        artifact["total_records"] += 1
+        altered = client.post("/api/audit/checkpoint/verify", json=artifact)
+        assert altered.status_code == 200
+        assert altered.json()["integro"] is False
 
     def test_endpoint_checkpoint_forbidden_for_non_admin(self):
         db = TestingSessionLocal()

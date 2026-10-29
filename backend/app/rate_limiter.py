@@ -1,23 +1,27 @@
 """
-P13: Rate Limiter Persistente con backend Redis y fallback en memoria.
+P13: Rate limiter persistente con Redis y fallback de desarrollo en memoria.
 
 Arquitectura:
 - Cuando REDIS_URL está configurado: usa Redis con Sliding Window (sorted set por IP).
   Seguro para múltiples workers/instancias de uvicorn porque el estado es compartido.
-- Cuando Redis no está disponible (fallback): usa el dict en memoria original.
-  Emite un WARNING en cada arranque para que el operador no ignore la degradación.
+- En desarrollo/test puede usar memoria si Redis no está disponible.
+- En producción, Redis es obligatorio y sus fallas bloquean solicitudes protegidas.
 
 Algoritmo: Sliding Window con Redis Sorted Set.
   - Clave: "rl:{ip}" con TTL = ventana de tiempo.
-  - Miembros: timestamps en microsegundos como score.
+  - Miembros únicos y timestamps en microsegundos como score.
   - Operación atómica: MULTI/EXEC (pipeline) garantiza consistencia bajo carga.
 """
 import time
 import logging
+import uuid
 from datetime import datetime, timedelta, timezone
 from collections import defaultdict
 
+from app.config import settings
+
 logger = logging.getLogger("theogen.rate_limiter")
+_UNAVAILABLE_DETAIL = "Rate limiting no disponible; la operación fue bloqueada."
 
 # ---------------------------------------------------------------------------
 # Intentar conectar con Redis al importar
@@ -30,6 +34,8 @@ def _init_redis(redis_url: str) -> None:
     """Inicializa el cliente Redis. Llamado desde lifespan de la app."""
     global _redis_client, _redis_available
     if not redis_url:
+        if settings.ENVIRONMENT == "production":
+            raise RuntimeError("REDIS_URL es obligatoria en producción para rate limiting.")
         logger.warning(
             "P13: REDIS_URL no configurado. El rate limiting usará memoria local — "
             "NO es efectivo con múltiples instancias o workers."
@@ -41,12 +47,14 @@ def _init_redis(redis_url: str) -> None:
         client.ping()
         _redis_client = client
         _redis_available = True
-        logger.info("P13: Rate limiter conectado a Redis (%s).", redis_url)
+        logger.info("P13: Rate limiter conectado a Redis.")
     except Exception as exc:
+        _redis_client = None
+        _redis_available = False
+        if settings.ENVIRONMENT == "production":
+            raise RuntimeError("Redis no está disponible; inicio bloqueado en producción.") from None
         logger.warning(
-            "P13: No se pudo conectar a Redis (%s): %s. "
-            "Usando fallback en memoria — NOT safe for multi-instance deployments.",
-            redis_url, exc
+            "P13: No se pudo conectar a Redis. Fallback local de desarrollo, sin garantías entre procesos."
         )
 
 
@@ -65,17 +73,11 @@ def _redis_check(client, ip: str, window: int, max_attempts: int) -> int:
 
     pipe = client.pipeline()
     pipe.zremrangebyscore(key, "-inf", cutoff_us)    # Eliminar entradas expiradas
-    pipe.zadd(key, {str(now_us): now_us})            # Añadir intento actual
+    pipe.zadd(key, {uuid.uuid4().hex: now_us})       # Evitar colisiones de score concurrentes
     pipe.zcard(key)                                   # Contar intentos en ventana
     pipe.expire(key, window)                          # TTL = ventana
     results = pipe.execute()
     return results[2]  # zcard
-
-
-def _redis_record_failed(client, ip: str, window: int) -> None:
-    """Registra un intento fallido (la entrada ya fue añadida en check)."""
-    # El intento ya se registró en _redis_check; nada más que hacer aquí.
-    pass
 
 
 def _redis_clear(client, ip: str) -> None:
@@ -113,7 +115,7 @@ def check_rate_limit(
     """
     Verifica que la IP no supere max_attempts en los últimos `window` segundos.
     Lanza HTTPException 429 si se supera el límite.
-    Usa Redis si está disponible; fallback a memoria si no.
+    Usa Redis si está disponible; solo desarrollo/test puede caer a memoria.
     """
     from fastapi import HTTPException
 
@@ -129,9 +131,13 @@ def check_rate_limit(
         except HTTPException:
             raise
         except Exception as exc:
-            logger.warning("P13: Error leyendo Redis para rate limiting, usando memoria. %s", exc)
+            logger.error("P13: Redis falló durante rate limiting: %s", exc)
+            if settings.ENVIRONMENT == "production":
+                raise HTTPException(status_code=503, detail=_UNAVAILABLE_DETAIL) from exc
 
-    # Fallback en memoria
+    if settings.ENVIRONMENT == "production":
+        raise HTTPException(status_code=503, detail=_UNAVAILABLE_DETAIL)
+
     count = _mem_check(client_ip, window, max_attempts)
     if count > max_attempts:
         raise HTTPException(
@@ -142,24 +148,12 @@ def check_rate_limit(
 
 def record_failed_attempt(client_ip: str, window: int = 300) -> None:
     """
-    Registra un intento fallido adicional.
-    Con Redis el intento ya fue registrado en check_rate_limit; en memoria se añade aquí.
-    """
-    if _redis_available and _redis_client is not None:
-        try:
-            # Añade un nuevo timestamp (contador independiente del de check)
-            now_us = int(time.time() * 1_000_000)
-            key = f"rl:{client_ip}"
-            pipe = _redis_client.pipeline()
-            pipe.zadd(key, {str(now_us) + "f": now_us})
-            pipe.expire(key, window)
-            pipe.execute()
-            return
-        except Exception as exc:
-            logger.warning("P13: Error registrando intento fallido en Redis. %s", exc)
+    Compatibilidad con los llamadores existentes.
 
-    # Fallback
-    _mem_attempts[client_ip].append(datetime.now(timezone.utc))
+    check_rate_limit ya cuenta cada solicitud de forma atómica; incrementar otra
+    vez aquí duplicaría los fallos y alteraría el umbral según el resultado.
+    """
+    return None
 
 
 def clear_failed_attempts(client_ip: str) -> None:
@@ -169,5 +163,13 @@ def clear_failed_attempts(client_ip: str) -> None:
             _redis_clear(_redis_client, client_ip)
             return
         except Exception as exc:
-            logger.warning("P13: Error limpiando intentos en Redis. %s", exc)
+            logger.error("P13: Error limpiando intentos en Redis: %s", exc)
+            if settings.ENVIRONMENT == "production":
+                from fastapi import HTTPException
+
+                raise HTTPException(status_code=503, detail=_UNAVAILABLE_DETAIL) from exc
+    if settings.ENVIRONMENT == "production":
+        from fastapi import HTTPException
+
+        raise HTTPException(status_code=503, detail=_UNAVAILABLE_DETAIL)
     _mem_clear(client_ip)

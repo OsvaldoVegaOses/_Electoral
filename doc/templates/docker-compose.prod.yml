@@ -9,9 +9,6 @@ services:
     image: postgres:16-alpine
     container_name: theogen_db
     restart: unless-stopped
-    env_file:
-      - path: .env
-        required: false
     environment:
       POSTGRES_DB: ${POSTGRES_DB:-theogen_electoral}
       POSTGRES_USER: ${POSTGRES_USER:-theogen}
@@ -46,13 +43,15 @@ services:
     container_name: theogen_backend
     restart: unless-stopped
     env_file:
-      - path: .env
+      - path: .env.backend
         required: false
     environment:
-      DATABASE_URL: ${DATABASE_URL}
+      DATABASE_URL: ${DATABASE_URL:?Configure el rol limitado de aplicacion}
       SECRET_KEY: ${SECRET_KEY}
       VOTE_HMAC_KEY: ${VOTE_HMAC_KEY}
+      ENTITLEMENT_HMAC_KEY: ${ENTITLEMENT_HMAC_KEY}
       ENVIRONMENT: production
+      RUN_MIGRATIONS_ON_STARTUP: 'false'
     # Solo expuesto a localhost para que el Reverse Proxy Nginx del host o contenedor lo consuma
     ports:
       - "127.0.0.1:8000:8000"
@@ -74,6 +73,28 @@ services:
       options:
         max-size: "10m"
         max-file: "5"
+
+  migrate:
+    build:
+      context: ./backend
+      dockerfile: Dockerfile
+    profiles: [release]
+    restart: 'no'
+    command: [migrate]
+    env_file:
+      - path: .env.migration
+        required: false
+    environment:
+      DATABASE_URL: ${MIGRATION_DATABASE_URL:?Configure el rol migrador separado}
+      SECRET_KEY: ${SECRET_KEY}
+      VOTE_HMAC_KEY: ${VOTE_HMAC_KEY}
+      ENTITLEMENT_HMAC_KEY: ${ENTITLEMENT_HMAC_KEY}
+      ENVIRONMENT: production
+    depends_on:
+      db:
+        condition: service_healthy
+    networks: [backend_net]
+    security_opt: [no-new-privileges:true]
 
   frontend:
     build:

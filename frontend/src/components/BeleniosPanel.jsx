@@ -1,6 +1,6 @@
 import { useMemo, useState } from 'react';
 import { Alert, Box, Button, Card, CardContent, Checkbox, FormControlLabel, MenuItem, Stack, TextField, Typography } from '@mui/material';
-import { beleniosService } from '../services/api';
+import { beleniosService, downloadBeleniosRecord } from '../services/api';
 
 const actions = {
   Draft: [['ValidateElection', 'Validar preparación externa']],
@@ -32,7 +32,7 @@ export default function BeleniosPanel({ election, voters, engine, onRefresh }) {
     return Object.entries(result);
   }, [election.regla_votacion, voters]);
   const binding = engine?.binding;
-  if (!engine || (!engine.enabled && !binding)) return null;
+  if (!engine || (!engine.enabled && !binding && election.motor !== 'belenios')) return null;
   async function act(fn) {
     setBusy(true); setError('');
     try { await fn(); } catch (err) {
@@ -46,10 +46,10 @@ export default function BeleniosPanel({ election, voters, engine, onRefresh }) {
   const representatives = groups.map(([key]) => Number(selected[key])).filter(Boolean);
   return <Card sx={{ my: 3 }} data-testid="belenios-panel"><CardContent>
     <Typography variant="h5" component="h2">Motor Belenios</Typography>
-    <Alert severity="info" sx={{ my: 2 }}>Integración de laboratorio con datos ficticios. El voto se realiza directamente en Belenios; TheoGen no recibe la selección ni las claves privadas.</Alert>
+    <Alert severity="info" sx={{ my: 2 }}>{engine.mode === 'pilot' ? 'Piloto no vinculante autorizado por institución.' : 'Integración de laboratorio con datos ficticios.'} El voto se realiza directamente en Belenios; TheoGen no recibe la selección ni las claves privadas.</Alert>
     {!engine.enabled && <Alert severity="warning">Las operaciones del motor están deshabilitadas. La elección conserva su vinculación y no puede usar la urna MVP.</Alert>}
     {!binding ? <Stack spacing={2}>
-      <Typography>Seleccione la política y un representante por unidad. Después de preparar la elección, padrón y opciones quedan congelados.</Typography>
+      <Typography>Máximo {engine.max_units || 100} unidades por preparación. Seleccione la política y un representante por unidad. Después de preparar la elección, padrón y opciones quedan congelados.</Typography>
       <TextField select label="Política de voto" value={policy} onChange={e => setPolicy(e.target.value)}>
         <MenuItem value="R1">R1: cuenta el último voto válido</MenuItem><MenuItem value="R2">R2: se rechaza un segundo voto</MenuItem>
       </TextField>
@@ -57,10 +57,10 @@ export default function BeleniosPanel({ election, voters, engine, onRefresh }) {
       {groups.map(([key, people], index) => <TextField key={key} select label={`Representante de unidad ${index + 1}`} value={selected[key] || ''} onChange={e => setSelected({ ...selected, [key]: e.target.value })}>
         {people.map(person => <MenuItem key={person.id} value={person.id}>{person.nombre}</MenuItem>)}
       </TextField>)}
-      <FormControlLabel control={<Checkbox checked={confirmed} onChange={e => setConfirmed(e.target.checked)} />} label="Ensayo ficticio con una selección obligatoria por boleta; blanco y nulo no se modelan." />
-      <Button variant="contained" disabled={busy || !confirmed || !policy || !approval || representatives.length !== groups.length || !groups.length} onClick={() => act(() => beleniosService.prepare(election.id, {
+      <FormControlLabel control={<Checkbox checked={confirmed} onChange={e => setConfirmed(e.target.checked)} />} label={engine.mode === 'pilot' ? 'Confirmo el alcance del piloto: una selección obligatoria; blanco y nulo no modelados.' : 'Ensayo ficticio con una selección obligatoria por boleta; blanco y nulo no se modelan.'} />
+      <Button variant="contained" disabled={busy || !engine.enabled || !confirmed || !policy || !approval || representatives.length !== groups.length || !groups.length || groups.length > (engine.max_units || 100)} onClick={() => act(() => beleniosService.prepare(election.id, {
         request_id: crypto.randomUUID(), policy, representative_ids: representatives, approval_ref: approval,
-        ballot_mode: 'mandatory_single_choice_no_blank_no_null', synthetic_laboratory: true,
+        ballot_mode: 'mandatory_single_choice_no_blank_no_null', synthetic_laboratory: engine.mode !== 'pilot',
       }))}>Preparar elección en Belenios</Button>
     </Stack> : <Stack spacing={2}>
       <Typography>Política: {binding.policy} · Estado confirmado: {binding.phase}</Typography>
@@ -79,7 +79,7 @@ export default function BeleniosPanel({ election, voters, engine, onRefresh }) {
           if (window.confirm('¿Cotejó manualmente la operación y el estado de Belenios? Esta acción solo adopta un estado remoto coincidente.')) act(() => beleniosService.reconcile(election.id, { operation_id: binding.inflight, candidate_uuid: binding.uuid || remoteUuid, manually_reviewed: true }));
         }}>Reconciliar estado cotejado</Button>
       </Box> : <Stack direction="row" spacing={2} sx={{ flexWrap: 'wrap' }}>{(actions[binding.phase] || []).filter(([action]) => !binding.available_actions || binding.available_actions.includes(action)).map(([action, label]) => <Button key={action} disabled={busy || !engine.enabled} onClick={() => {
-        if (window.confirm(`¿Confirma la operación «${label}» para esta elección de laboratorio?`)) act(() => beleniosService.transition(election.id, action));
+        if (window.confirm(`¿Confirma la operación «${label}» para esta elección?`)) act(() => beleniosService.transition(election.id, action));
       }}>{label}</Button>)}</Stack>}
       {binding.phase === 'Tallied' && <Stack spacing={2}>
         <Typography>Ingrese las huellas finales revisadas por el auditor para verificar y contrastar el resultado.</Typography>
@@ -92,6 +92,7 @@ export default function BeleniosPanel({ election, voters, engine, onRefresh }) {
         <Typography>{binding.result.counted_ballots} votos computados de {binding.result.enabled_units} unidades · {(binding.result.participation * 100).toFixed(1)} %</Typography>
         <Alert severity="warning">Expediente técnico experimental. Quórum, estatutos, firmas y custodia independiente no acreditados.</Alert>
         <Button onClick={() => download(binding.result, `resultado-verificado-${binding.uuid}.json`)}>Descargar expediente técnico</Button>
+        <Button onClick={() => act(() => downloadBeleniosRecord(election.id))}>Descargar expediente PDF</Button>
       </Box>}
     </Stack>}
     {error && <Alert severity="error" sx={{ mt: 2 }}>{error}</Alert>}

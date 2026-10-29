@@ -5,7 +5,7 @@ import hmac
 import hashlib
 import inspect
 from datetime import datetime, timezone
-from jose import jwt
+import jwt
 from pydantic import ValidationError
 
 # Add backend to sys.path

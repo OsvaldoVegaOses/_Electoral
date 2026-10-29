@@ -146,6 +146,19 @@ export const voterService = {
   getTemplateDownloadUrl: (electionId) => `/api/elections/${electionId}/voters/template`,
 };
 
+export const credentialDeliveryService = {
+  list: async (election, voter) => (await api.get(`/elections/${election}/voters/${voter}/deliveries`)).data,
+  issue: async (election, voter, operation) => (await api.post(`/elections/${election}/voters/${voter}/deliveries`, { operation_id: operation })).data,
+  reconcile: async (election, voter, operation) => (await api.post(`/elections/${election}/voters/${voter}/deliveries/${operation}/reconcile`)).data,
+};
+
+export async function downloadBeleniosRecord(election) {
+  const response = await api.get(`/elections/${election}/belenios/record/pdf`, { responseType: 'blob' });
+  const url = URL.createObjectURL(new Blob([response.data], { type: 'application/pdf' }));
+  const link = document.createElement('a'); link.href = url; link.download = `Expediente_Belenios_${election}.pdf`;
+  link.click(); URL.revokeObjectURL(url);
+}
+
 export const candidateService = {
   getByElection: async (electionId) => {
     const res = await api.get(`/elections/${electionId}/candidates`);

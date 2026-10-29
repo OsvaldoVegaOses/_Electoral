@@ -1,10 +1,12 @@
+import hashlib
+import hmac
+import json
 import re
 from fastapi import APIRouter, Depends, HTTPException, status
 from app.belenios.client import legacy_guard
 from app.models import BeleniosBinding
 from fastapi.responses import StreamingResponse
 from sqlalchemy.orm import Session
-from sqlalchemy import func, or_
 from typing import List
 from datetime import datetime, timezone
 
@@ -19,6 +21,51 @@ from app.auth import (
 
 router = APIRouter(prefix="/reports", tags=["Informes, Escrutinio y Actas PDF"])
 
+
+def _require_verified_snapshot(election: Election) -> dict:
+    if (
+        not election.config_snapshot
+        or not election.config_hash
+        or election.total_padron_congelado is None
+        or election.total_habilitados_congelado is None
+    ):
+        raise HTTPException(
+            status_code=status.HTTP_409_CONFLICT,
+            detail=(
+                "No existe una instantánea electoral verificable para esta elección. "
+                "Requiere conciliación antes de emitir resultados o actas definitivas."
+            ),
+        )
+
+    try:
+        snapshot = json.loads(election.config_snapshot)
+    except json.JSONDecodeError as exc:
+        raise HTTPException(
+            status_code=status.HTTP_409_CONFLICT,
+            detail="La instantánea electoral está dañada; se bloqueó la emisión del informe.",
+        ) from exc
+
+    if not isinstance(snapshot, dict):
+        raise HTTPException(
+            status_code=status.HTTP_409_CONFLICT,
+            detail="La instantánea electoral tiene un formato inválido.",
+        )
+
+    canonical = json.dumps(snapshot, sort_keys=True, separators=(",", ":"))
+    calculated_hash = hashlib.sha256(canonical.encode("utf-8")).hexdigest()
+    if (
+        not hmac.compare_digest(calculated_hash, election.config_hash)
+        or snapshot.get("election_id") != election.id
+        or snapshot.get("total_padron") != election.total_padron_congelado
+        or snapshot.get("total_habilitados") != election.total_habilitados_congelado
+    ):
+        raise HTTPException(
+            status_code=status.HTTP_409_CONFLICT,
+            detail="La instantánea electoral no coincide con sus compromisos congelados.",
+        )
+    return snapshot
+
+
 @router.get("/election/{election_id}/scrutiny", response_model=ScrutinyResponse)
 def get_election_scrutiny(
     election_id: int,
@@ -26,8 +73,8 @@ def get_election_scrutiny(
     current_user: User = Depends(get_current_user),  # CRIT-03
 ):
     """
-    Módulo 7: Escrutinio oficial.
-    Calcula votos por candidato, votos nulos, votos blancos, porcentaje de participación y proclamación de ganador.
+    Módulo 7: Calcula y presenta resultados de la plataforma.
+    Calcula votos por candidato, votos nulos, votos blancos y porcentaje de participación.
     PROTEGIDO: Solo accesible cuando la elección se encuentra en estado 'Cerrada' o 'Finalizada' (A2 - P0)
     y pertenece al ámbito autorizado del usuario (A3 - P0).
     """
@@ -48,23 +95,8 @@ def get_election_scrutiny(
             )
         )
 
-
-    # S2-B: Denominador de participación: congelado oficialmente o calculado dinámicamente si es previo
-    if election.total_habilitados_congelado is not None:
-        total_padron = election.total_habilitados_congelado
-    elif election.regla_votacion == "Un voto por familia":
-        familias_count = db.query(func.count(func.distinct(Voter.familia_id))).filter(
-            Voter.election_id == election_id,
-            Voter.familia_id.isnot(None),
-            Voter.familia_id != ""
-        ).scalar() or 0
-        sin_familia_count = db.query(Voter).filter(
-            Voter.election_id == election_id,
-            or_(Voter.familia_id.is_(None), Voter.familia_id == "")
-        ).count()
-        total_padron = familias_count + sin_familia_count
-    else:
-        total_padron = db.query(Voter).filter(Voter.election_id == election_id).count()
+    _require_verified_snapshot(election)
+    total_padron = election.total_habilitados_congelado
 
     total_votos = db.query(Vote).filter(Vote.election_id == election_id).count()
     
@@ -154,9 +186,16 @@ def download_acta_apertura_pdf(
     check_election_access(current_user, election, write=False)
     legacy_guard(db, election.id)
 
+    if election.estado in ["Abierta", "Cerrada", "Finalizada"]:
+        _require_verified_snapshot(election)
+
     school = election.school or School(nombre="Institución Educativa", rbd="S/N", comuna="Santiago")
     committee = election.committee_members or []
-    total_voters = election.total_padron_congelado if election.total_padron_congelado is not None else db.query(Voter).filter(Voter.election_id == election_id).count()
+    total_voters = (
+        election.total_padron_congelado
+        if election.total_padron_congelado is not None
+        else db.query(Voter).filter(Voter.election_id == election_id).count()
+    )
 
     pdf_buffer = generate_acta_apertura_pdf(election, school, committee, total_voters)
 
@@ -204,9 +243,11 @@ def download_acta_cierre_pdf(
             )
         )
 
+    _require_verified_snapshot(election)
+
     school = election.school or School(nombre="Institución Educativa", rbd="S/N", comuna="Santiago")
     committee = election.committee_members or []
-    total_voters = election.total_habilitados_congelado if election.total_habilitados_congelado is not None else db.query(Voter).filter(Voter.election_id == election_id).count()
+    total_voters = election.total_habilitados_congelado
 
     scrutiny = get_election_scrutiny(election_id, db, current_user)
     results_dict = scrutiny.model_dump()
@@ -231,55 +272,56 @@ def download_acta_cierre_pdf(
     )
 
 @router.get("/dashboard-stats", response_model=DashboardStatsResponse)
-def get_dashboard_stats(
-    db: Session = Depends(get_db),
-    current_user: User = Depends(get_current_user),  # CRIT-03
-):
-    """
-    Módulo 6: Estadísticas para el panel de control, restringidas por ámbito institucional (A3 - P0).
-    """
+def get_dashboard_stats(db: Session = Depends(get_db), current_user: User = Depends(get_current_user)):
+    query=db.query(Election)
     if is_superadmin(current_user):
-        elections_query = db.query(Election)
-        voters_query = db.query(Voter)
-        votes_query = db.query(Vote)
+        pass
     elif current_user.rol == ROLE_RESPONSABLE and current_user.school_id:
-        elections_query = db.query(Election).filter(Election.school_id == current_user.school_id)
-        election_ids = [e.id for e in elections_query.all()]
-        voters_query = db.query(Voter).filter(Voter.election_id.in_(election_ids)) if election_ids else db.query(Voter).filter(False)
-        votes_query = db.query(Vote).filter(Vote.election_id.in_(election_ids)) if election_ids else db.query(Vote).filter(False)
-    elif current_user.rol == ROLE_COMISION:
-        if current_user.election_id:
-            elections_query = db.query(Election).filter(Election.id == current_user.election_id)
-        elif current_user.school_id:
-            elections_query = db.query(Election).filter(Election.school_id == current_user.school_id)
-        else:
-            elections_query = db.query(Election).filter(False)
-        election_ids = [e.id for e in elections_query.all()]
-        voters_query = db.query(Voter).filter(Voter.election_id.in_(election_ids)) if election_ids else db.query(Voter).filter(False)
-        votes_query = db.query(Vote).filter(Vote.election_id.in_(election_ids)) if election_ids else db.query(Vote).filter(False)
+        query=query.filter(Election.school_id == current_user.school_id)
+    elif current_user.rol == ROLE_COMISION and current_user.school_id and current_user.election_id:
+        query=query.filter(Election.id == current_user.election_id, Election.school_id == current_user.school_id)
     else:
-        elections_query = db.query(Election).filter(False)
-        voters_query = db.query(Voter).filter(False)
-        votes_query = db.query(Vote).filter(False)
-
-    scoped_ids = elections_query.with_entities(Election.id)
-    if db.query(BeleniosBinding.id).filter(BeleniosBinding.election_id.in_(scoped_ids)).first():
-        raise HTTPException(409, "El resumen combina motores. Consulte los resultados verificados por elección Belenios; no se muestran ceros del motor MVP.")
-    total_elecciones = elections_query.count()
-    elecciones_activas = elections_query.filter(Election.estado == "Abierta").count()
-    total_padron = voters_query.count()
-    total_votos = votes_query.count()
-
-    participacion_global = (total_votos / total_padron * 100.0) if total_padron > 0 else 0.0
-
-    ultimas = elections_query.order_by(Election.fecha_creacion.desc()).limit(5).all()
-
-    return DashboardStatsResponse(
-        total_elecciones=total_elecciones,
-        elecciones_activas=elecciones_activas,
-        total_padron=total_padron,
-        total_votos_emitidos=total_votos,
-        participacion_global=round(participacion_global, 1),
-        ultimas_elecciones=ultimas
-    )
-
+        query=query.filter(False)
+    elections=query.order_by(Election.fecha_creacion.desc()).all()
+    totals={}
+    people, known_votes, enabled_units, pending=0,0,0,0
+    unknown_units=False
+    for election in elections:
+        binding=db.query(BeleniosBinding).filter_by(election_id=election.id).first()
+        motor="belenios" if binding or election.motor == "belenios" else "mvp"
+        entry=totals.setdefault(motor,{"motor":motor,"elecciones":0,"votos_verificados":0,"resultados_pendientes":0})
+        entry["elecciones"]+=1
+        count=db.query(Voter).filter_by(election_id=election.id).count()
+        people+=election.total_padron_congelado if election.total_padron_congelado is not None else count
+        units=election.total_habilitados_congelado
+        if units is None and election.estado == "Borrador":
+            voters=db.query(Voter).filter_by(election_id=election.id).all()
+            if election.regla_votacion == "Un voto por persona":
+                units=len(voters)
+            elif all((v.familia_id or "").strip() for v in voters):
+                units=len({v.familia_id.strip().upper() for v in voters})
+        if units is None:
+            unknown_units=True
+        else:
+            enabled_units+=units
+        if motor == "belenios":
+            if not binding or binding.phase != "Verified" or not binding.verified_result:
+                pending+=1
+                entry["resultados_pendientes"]+=1
+                continue
+            try:
+                result=json.loads(binding.verified_result)
+                votes=result["counted_ballots"]
+                if not isinstance(votes,int) or votes<0 or votes>binding.total_units:
+                    raise ValueError
+            except (ValueError,TypeError,KeyError):
+                raise HTTPException(503,"El resultado almacenado requiere revisión de integridad.") from None
+        else:
+            votes=db.query(Vote).filter_by(election_id=election.id).count()
+        known_votes+=votes
+        entry["votos_verificados"]+=votes
+    participation=None if pending or unknown_units else (round(known_votes/enabled_units*100,1) if enabled_units else 0)
+    return DashboardStatsResponse(total_elecciones=len(elections), elecciones_activas=sum(e.estado=="Abierta" for e in elections),
+        total_padron=people,total_votos_emitidos=None if pending else known_votes,participacion_global=participation,
+        total_habilitados=None if unknown_units else enabled_units,resultados_pendientes=pending,
+        motores=list(totals.values()),ultimas_elecciones=elections[:5])

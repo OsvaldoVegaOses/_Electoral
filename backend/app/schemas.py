@@ -1,5 +1,5 @@
 from pydantic import BaseModel, EmailStr, Field, field_validator, model_validator
-from typing import Optional, List
+from typing import Optional, List, Literal
 from datetime import datetime
 import re
 
@@ -171,6 +171,7 @@ class VoterBulkUploadResult(BaseModel):
 
 # --- ELECCIÓN ---
 class ElectionBase(BaseModel):
+    motor: Literal["mvp", "belenios"] = "mvp"
     nombre: str
     descripcion: Optional[str] = None
     fecha_inicio: Optional[datetime] = None
@@ -267,8 +268,11 @@ class DashboardStatsResponse(BaseModel):
     total_elecciones: int
     elecciones_activas: int
     total_padron: int
-    total_votos_emitidos: int
-    participacion_global: float
+    total_votos_emitidos: Optional[int]
+    participacion_global: Optional[float]
+    total_habilitados: Optional[int] = None
+    resultados_pendientes: int = 0
+    motores: List[dict] = Field(default_factory=list)
     ultimas_elecciones: List[ElectionResponse]
 
 # --- AUDITORÍA ---
@@ -295,6 +299,15 @@ class AuditIntegrityCheckResponse(BaseModel):
     fecha_verificacion: str
 
 
+class AuditCheckpointArtifact(BaseModel):
+    schema_version: int = 1
+    timestamp: str
+    total_records: int
+    last_record_id: Optional[int] = None
+    head_hash: str
+    digest_sha256: str
+
+
 class AuditCheckpointResponse(BaseModel):
     success: bool
     timestamp: str
@@ -304,3 +317,6 @@ class AuditCheckpointResponse(BaseModel):
     checkpoint_hash: str
     firmado_por: str
     instrucciones_anclaje: str
+    artifact: AuditCheckpointArtifact
+    anchorage_status: str
+    independent_custody_confirmed: bool

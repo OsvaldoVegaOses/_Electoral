@@ -15,6 +15,7 @@ from main import app
 from app.database import Base, get_db
 from app.models import User, School, Election, Candidate, Voter, VotingEntitlement, Vote, ElectoralCommittee
 from app.auth import get_password_hash, create_access_token, _failed_attempts
+from app.entitlements import derive_entitlement_key
 
 # In-memory SQLite for functional/state-machine testing
 SQLITE_DATABASE_URL = "sqlite:///:memory:"
@@ -204,8 +205,14 @@ class TestPR3StateMachineAndFreezing(unittest.TestCase):
         entitlements = self.db.query(VotingEntitlement).filter(VotingEntitlement.election_id == elec.id).all()
         self.assertEqual(len(entitlements), 2)
         keys = {e.unit_key for e in entitlements}
-        self.assertIn("RUT:111111111", keys)
-        self.assertIn("RUT:222222222", keys)
+        self.assertEqual(
+            keys,
+            {
+                derive_entitlement_key(elec.id, "RUT:111111111"),
+                derive_entitlement_key(elec.id, "RUT:222222222"),
+            },
+        )
+        self.assertTrue(all(key.startswith("h1:") for key in keys))
 
     def test_put_election_cannot_change_estado_or_structural_fields(self):
         """PUT /api/elections/{id} no permite cambiar estado ni alterar campos estructurales si está abierta"""
@@ -379,7 +386,7 @@ class TestPR3StateMachineAndFreezing(unittest.TestCase):
 # -----------------------------------------------------------------------------
 # CONCURRENCY SUITE ON REAL POSTGRESQL (Port 5439)
 # -----------------------------------------------------------------------------
-PG_TEST_URL = "postgresql+psycopg2://postgres@127.0.0.1:5439/theogen_test"
+PG_TEST_URL = os.getenv("S2_CONCURRENCY_DATABASE_URL", "")
 
 
 class TestPR3PostgresConcurrency(unittest.TestCase):
@@ -390,6 +397,10 @@ class TestPR3PostgresConcurrency(unittest.TestCase):
     """
     @classmethod
     def setUpClass(cls):
+        if not PG_TEST_URL:
+            if os.getenv("REQUIRE_S2_SERVICES") == "1":
+                raise RuntimeError("S2_CONCURRENCY_DATABASE_URL es obligatoria en integración.")
+            raise unittest.SkipTest("S2_CONCURRENCY_DATABASE_URL no configurada")
         try:
             cls.engine = create_engine(
                 PG_TEST_URL,
@@ -401,6 +412,8 @@ class TestPR3PostgresConcurrency(unittest.TestCase):
                 pass
             cls.pg_available = True
         except Exception:
+            if os.getenv("REQUIRE_S2_SERVICES") == "1":
+                raise
             cls.pg_available = False
             return
 
@@ -464,7 +477,7 @@ class TestPR3PostgresConcurrency(unittest.TestCase):
         cand2 = Candidate(election_id=elec.id, nombre="Lista Beta")
         ent = VotingEntitlement(
             election_id=elec.id,
-            unit_key="RUT:151112223",
+            unit_key=derive_entitlement_key(elec.id, "RUT:151112223"),
             estado="Pendiente"
         )
         db.add_all([voter, cand1, cand2, ent])
@@ -502,10 +515,10 @@ class TestPR3PostgresConcurrency(unittest.TestCase):
 
         status_codes = [r[0] for r in results]
         success_count = status_codes.count(200)
-        conflict_count = status_codes.count(409)
+        conflict_count = status_codes.count(409) + status_codes.count(400)
 
         self.assertEqual(success_count, 1, f"Debió registrarse exactamente 1 voto exitoso. Obtenidos: {success_count}. Respuestas: {status_codes}")
-        self.assertEqual(conflict_count, concurrency - 1, f"Los restantes {concurrency - 1} debieron recibir 409 Conflict. Respuestas: {status_codes}")
+        self.assertEqual(conflict_count, concurrency - 1, f"Los restantes {concurrency - 1} deben ser rechazados (409 o 400 tras revocación). Respuestas: {status_codes}")
 
         # Verificar integridad en la base de datos PostgreSQL
         db_check = self.Session()
@@ -561,7 +574,7 @@ class TestPR3PostgresConcurrency(unittest.TestCase):
         cand = Candidate(election_id=elec.id, nombre="Lista Familiar")
         ent = VotingEntitlement(
             election_id=elec.id,
-            unit_key="FAM:FAM-P0-999",
+            unit_key=derive_entitlement_key(elec.id, "FAM:FAM-P0-999"),
             estado="Pendiente"
         )
         db.add_all([voter_madre, voter_padre, cand, ent])
@@ -597,10 +610,10 @@ class TestPR3PostgresConcurrency(unittest.TestCase):
 
         status_codes = [r[0] for r in results]
         success_count = status_codes.count(200)
-        conflict_count = status_codes.count(409)
+        conflict_count = status_codes.count(409) + status_codes.count(400)
 
         self.assertEqual(success_count, 1, f"Debió registrarse exactamente 1 voto familiar. Obtenidos: {success_count}. Respuestas: {status_codes}")
-        self.assertEqual(conflict_count, concurrency - 1, f"Los restantes {concurrency - 1} debieron recibir 409 Conflict. Respuestas: {status_codes}")
+        self.assertEqual(conflict_count, concurrency - 1, f"Los restantes {concurrency - 1} deben ser rechazados (409 o 400 tras revocación). Respuestas: {status_codes}")
 
         # Verificar integridad en PostgreSQL
         db_check = self.Session()
@@ -668,7 +681,7 @@ class TestPR3PostgresConcurrency(unittest.TestCase):
             )
             ent = VotingEntitlement(
                 election_id=elec.id,
-                unit_key=f"RUT:{rut_clean}",
+                unit_key=derive_entitlement_key(elec.id, f"RUT:{rut_clean}"),
                 estado="Pendiente"
             )
             db.add_all([v, ent])

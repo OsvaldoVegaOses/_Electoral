@@ -1,0 +1,2 @@
+# Preserve executable POSIX scripts when checking out the release on Windows.
+*.sh text eol=lf

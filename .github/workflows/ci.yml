@@ -1,137 +1,127 @@
 name: CI Pipeline
-
-on:
+"on":
   push:
-    branches: [ main, develop, 'fix/**', 'feat/**' ]
+    branches: [main, develop, 'fix/**', 'feat/**']
   pull_request:
-    branches: [ main ]
-
+    branches: [main, develop]
+permissions:
+  contents: read
+concurrency:
+  group: ci-${{ github.ref }}
+  cancel-in-progress: true
+env:
+  SECRET_KEY: s3_synthetic_ci_jwt_aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa
+  VOTE_HMAC_KEY: s3_synthetic_ci_vote_bbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbb
+  ENTITLEMENT_HMAC_KEY: s3_synthetic_ci_unit_cccccccccccccccccccccccccccccccccccc
+  ENVIRONMENT: test
+  SEED_DEMO_DATA: 'false'
 jobs:
   backend-test:
-    name: Backend Tests & Migrations (PostgreSQL 16)
-    runs-on: ubuntu-latest
-
+    name: Backend, migrations, processes and restore
+    runs-on: ubuntu-24.04
     services:
       postgres:
         image: postgres:16
         env:
-          POSTGRES_DB: theogen_test
+          POSTGRES_DB: postgres
           POSTGRES_USER: postgres
-          POSTGRES_PASSWORD: postgres
-        ports:
-          - 5432:5432
-        options: >-
-          --health-cmd pg_isready
-          --health-interval 5s
-          --health-timeout 5s
-          --health-retries 5
-
+          POSTGRES_PASSWORD: synthetic_ci_only
+        ports: ['5432:5432']
+        options: --health-cmd pg_isready --health-interval 5s --health-timeout 5s --health-retries 10
+      redis:
+        image: redis:7-alpine
+        ports: ['6379:6379']
+        options: --health-cmd "redis-cli ping" --health-interval 5s --health-timeout 3s --health-retries 10
     steps:
-      - name: Checkout Repository
-        uses: actions/checkout@v4
-
-      - name: Setup Python 3.11
-        uses: actions/setup-python@v5
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
         with:
           python-version: '3.11'
-          cache: 'pip'
-
-      - name: Install Dependencies
-        run: |
-          python -m pip install --upgrade pip
-          pip install -r backend/requirements.txt
-
-      - name: Verify Alembic Migrations (Upgrade -> Downgrade -> Upgrade)
+          cache: pip
+      - run: pip install -r backend/requirements.txt
+      - run: sudo apt-get update && sudo apt-get install -y postgresql-client-16
+      - name: Required integration; missing services or skipped tests fail
         env:
-          DATABASE_URL: postgresql://postgres:postgres@localhost:5432/theogen_test
-        run: |
-          cd backend
-          alembic upgrade head
-          alembic downgrade base
-          alembic upgrade head
-
-      - name: Run Pytest Test Suite
-        env:
-          DATABASE_URL: postgresql://postgres:postgres@localhost:5432/theogen_test
-          ENVIRONMENT: test
-          SECRET_KEY: test_ci_secret_key_very_secure_and_long_32bytes
-          VOTE_HMAC_KEY: test_ci_vote_hmac_key_secure_32bytes
-        run: |
-          cd backend
-          pytest tests -v
-
-      - name: ADR-001 PostgreSQL concurrency and provider isolation
-        env:
-          DATABASE_URL: postgresql+psycopg2://postgres:postgres@127.0.0.1:5432/theogen_test
-          ADR001_TEST_PG_URL: postgresql+psycopg2://postgres:postgres@127.0.0.1:5432/theogen_test
-          ENVIRONMENT: test
-          SECRET_KEY: test_ci_secret_key_very_secure_and_long_32bytes
-          VOTE_HMAC_KEY: test_ci_vote_hmac_key_secure_32bytes
-        run: |
-          cd backend
-          pytest tests/test_belenios_postgres.py -v
-
-  frontend-build:
-    name: Frontend Lint & Build
-    runs-on: ubuntu-latest
-
-    steps:
-      - name: Checkout Repository
-        uses: actions/checkout@v4
-
-      - name: Setup Node.js 20
-        uses: actions/setup-node@v4
+          S3_ADMIN_DATABASE_URL: postgresql://postgres:synthetic_ci_only@127.0.0.1:5432/postgres
+          REDIS_URL: redis://127.0.0.1:6379/0
+          S3_REDIS_CONTAINER: ${{ job.services.redis.id }}
+        run: python scripts/verify_s3_local.py --ci --output .runtime/s3-integration.json
+      - uses: actions/upload-artifact@v4
+        if: always()
         with:
-          node-version: 20
-          cache: 'npm'
-          cache-dependency-path: frontend/package.json
-
-      - name: Install Frontend Dependencies
-        run: |
-          cd frontend
-          npm ci
-
-      - name: Frontend Linter Check
-        run: |
-          cd frontend
-          npm run lint
-
-      - name: Build Frontend Production Bundle
-        run: |
-          cd frontend
-          npm run build
-
-      - name: ADR-001 browser contracts (synthetic API doubles only)
-        run: |
-          cd frontend
-          npx playwright install --with-deps chromium
-          npx playwright test --config playwright.belenios.config.js
-
-  security-audit:
-    name: Security Scan (pip-audit & Gitleaks)
-    runs-on: ubuntu-latest
-
+          name: backend-synthetic-results
+          path: |
+            .runtime/s3-integration.json
+            .runtime/s3-integration.xml
+          retention-days: 7
+  frontend-e2e:
+    name: Frontend and complete synthetic E2E
+    runs-on: ubuntu-24.04
+    services:
+      postgres:
+        image: postgres:16
+        env:
+          POSTGRES_DB: s3_e2e
+          POSTGRES_USER: postgres
+          POSTGRES_PASSWORD: synthetic_ci_only
+        ports: ['5432:5432']
+        options: --health-cmd pg_isready --health-interval 5s --health-timeout 5s --health-retries 10
+    env:
+      DATABASE_URL: postgresql+psycopg2://postgres:synthetic_ci_only@127.0.0.1:5432/s3_e2e
+      E2E_ADMIN_EMAIL: s3-admin@example.org
+      E2E_ADMIN_PASSWORD: synthetic-ci-password-2026
+      S3_E2E_FIXTURES_FILE: ../.runtime/e2e-fixtures.json
     steps:
-      - name: Checkout Repository
-        uses: actions/checkout@v4
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.11'
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+          cache: npm
+          cache-dependency-path: frontend/package-lock.json
+      - run: pip install -r backend/requirements.txt
+      - run: npm ci
+        working-directory: frontend
+      - run: npm run lint && npm run build
+        working-directory: frontend
+      - run: npx playwright install --with-deps chromium
+        working-directory: frontend
+      - run: python -m alembic upgrade head && python ../scripts/prepare_s3_e2e.py
+        working-directory: backend
+      - run: npx playwright test --config playwright.belenios.config.js
+        working-directory: frontend
+      - run: npm run test:e2e
+        working-directory: frontend
+      - uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: playwright-synthetic-results
+          path: |
+            frontend/test-results/junit.xml
+            frontend/playwright-report/
+          retention-days: 7
+  security-audit:
+    name: Required dependency and secret scans
+    runs-on: ubuntu-24.04
+    steps:
+      - uses: actions/checkout@v4
         with:
           fetch-depth: 0
-
-      - name: Setup Python 3.11
-        uses: actions/setup-python@v5
+      - uses: actions/setup-python@v5
         with:
           python-version: '3.11'
-          cache: 'pip'
-
-      - name: Scan Dependencies for Known CVEs (pip-audit)
-        run: |
-          python -m pip install --upgrade pip
-          pip install pip-audit
-          pip-audit -r backend/requirements.txt
-
-      - name: Detect Secrets and Token Leaks (Gitleaks)
-        uses: gitleaks/gitleaks-action@v2
+      - run: python -m pip install --upgrade pip==26.2.2 setuptools==84.2.1
+      - run: pip install -r backend/requirements.txt pip-audit==2.10.1
+      - run: pip-audit --local --strict --progress-spinner off
+      - uses: gitleaks/gitleaks-action@v2
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
-        continue-on-error: true
-
+  operations-validation:
+    name: Compose and actual Nginx validation
+    runs-on: ubuntu-24.04
+    steps:
+      - uses: actions/checkout@v4
+      - run: docker compose config --quiet
+      - run: docker run --rm --add-host backend:127.0.0.1 -v "$PWD/frontend/nginx.conf:/etc/nginx/conf.d/default.conf:ro" nginx:alpine nginx -t

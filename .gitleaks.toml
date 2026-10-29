@@ -1,0 +1,61 @@
+title = "TheoGen - reviewed synthetic and public evidence only"
+[extend]
+useDefault = true
+[[rules]]
+id = "generic-api-key"
+
+[[rules.allowlists]]
+description = "Synthetic test UUIDs"
+condition = "AND"
+regexTarget = "secret"
+paths = ['''(?:^|/)backend/tests/test_p8_token_hashing\.py$''']
+regexes = ['''^(?:3a8f803d\-0ccb\-48b7\-89f7\-d92aa4c729de|b1c2d3e4\-5f6a\-7b8c\-9d0e\-1f2a3b4c5d6e)$''']
+
+[[rules.allowlists]]
+description = "Synthetic test UUIDs"
+condition = "AND"
+regexTarget = "secret"
+paths = ['''(?:^|/)backend/tests/test_p2_httponly_cookies_csrf\.py$''']
+regexes = ['''^(?:3a8f803d\-0ccb\-48b7\-89f7\-d92aa4c729de)$''']
+
+[[rules.allowlists]]
+description = "Synthetic test UUIDs"
+condition = "AND"
+regexTarget = "secret"
+paths = ['''(?:^|/)frontend/e2e/voting\-flow\.spec\.js$''']
+regexes = ['''^(?:3a8f803d\-0ccb\-48b7\-89f7\-d92aa4c729de)$''']
+
+[[rules.allowlists]]
+description = "Documented SHA-256 of API diff"
+condition = "AND"
+regexTarget = "secret"
+paths = ['''(?:^|/)doc/poc\-belenios/evidencias/h0\-2026\-10\-28\.json$''']
+regexes = ['''^(?:6044281de0baca826fee0ad04146a604c1166aaef28f576207e88f76d1e446b2)$''']
+
+[[rules.allowlists]]
+description = "Public archive object hashes and public credentials"
+condition = "AND"
+regexTarget = "secret"
+paths = ['''(?:^|/)doc/motor/evidencias/ryjsGZ7D6RoAkc\.bel$''']
+regexes = ['''^(?:0f38e7aacde517af518ea0f5d3f0a36904e3f4418b1756243ca4d5c863ac97e1|5dfc1a900792e616259f9d716097a004847b1a74595c978178d75fc2ff9c1d4a|9a48e09c1784dc0bb1cec7b8d96882dd420591236f92938b83c43e75718ef496)$''']
+
+[[rules.allowlists]]
+description = "Public archive object hashes and public credentials"
+condition = "AND"
+regexTarget = "secret"
+paths = ['''(?:^|/)doc/poc\-belenios/evidencias/h4\-publico/CvnVFmybmHMb19\.bel$''']
+regexes = ['''^(?:22e427b4aee2e403df4855bfebf8bedf2eb15da78cc4d03632468862a63dc3ed|451a54fe2214598442a54d17a478dbdf2ebbae4c1ad09a05569cff77389ca1af|5202da0b9e0361c7340ebff10e1be1fb36ee9c4b9a790933bd6f9bc308bd8542|54c05cdd1329f5affab1e963ec389d9923b266478eeaaf03e501af5b41653bfa|5a4fb752c60dd221a1733c8be689b55048797c7a1d666c1ddd02d6492a24ee37|68b4ab86f6db21efe0dfcdef1ca95444639178e923a42105c6ff6f8f8cbcc92a|9496fa0a9ec6e4df6535f75de6d6d270da08a58fbe19f7ddb4c4898828b0cb58|94ec294bbc50bd6fc7223840b1f64dea2af291e47fb04a1038b0cd6b166214fd|f93fe5a04cbcc06c7d2f4f74c741a990f597e34db094289ee8baf259c641ec5f)$''']
+
+[[rules.allowlists]]
+description = "Public archive object hashes and public credentials"
+condition = "AND"
+regexTarget = "secret"
+paths = ['''(?:^|/)doc/poc\-belenios/evidencias/h2\-publico/single/51jhBLBdowEGd3\.bel$''']
+regexes = ['''^(?:097daa1610a437a44e9599e4d9f19c2f76142e66dfbc92136dc76e475513ac97|0a4da79c579f330fa678d228b69c96dd01043728dfc4e80cff465de90c5c801d|153c01f46c42f28f9e13aca50a7874b96fa77ee534e17b542798ba93f2cf3352|507651cfda20f3082086f78929dd171a047623b8f115214ae68efa3f2db7011f|51208e3e3b6ddec67be02114d6610a45d3fd25de4aac52393f4163f1ba8ec08d|5bdcf63dc4092e0d475b8723270ee1cb5c55945c14724c0fc3d66de71cdba025|7a3e21eca1ff19b9571043dc6d599d2261904693380cbff961cfa459b9acf8da|7aa99261b2c402a29009dd0801185811d5db6c59e0ef826650d3181b519b2dc4|7ad167c1d72910540d2ac7fd0323248360f43b480525596e9bd6dc91c71f081e|8fbd927290e9300026526172d8859aa5ca44c0a9e86b00cdb1bb199b836e085b|e14479ad46bf2723e054c7f81c69d36d2ef03ad3ef0629dbba8b03e0d8291003)$''']
+
+[[rules.allowlists]]
+description = "Public archive object hashes and public credentials"
+condition = "AND"
+regexTarget = "secret"
+paths = ['''(?:^|/)doc/poc\-belenios/evidencias/h2\-publico/revote/FvmMAXJvurGXN9\.bel$''']
+regexes = ['''^(?:13a602c205f91c312834eec56e8fe7fb038c64167c6444c114923e16613d5350|2b5b6610e05fcf6b9694162d1c0d4e2c3f16eafb648b1b27cdc9b606c7650b68|3815f112dd7c2cdfa488dedb86a3f48fd15a07d51b7213dd83a6685cba1d1db4|3e5d46ee370e9ab717b2a332bf9ba6a953c24d8a58c49d3fe726bfd503cf94b3|6f63830468237e43d128b30861e3b54fd9490724ccea8aa726ee01594316cf86|83d92f0b03b9f2eccdd0d783782bf8fa86e0403c286ba3833c41fcda09ae61f1|88927baea060ba8d95f309323406a2d42b0c372ed89ead3d798b3f98bee17164|a9206e9dc1e94483a570ad2fa8d41e9f30912b8e6ca06c8232f62c13cb616ec1|e1e8c6572dbadfd2b329ae67d210562a4133bffb5996843d7f3679f29da01f07|e328be639bfc01b5d81f2e7a9082673f7c7d75ab76896e9587924aedf56df036|f7f63637414b1f653991a190fce0282abf8c14a5e3b600dcdc97c05acb66aa52)$''']

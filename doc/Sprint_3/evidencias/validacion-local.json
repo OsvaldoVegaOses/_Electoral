@@ -1,0 +1,78 @@
+{
+  "backend": {
+    "scope": "synthetic PostgreSQL16/Redis7; no operational data or email sent",
+    "recorded_at_utc": "2026-10-29T14:27:11.937561+00:00",
+    "head": "d9a6def287ee2bb18aeb4dfc2ece18dcd24300a9",
+    "working_tree": true,
+    "test_cases": 213,
+    "failures": 0,
+    "skipped": 0,
+    "junit_sha256": "b36ce8d5ecc7d42a04ca96af9d553f8062ce5bd1fa71d2b1e3845621a863307f",
+    "restored_exactly": true,
+    "backup_sha256": "1e136475e4862e1ee1e0e3a7e630230651f5d035778cd5f5de33e5bbbc69ce47",
+    "duration_seconds": 107.64,
+    "restore_nonempty_management_tables": true,
+    "independent_custody": false,
+    "external_delivery_proven": false
+  },
+  "e2e": {
+    "scope": "real HTTP and browser; synthetic PostgreSQL; Belenios disabled; no mail",
+    "fresh_database": true,
+    "server_reused": false,
+    "automatic_retry": false,
+    "test_cases": 9,
+    "junit_sha256": "eb271a2394dcc239576b11eb3a77175445681e4f8737f3b8e826c0e7b1e3fb36"
+  },
+  "belenios_ui": {
+    "test_cases": 5,
+    "provider": "synthetic API doubles"
+  },
+  "frontend": {
+    "lint": "passed with warnings",
+    "build": "passed with bundle-size warning",
+    "npm_audit_vulnerabilities": 0
+  },
+  "dependency_audit": {
+    "installed_packages": 84,
+    "known_vulnerabilities": 0,
+    "report_sha256": "ca8fb89003f6c8a9fd9fdd5c50c2704e5cbd841bf26f3bd681c6e0657e83e209"
+  },
+  "secret_scan": {
+    "version": "8.28.0",
+    "findings": 0,
+    "scoped_exception_groups": 8,
+    "negative_control_findings": 1,
+    "report_sha256": "37517e5f3dc66819f61f5a7bb8ace1921282415f10551d2defa5c3eb0985b570"
+  },
+  "operations": {
+    "compose_configuration": "passed",
+    "nginx_configuration": "passed",
+    "nginx_image_digest": "sha256:785835ea65db4bba6f021acc0f3be91b0fef76a53fe41f8588c6698d2aed0606"
+  },
+  "gates": {
+    "remote_ci": "not executed",
+    "independent_custody": false,
+    "external_delivery": false,
+    "pilot_activated": false,
+    "M1": "pending",
+    "M2": "pending"
+  },
+  "upgrade_paths": {
+    "already_applied": [
+      "f6a7b8c9d0e1",
+      "bel001_20261028"
+    ],
+    "preserved": [
+      "recognized votes",
+      "consumed rights",
+      "frozen snapshots and hashes",
+      "remote UNKNOWN intents"
+    ],
+    "destructive_downgrade": "rejected with transaction rolled back"
+  },
+  "release_bootstrap": {
+    "cases": 5,
+    "production_api_migrates": false,
+    "separate_migration_command": true
+  }
+}

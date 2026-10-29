@@ -17,6 +17,7 @@ from app.auth import (
 )
 from app.config import settings
 from app.belenios.client import legacy_guard
+from app.entitlements import derive_entitlement_key
 from app.rut_validator import clean_rut
 
 router = APIRouter(prefix="/voting", tags=["Sala de Votación Pública"])
@@ -34,10 +35,10 @@ def get_entitlement_key(election: Election, voter: Voter) -> str:
                 status_code=400,
                 detail="Registro electoral anómalo: falta 'familia_id' en elección con regla familiar."
             )
-        return f"FAM:{fam}"
+        return derive_entitlement_key(election.id, f"FAM:{fam}")
     else:
         clean = voter.rut_normalizado or clean_rut(voter.rut)
-        return f"RUT:{clean}"
+        return derive_entitlement_key(election.id, f"RUT:{clean}")
 
 
 @router.post("/validate-token", response_model=TokenValidateResponse)
@@ -56,13 +57,11 @@ def validate_voting_token(
 
     token_clean = payload.token.strip()
     token_hash_computed = hash_voting_token(token_clean)
-    voter = db.query(Voter).filter(
-        or_(
-            Voter.token_hash == token_hash_computed,
-            Voter.token_votacion == token_clean,
-            Voter.token_votacion == token_hash_computed,
-        )
-    ).first()
+    # Production accepts only the verification hash; legacy fields never become bearer credentials.
+    condition = Voter.token_hash == token_hash_computed
+    if settings.ENVIRONMENT != "production":
+        condition = or_(condition, Voter.token_votacion == token_clean, Voter.token_votacion == token_hash_computed)
+    voter = db.query(Voter).filter(condition).first()
     
     if not voter:
         record_failed_attempt(client_ip)
@@ -108,7 +107,7 @@ def validate_voting_token(
         fecha_str = voter.fecha_voto.strftime("%d/%m/%Y a las %H:%M hrs") if voter.fecha_voto else "previamente"
         return TokenValidateResponse(
             valido=False,
-            mensaje=f"Su sufragio ya fue emitido y registrado de forma irreversible el {fecha_str}."
+            mensaje=f"Su sufragio ya fue emitido y registrado el {fecha_str}."
         )
 
     if voter.estado == "Bloqueado":
@@ -123,6 +122,9 @@ def validate_voting_token(
         VotingEntitlement.election_id == election.id,
         VotingEntitlement.unit_key == unit_key
     ).first()
+
+    if entitlement is None:
+        raise HTTPException(503, "Derecho electoral no disponible; requiere conciliación o recuperación de la clave.")
 
     entitlement_consumed = entitlement and entitlement.estado == "Consumido"
     
@@ -201,13 +203,11 @@ def submit_vote(
     token_hash_computed = hash_voting_token(token_clean)
 
     # 1. Obtener votante para identificar la elección
-    voter = db.query(Voter).filter(
-        or_(
-            Voter.token_hash == token_hash_computed,
-            Voter.token_votacion == token_clean,
-            Voter.token_votacion == token_hash_computed,
-        )
-    ).first()
+    # Production accepts only the verification hash; legacy fields never become bearer credentials.
+    condition = Voter.token_hash == token_hash_computed
+    if settings.ENVIRONMENT != "production":
+        condition = or_(condition, Voter.token_votacion == token_clean, Voter.token_votacion == token_hash_computed)
+    voter = db.query(Voter).filter(condition).first()
 
     if not voter:
         record_failed_attempt(client_ip)
@@ -254,15 +254,10 @@ def submit_vote(
         VotingEntitlement.unit_key == unit_key
     ).with_for_update().first()
 
-    if not entitlement:
-        # Auto-provisionamiento seguro si no fue creado previamente
-        entitlement = VotingEntitlement(
-            election_id=election.id,
-            unit_key=unit_key,
-            estado="Pendiente"
-        )
-        db.add(entitlement)
-        db.flush()
+    if entitlement is None:
+        # A missing match can mean a wrong key or an incomplete migration.
+        # Never create another right while accepting a vote.
+        raise HTTPException(503, "Derecho electoral no disponible; requiere conciliación o recuperación de la clave.")
 
     if entitlement.estado == "Consumido":
         record_failed_attempt(client_ip)

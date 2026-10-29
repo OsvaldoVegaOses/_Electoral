@@ -29,6 +29,7 @@ class Election(Base):
 
     id = Column(Integer, primary_key=True, index=True)
     nombre = Column(String(255), nullable=False)
+    motor = Column(String(16), nullable=False, default="mvp", server_default="mvp")
     descripcion = Column(Text, nullable=True)
     fecha_inicio = Column(DateTime(timezone=True), nullable=True)
     fecha_fin = Column(DateTime(timezone=True), nullable=True)
@@ -45,6 +46,8 @@ class Election(Base):
     total_padron_congelado = Column(Integer, nullable=True)
     total_habilitados_congelado = Column(Integer, nullable=True)
     config_snapshot = Column(Text, nullable=True)
+    # S2-C: Retención legal — bloquea anonimización y purga mientras sea True
+    legal_hold = Column(Boolean, default=False, nullable=False)
     fecha_creacion = Column(DateTime(timezone=True), default=_utcnow)
 
     # Relaciones
@@ -92,6 +95,8 @@ class Voter(Base):
     election = relationship("Election", back_populates="voters")
 
     __table_args__ = (
+        # S2-C: La restricción de unicidad permite NULL en rut_normalizado (post-anonimización)
+        # SQLite/PostgreSQL: múltiples NULLs no colisionan en UNIQUE — comportamiento estándar SQL
         UniqueConstraint("election_id", "rut_normalizado", name="uq_election_voter_rut"),
     )
 
@@ -99,8 +104,7 @@ class VotingEntitlement(Base):
     """
     A4 - P0: Entidad de derecho a sufragio / unidad electoral única.
     Garantiza unicidad estricta de voto a nivel de base de datos.
-    Para 'Un voto por persona': unit_key = 'RUT:<rut_normalizado>'
-    Para 'Un voto por familia': unit_key = 'FAM:<familia_id>'
+    unit_key contiene un HMAC contextual, no el RUT ni el identificador familiar.
     """
     __tablename__ = "voting_entitlements"
 
@@ -162,6 +166,14 @@ class AuditLog(Base):
     prev_hash = Column(String(64), nullable=True)
     record_hash = Column(String(64), nullable=True, index=True)
 
+class AuditChainHead(Base):
+    __tablename__ = "audit_chain_heads"
+
+    id = Column(Integer, primary_key=True)
+    head_hash = Column(String(64), nullable=False)
+    last_log_id = Column(Integer, nullable=True)
+    updated_at = Column(DateTime(timezone=True), default=_utcnow, nullable=False)
+
 
 class User(Base):
     __tablename__ = "users"
@@ -217,4 +229,17 @@ class BeleniosOperation(Base):
     kind = Column(String(32), nullable=False)
     phase = Column(String(32), nullable=False)
     created_at = Column(DateTime(timezone=True), default=_utcnow, nullable=False)
+
+
+class CredentialDelivery(Base):
+    __tablename__ = "credential_deliveries"
+    id = Column(String(36), primary_key=True)
+    voter_id = Column(Integer, ForeignKey("voters.id"), nullable=False, index=True)
+    previous_hash = Column(String(128), nullable=True)
+    proposed_hash = Column(String(128), nullable=False)
+    status = Column(String(24), nullable=False)
+    message_id = Column(String(255), nullable=True)
+    active_slot = Column(String(50), unique=True, nullable=True)
+    created_at = Column(DateTime(timezone=True), default=_utcnow, nullable=False)
+    confirmed_at = Column(DateTime(timezone=True), nullable=True)
 

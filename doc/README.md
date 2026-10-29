@@ -1,6 +1,13 @@
 # Documentación de Infraestructura y Despliegue para Producción
 ### TheoGen Electoral — Participación transparente y verificable
 
+## Trabajo vigente de integración y activación
+
+- [Sprint 3](sprint3.md): cierre de pendientes de Sprint 2, candidato de integración a `main` y preparación del piloto Belenios.
+- [Requisitos de activación Belenios](Sprint_3/activacion-belenios.md): diagnóstico del código, servicios, responsables y criterios para operar la aplicación completa.
+
+Sprint 3 está en implementación local: [estado y evidencia](Sprint_3/estado-implementacion.md). M1 y M2 siguen pendientes. Las plantillas de infraestructura que siguen deben reconciliarse con el stack y los controles del Sprint 3 antes de usarlas para activar Belenios.
+
 Bienvenido a la documentación técnica de infraestructura para la puesta en producción de **TheoGen Electoral**. Este repositorio contiene las directrices, arquitecturas recomendadas, procedimientos operativos, políticas de seguridad y plantillas de configuración necesarias para operar la plataforma con alta disponibilidad, confidencialidad e integridad del proceso eleccionario.
 
 ---

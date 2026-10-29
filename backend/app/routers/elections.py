@@ -15,6 +15,10 @@ from app.auth import (
     get_current_user, log_audit, is_superadmin, check_election_access,
     ROLE_RESPONSABLE, ROLE_COMISION, hash_voting_token
 )
+from app.entitlements import derive_entitlement_key
+from app.credentials import require_credential_delivery
+from app.config import settings
+from app.config import settings
 from app.rut_validator import clean_rut
 
 
@@ -313,6 +317,16 @@ def open_election(
 
     check_election_access(current_user, election, write=True)
 
+    if election.motor != "mvp":
+        raise HTTPException(409, "Use la preparación y apertura Belenios; no se provisionan derechos MVP.")
+    require_credential_delivery()
+    if settings.ENVIRONMENT == "production":
+        from app.models import CredentialDelivery
+        pending = db.query(CredentialDelivery.id).join(Voter, Voter.id == CredentialDelivery.voter_id).filter(
+            Voter.election_id == election.id, CredentialDelivery.active_slot.isnot(None)).first()
+        if pending or db.query(Voter.id).filter(Voter.election_id == election.id, Voter.token_hash.is_(None)).first():
+            raise HTTPException(409, "Hay credenciales sin entrega confirmada; apertura bloqueada.")
+
     # 1. Validar estado Borrador
     if election.estado != "Borrador":
         allowed = VALID_STATE_TRANSITIONS.get(election.estado, [])
@@ -367,17 +381,24 @@ def open_election(
     for v in voters:
         if not v.token_votacion and not v.token_hash:
             raw_token = str(uuid.uuid4())
-            v.token_votacion = raw_token
+            v.token_votacion = None
             v.token_hash = hash_voting_token(raw_token)
             generated_count += 1
         if not v.rut_normalizado:
             v.rut_normalizado = clean_rut(v.rut)
 
         if election.regla_votacion == "Un voto por familia":
-            key = f"FAM:{v.familia_id.strip().upper()}"
+            canonical_unit = f"FAM:{v.familia_id.strip().upper()}"
         else:
-            key = f"RUT:{v.rut_normalizado}"
+            canonical_unit = f"RUT:{v.rut_normalizado}"
+        key = derive_entitlement_key(election_id, canonical_unit)
         entitlement_keys.add(key)
+
+    existing_keys = {row.unit_key for row in db.query(VotingEntitlement).filter(
+        VotingEntitlement.election_id == election_id
+    ).all()}
+    if existing_keys - entitlement_keys:
+        raise HTTPException(503, "Los derechos existentes requieren conciliación o recuperación de la clave antes de abrir.")
 
     for key in entitlement_keys:
         existing_ent = db.query(VotingEntitlement).filter(
@@ -549,5 +570,3 @@ def add_committee_member(
         school_id=election.school_id
     )
     return member
-
-

@@ -323,21 +323,19 @@ class TestPR4AlembicOnPostgres(unittest.TestCase):
     Upgrade head -> Downgrade base -> Upgrade head.
     """
     def test_alembic_upgrade_downgrade_cycle(self):
-        import socket
-        sock = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
-        sock.settimeout(1.0)
-        res_conn = sock.connect_ex(('127.0.0.1', 5439))
-        sock.close()
-        if res_conn != 0:
-            raise unittest.SkipTest("PostgreSQL de prueba en puerto 5439 no está accesible en el host.")
+        database_url = os.getenv("S2_EMPTY_MIGRATION_DATABASE_URL", "")
+        if not database_url:
+            if os.getenv("REQUIRE_S2_SERVICES") == "1":
+                raise RuntimeError("S2_EMPTY_MIGRATION_DATABASE_URL es obligatoria en integración.")
+            raise unittest.SkipTest("S2_EMPTY_MIGRATION_DATABASE_URL no configurada")
 
         backend_dir = os.path.abspath(os.path.join(os.path.dirname(__file__), ".."))
         env = os.environ.copy()
-        env["DATABASE_URL"] = "postgresql://postgres@127.0.0.1:5439/theogen_test"
+        env["DATABASE_URL"] = database_url
 
         # 1. alembic upgrade head
         res_up1 = subprocess.run(
-            ["alembic", "upgrade", "head"],
+            [sys.executable, "-m", "alembic", "upgrade", "head"],
             cwd=backend_dir,
             env=env,
             capture_output=True,
@@ -347,7 +345,7 @@ class TestPR4AlembicOnPostgres(unittest.TestCase):
 
         # 2. alembic downgrade base
         res_down = subprocess.run(
-            ["alembic", "downgrade", "base"],
+            [sys.executable, "-m", "alembic", "downgrade", "base"],
             cwd=backend_dir,
             env=env,
             capture_output=True,
@@ -357,7 +355,7 @@ class TestPR4AlembicOnPostgres(unittest.TestCase):
 
         # 3. alembic upgrade head (re-aplicación limpia)
         res_up2 = subprocess.run(
-            ["alembic", "upgrade", "head"],
+            [sys.executable, "-m", "alembic", "upgrade", "head"],
             cwd=backend_dir,
             env=env,
             capture_output=True,
@@ -366,12 +364,12 @@ class TestPR4AlembicOnPostgres(unittest.TestCase):
         self.assertEqual(res_up2.returncode, 0, f"Error en alembic upgrade head (2nd run): {res_up2.stderr}")
 
         # 4. Verificar que todas las tablas existan en PostgreSQL
-        pg_engine = create_engine("postgresql+psycopg2://postgres@127.0.0.1:5439/theogen_test")
+        pg_engine = create_engine(database_url)
         inspector = inspect(pg_engine)
         tables = inspector.get_table_names()
         expected_tables = {
             "schools", "users", "elections", "voters", "candidates",
-            "votes", "electoral_committee", "audit_logs", "voting_entitlements",
+            "votes", "electoral_committees", "audit_logs", "voting_entitlements",
             "alembic_version"
         }
         for table in expected_tables:
@@ -382,8 +380,10 @@ class TestPR4AlembicOnPostgres(unittest.TestCase):
         self.assertIn("ix_voters_rut_normalizado", voters_indexes)
         self.assertIn("ix_voters_token_votacion", voters_indexes)
 
-        entitlements_indexes = {idx["name"] for idx in inspector.get_indexes("voting_entitlements")}
-        self.assertIn("ix_voting_entitlements_election_unit", entitlements_indexes)
+        constraints = inspector.get_unique_constraints("voting_entitlements")
+        self.assertTrue(any(item["name"] == "uq_election_unit_key" and
+                            item["column_names"] == ["election_id", "unit_key"]
+                            for item in constraints))
         pg_engine.dispose()
 
 

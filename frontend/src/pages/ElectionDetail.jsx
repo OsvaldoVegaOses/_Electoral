@@ -53,6 +53,7 @@ import {
 } from '../services/api';
 import StatusBadge from '../components/StatusBadge';
 import BeleniosPanel from '../components/BeleniosPanel';
+import CredentialDeliveriesPanel from '../components/CredentialDeliveriesPanel';
 
 const ElectionDetail = () => {
   const { id } = useParams();
@@ -161,7 +162,7 @@ const ElectionDetail = () => {
     try {
       const updated = await electionService.open(id);
       setElection(updated);
-      setActionSuccess('¡Elección abierta con éxito! Se han emitido los tokens UUID para todos los electores.');
+      setActionSuccess('Elección abierta; padrón y configuración congelados.');
       loadAllData();
     } catch (err) {
       setActionError(err.response?.data?.detail || 'Error al abrir la elección.');
@@ -169,13 +170,13 @@ const ElectionDetail = () => {
   };
 
   const handleCloseElection = async () => {
-    if (!window.confirm('¿Está seguro de cerrar formalmente esta elección? La urna digital será sellada para escrutinio definitivo.')) {
+    if (!window.confirm('¿Está seguro de cerrar esta elección? Al cerrarla, la plataforma habilitará la consulta de resultados.')) {
       return;
     }
     try {
       const updated = await electionService.close(id);
       setElection(updated);
-      setActionSuccess('Elección cerrada formalmente. El escrutinio final se encuentra consolidado.');
+      setActionSuccess('Elección cerrada. La plataforma habilitó la consulta de resultados.');
       loadAllData();
     } catch (err) {
       setActionError(err.response?.data?.detail || 'Error al cerrar la elección.');
@@ -303,6 +304,7 @@ const ElectionDetail = () => {
   return (
     <Container maxWidth="xl" sx={{ py: 4 }}>
       <BeleniosPanel election={election} voters={voters} engine={engine} onRefresh={refreshEngine} />
+      <CredentialDeliveriesPanel election={election} voters={voters} />
       {/* Breadcrumb y Volver */}
       <Box sx={{ mb: 3 }}>
         <Button component={Link} to="/elecciones" startIcon={<ArrowBackIcon />} sx={{ color: 'text.secondary', mb: 1 }}>
@@ -431,7 +433,7 @@ const ElectionDetail = () => {
           <Tab label={`Padrón Electoral (${voters.length})`} />
           <Tab label={`Candidatos y Listas (${candidates.length})`} />
           <Tab label="Generador de Credenciales y Correo" />
-          <Tab label="Escrutinio y Resultados Oficiales" />
+          <Tab label="Resultados" />
           <Tab label={`Comisión Electoral (${election.committee_members?.length || 0})`} />
         </Tabs>
       </Card>
@@ -663,11 +665,11 @@ const ElectionDetail = () => {
           </Box>
 
           <Alert severity="info" sx={{ mb: 3, borderRadius: 2 }}>
-            <strong>Protección de Credenciales:</strong> Por estrictos principios de secreto electoral y confidencialidad, las credenciales de votación son privadas de cada elector y no se exponen en las vistas de administración. Los electores ingresan directamente a la{' '}
+            <strong>Gestión de credenciales:</strong> Las credenciales no se exponen en esta vista. Este MVP no garantiza secreto criptográfico del voto y no cuenta con auditoría independiente. Los electores acceden a la{' '}
             <Link to="/votar" target="_blank" style={{ color: '#1e40af', fontWeight: 'bold', textDecoration: 'underline' }}>
               Sala de Votación (/votar)
             </Link>{' '}
-            con su credencial personal enviada por canal seguro.
+            con su credencial personal, cuya entrega está deshabilitada hasta contar con un canal seguro.
           </Alert>
 
           <TableContainer component={Paper} sx={{ borderRadius: 2, border: '1px solid #e2e8f0' }}>
@@ -708,7 +710,7 @@ const ElectionDetail = () => {
       )}
 
       {/* ========================================================================= */}
-      {/* TAB 3: ESCRUTINIO Y RESULTADOS OFICIALES (Módulo 7 & 8)                    */}
+      {/* TAB 3: RESULTADOS (Módulo 7 & 8)                                          */}
       {/* ========================================================================= */}
       {tabIndex === 3 && (
         <Box>
@@ -716,12 +718,12 @@ const ElectionDetail = () => {
             <Card sx={{ p: 5, textAlign: 'center', borderRadius: 3, border: '1px solid #e2e8f0', backgroundColor: '#f8fafc' }}>
               <LockIcon sx={{ fontSize: 56, color: '#64748b', mb: 2 }} />
               <Typography variant="h5" sx={{ fontWeight: 700, color: '#0d233a', mb: 1 }}>
-                Escrutinio Protegido por Secreto Electoral
+                Resultados no disponibles
               </Typography>
               <Typography variant="body1" color="text.secondary" sx={{ maxWidth: 650, mx: 'auto', mb: 3 }}>
-                El escrutinio detallado, conteo de votos por candidatura y acta definitiva se encuentran
-                estrictamente protegidos mientras el proceso electoral permanezca en estado <strong>{election.estado}</strong>.
-                Estarán disponibles automáticamente una vez que la elección sea formalmente cerrada.
+                La plataforma habilita el conteo y el informe de resultados cuando la elección está cerrada.
+                El proceso se encuentra en estado <strong>{election.estado}</strong>. Este MVP no proporciona
+                garantías de secreto criptográfico ni validación independiente de los resultados.
               </Typography>
               <Chip
                 label={`Estado del Proceso: ${election.estado}`}
@@ -734,10 +736,10 @@ const ElectionDetail = () => {
               <Box sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', mb: 3, flexWrap: 'wrap', gap: 2 }}>
                 <Box>
                   <Typography variant="h5" sx={{ fontWeight: 700, color: '#0d233a' }}>
-                    Escrutinio Oficial y Resultados (Módulo 7)
+                    Resultados de la plataforma (MVP)
                   </Typography>
                   <Typography variant="body2" color="text.secondary">
-                    Cómputo oficial de sufragios, cálculo de porcentajes y proclamación de resultados
+                    Conteo y porcentajes calculados por la plataforma; no constituyen una proclamación oficial ni una validación independiente.
                   </Typography>
                 </Box>
                 <Box sx={{ display: 'flex', gap: 1.5 }}>
@@ -748,7 +750,7 @@ const ElectionDetail = () => {
                     startIcon={<PictureAsPdfIcon />}
                     sx={{ fontWeight: 700 }}
                   >
-                    Descargar Acta de Cierre Oficial (PDF)
+                    Descargar Informe de Cierre (PDF)
                   </Button>
                 </Box>
               </Box>
@@ -932,7 +934,7 @@ const ElectionDetail = () => {
                 Comisión Electoral Supervisora
               </Typography>
               <Typography variant="body2" color="text.secondary">
-                Ministros de fe acreditados que firman las actas oficiales de apertura y cierre
+                Miembros registrados para documentar la apertura y el cierre del proceso
               </Typography>
             </Box>
             <Button

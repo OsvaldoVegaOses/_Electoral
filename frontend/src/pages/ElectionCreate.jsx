@@ -42,6 +42,7 @@ const ElectionCreate = () => {
   const [error, setError] = useState('');
 
   // Form State
+  const [motor, setMotor] = useState('belenios');
   const [nombre, setNombre] = useState('');
   const [descripcion, setDescripcion] = useState('');
   const [schoolId, setSchoolId] = useState('');
@@ -105,6 +106,7 @@ const ElectionCreate = () => {
         descripcion: descripcion.trim() || null,
         school_id: Number(schoolId),
         tipo_votacion: tipoVotacion,
+        motor,
         regla_votacion: reglaVotacion,
         fecha_inicio: fechaInicio ? new Date(fechaInicio).toISOString() : null,
         fecha_fin: fechaFin ? new Date(fechaFin).toISOString() : null,
@@ -189,6 +191,12 @@ const ElectionCreate = () => {
                     </TextField>
                   </Grid>
 
+                  <Grid item xs={12}>
+                    <TextField select fullWidth label="Motor electoral" value={motor} onChange={event => setMotor(event.target.value)}>
+                      <MenuItem value="belenios">Belenios: padrón sin credenciales MVP; activación sujeta al entorno autorizado</MenuItem>
+                      <MenuItem value="mvp">MVP: gestión y sufragio heredado con sus restricciones</MenuItem>
+                    </TextField>
+                  </Grid>
                   <Grid item xs={12} sm={6}>
                     <TextField
                       select

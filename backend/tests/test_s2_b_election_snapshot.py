@@ -341,6 +341,25 @@ class TestS2BElectionSnapshotAndFreezing(unittest.TestCase):
         # Debe existir fecha_cierre_efectiva registrada
         self.assertIsNotNone(election.fecha_cierre_efectiva, "fecha_cierre_efectiva no fue registrada")
 
+    def test_06_scrutiny_blocks_legacy_election_without_verified_snapshot(self):
+        election = Election(
+            nombre="Elección Legada Sin Conciliación",
+            school_id=self.school.id,
+            estado="Finalizada",
+            total_padron_congelado=2,
+            total_habilitados_congelado=2,
+        )
+        self.db.add(election)
+        self.db.commit()
+
+        response = self.client.get(
+            f"/api/reports/election/{election.id}/scrutiny",
+            headers=self.headers,
+        )
+
+        self.assertEqual(response.status_code, 409)
+        self.assertIn("conciliación", response.json()["detail"])
+
 
 if __name__ == "__main__":
     unittest.main()

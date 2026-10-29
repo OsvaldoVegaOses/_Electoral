@@ -7,7 +7,7 @@ Verifica:
 - POST /admin/pii/anonymize-election/{id} anonimiza padrón y comisión atómicamente
 - POST /admin/pii/anonymize-election/{id} rechaza elecciones no finalizadas
 - POST /admin/pii/anonymize-election/{id} idempotente (doble ejecución no duplica)
-- POST /admin/pii/purge-audit-logs elimina logs antiguos y crea log de purga
+- POST /admin/pii/purge-audit-logs permite dry-run y bloquea la purga física
 - Los campos PII quedan con valores de sustitución correctos
 - Solo Administrador General puede acceder a los endpoints
 - pii_eliminado_en queda seteado tras anonimización
@@ -93,6 +93,8 @@ def _make_election(db, school_id: int, estado: str = "Finalizada", dias_atras: i
         tipo_votacion="Centro de Padres",
         regla_votacion="Un voto por persona",
         fecha_creacion=fecha_creacion,
+        fecha_fin=fecha_creacion,
+        fecha_cierre_efectiva=fecha_creacion,
     )
     db.add(e)
     db.commit()
@@ -317,7 +319,7 @@ class TestAnonymizeElection:
 
 class TestPurgeAuditLogs:
 
-    def test_elimina_logs_antiguos(self):
+    def test_destructive_purge_is_blocked_and_preserves_old_logs(self):
         db = TestingSessionLocal()
         admin = _make_admin(db)
         # Log antiguo (>365 días)
@@ -328,44 +330,42 @@ class TestPurgeAuditLogs:
 
         client = _get_client_for_user(admin)
         resp = client.post("/api/admin/pii/purge-audit-logs")
-        assert resp.status_code == 200
-        data = resp.json()
-        assert data["success"] is True
-        assert data["registros_eliminados"] >= 1
+        assert resp.status_code == 409
+        assert "checkpoint externo" in resp.json()["detail"]
 
-        # Verificar que el log reciente sigue en BD
+        # Los logs antiguos y recientes permanecen íntegros.
         db2 = TestingSessionLocal()
         remaining = db2.query(AuditLog).filter(
             AuditLog.accion == "Test acción"
         ).count()
         db2.close()
-        # El log reciente de 10 días debe seguir
-        assert remaining >= 1
+        assert remaining == 2
 
-    def test_sin_logs_antiguos_retorna_cero(self):
+    def test_dry_run_counts_without_deleting_logs(self):
         db = TestingSessionLocal()
         admin = _make_admin(db)
         _make_audit_log(db, dias_atras=10)  # Solo log reciente
         db.close()
 
         client = _get_client_for_user(admin)
-        resp = client.post("/api/admin/pii/purge-audit-logs")
+        resp = client.post("/api/admin/pii/purge-audit-logs?dry_run=true")
         assert resp.status_code == 200
-        assert resp.json()["registros_eliminados"] == 0
+        assert resp.json()["registros_que_serian_eliminados"] == 0
 
-    def test_crea_log_de_purga_antes_de_eliminar(self):
-        """Debe quedar un registro en auditoría del evento de purga."""
+    def test_blocked_purge_does_not_claim_success_or_write_purge_event(self):
         db = TestingSessionLocal()
         admin = _make_admin(db)
         _make_audit_log(db, dias_atras=400)
         db.close()
 
         client = _get_client_for_user(admin)
-        client.post("/api/admin/pii/purge-audit-logs")
+        response = client.post("/api/admin/pii/purge-audit-logs")
+        assert response.status_code == 409
 
         db2 = TestingSessionLocal()
         purge_log = db2.query(AuditLog).filter(
             AuditLog.accion == "PII: Purga de auditoría"
         ).first()
-        assert purge_log is not None
+        assert purge_log is None
+        assert db2.query(AuditLog).filter(AuditLog.accion == "Test acción").count() == 1
         db2.close()

@@ -13,7 +13,8 @@ sys.path.insert(0, os.path.abspath(os.path.join(os.path.dirname(__file__), "..")
 
 from main import app
 from app.database import Base, get_db
-from app.models import User, School, Election, Candidate, Voter, Vote
+from app.models import User, School, Election, Candidate, Voter, Vote, VotingEntitlement
+from app.entitlements import derive_entitlement_key
 from app.auth import get_password_hash, create_access_token, clear_failed_attempts
 from app.schemas import UserLogin
 
@@ -132,6 +133,8 @@ class TestPR1SecurityContainment(unittest.TestCase):
             election_id=self.election_open.id
         )
         self.db.add_all([self.voter_1, self.voter_2])
+        self.db.add(VotingEntitlement(election_id=self.election_open.id,
+                                     unit_key=derive_entitlement_key(self.election_open.id, "FAM:FAM-01")))
         self.db.commit()
 
         # Admin JWT Token

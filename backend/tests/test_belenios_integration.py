@@ -166,7 +166,9 @@ def test_bound_election_cannot_fall_back_to_mvp_or_mutate_roster(lab):
         response = lab.client.post(path, json={"token": lab.voters[0].token_votacion, **({"candidate_id": 1} if path.endswith("submit") else {})})
         assert response.status_code == 409
     assert lab.client.get(f"/api/reports/election/{lab.election.id}/scrutiny").status_code == 409
-    assert lab.client.get("/api/reports/dashboard-stats").status_code == 409
+    stats = lab.client.get("/api/reports/dashboard-stats")
+    assert stats.status_code == 200 and stats.json()["total_votos_emitidos"] is None
+    assert stats.json()["resultados_pendientes"] == 1
     assert lab.db.query(Vote).count() == 0
 
 

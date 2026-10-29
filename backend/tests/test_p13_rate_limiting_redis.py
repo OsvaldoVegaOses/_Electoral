@@ -74,11 +74,12 @@ class TestMemoryFallback:
         except HTTPException as e:
             pytest.fail(f"Después de clear no debería bloquearse: {e}")
 
-    def test_record_failed_acumula(self):
-        """record_failed_attempt acumula en la lista en memoria."""
+    def test_failed_attempt_is_not_counted_twice(self):
+        """check_rate_limit records a request before the result is known."""
         ip = "11.22.33.44"
         self.rl._mem_attempts.clear()
         for _ in range(3):
+            self.rl.check_rate_limit(ip, window=300, max_attempts=10)
             self.rl.record_failed_attempt(ip, window=300)
         assert len(self.rl._mem_attempts[ip]) == 3
 
@@ -111,6 +112,33 @@ class TestRedisInit:
         assert not rl._redis_available
         assert rl._redis_client is None
         assert any("REDIS_URL" in r.message for r in caplog.records)
+
+    def test_production_requires_redis_at_startup(self, monkeypatch):
+        rl = _fresh_module()
+        monkeypatch.setattr(rl.settings, "ENVIRONMENT", "production")
+        with pytest.raises(RuntimeError, match="REDIS_URL"):
+            rl._init_redis("")
+
+    def test_production_fails_closed_when_redis_is_unavailable(self, monkeypatch):
+        rl = _fresh_module()
+        monkeypatch.setattr(rl.settings, "ENVIRONMENT", "production")
+        with patch("redis.from_url") as mock_from_url:
+            mock_client = MagicMock()
+            mock_client.ping.side_effect = ConnectionError("Connection refused")
+            mock_from_url.return_value = mock_client
+            with pytest.raises(RuntimeError, match="inicio bloqueado"):
+                rl._init_redis("redis://localhost:6379/0")
+
+    def test_production_returns_503_when_redis_fails_after_startup(self, monkeypatch):
+        rl = _fresh_module()
+        monkeypatch.setattr(rl.settings, "ENVIRONMENT", "production")
+        mock_client = MagicMock()
+        mock_client.pipeline.side_effect = ConnectionError("Redis timeout")
+        rl._redis_client = mock_client
+        rl._redis_available = True
+        with pytest.raises(HTTPException) as exc_info:
+            rl.check_rate_limit("4.4.4.4")
+        assert exc_info.value.status_code == 503
 
     def test_init_con_redis_no_disponible_usa_fallback(self, caplog):
         """Si Redis no responde, el sistema cae a memoria y emite WARNING."""

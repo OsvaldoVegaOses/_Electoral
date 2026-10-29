@@ -10,7 +10,7 @@ elif "postgresql" in settings.DATABASE_URL:
     connect_args = {"options": "-c timezone=utc"}
 
 engine = create_engine(
-    settings.DATABASE_URL,
+    settings.DATABASE_URL.replace("postgresql://", "postgresql+psycopg2://", 1),
     connect_args=connect_args,
     pool_pre_ping=True
 )

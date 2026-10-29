@@ -62,10 +62,10 @@ class CSRFProtectionMiddleware(BaseHTTPMiddleware):
     async def dispatch(self, request: Request, call_next):
         if request.method not in self.SAFE_METHODS:
             has_auth_cookie = bool(request.cookies.get(settings.AUTH_COOKIE_NAME))
-            has_auth_header = bool(request.headers.get("Authorization"))
 
-            # Aplica solo si la sesión está basada en cookie y no tiene cabecera Authorization (modo browser)
-            if has_auth_cookie and not has_auth_header:
+            # get_current_user prioritizes the cookie, so an Authorization header
+            # must not disable CSRF validation when that cookie is present.
+            if has_auth_cookie:
                 path = request.url.path
                 if not any(path.startswith(prefix) for prefix in self.EXCLUDED_PREFIXES):
                     csrf_cookie = request.cookies.get(settings.CSRF_COOKIE_NAME)
@@ -146,6 +146,8 @@ app.include_router(reports_router, prefix=settings.API_V1_STR)
 app.include_router(audit_router, prefix=settings.API_V1_STR)
 app.include_router(pii_router, prefix=settings.API_V1_STR)
 app.include_router(belenios_router, prefix=settings.API_V1_STR)
+from app.routers.credential_deliveries import router as deliveries_router
+app.include_router(deliveries_router, prefix=settings.API_V1_STR)
 
 @app.get("/", tags=["General"])
 def root():

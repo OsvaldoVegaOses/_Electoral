@@ -11,13 +11,9 @@ import urllib.request
 
 from fastapi import HTTPException
 from app.config import settings
+from app.belenios.deployment import require_enabled, https_destination, confirm_manifest
 
 COMMIT = "337887bd1862c7cd057080b530fd80941bfc3c69"
-
-
-def require_enabled():
-    if settings.BELENIOS_MODE != "laboratory" or settings.ENVIRONMENT != "development":
-        raise HTTPException(503, "Integración Belenios deshabilitada: solo laboratorio de desarrollo autorizado.")
 
 
 class ProviderError(Exception):
@@ -38,12 +34,16 @@ class BeleniosClient:
         self.base = getattr(settings, f"BELENIOS_{policy}_URL").rstrip("/")
         parsed = urllib.parse.urlsplit(self.base)
         expected_port = 18001 if policy == "R1" else 18002
-        if parsed.scheme != "http" or parsed.hostname != "127.0.0.1" or parsed.port != expected_port or parsed.path or parsed.query or parsed.fragment or parsed.username or parsed.password:
+        if settings.BELENIOS_MODE == 'pilot':
+            self.base = https_destination(self.base)
+        elif parsed.scheme != "http" or parsed.hostname != "127.0.0.1" or parsed.port != expected_port or parsed.path or parsed.query or parsed.fragment or parsed.username or parsed.password:
             raise HTTPException(503, "Destino de laboratorio Belenios inválido.")
         self.token = getattr(settings, f"BELENIOS_{policy}_ADMIN_TOKEN").get_secret_value()
         if not self.token:
             raise HTTPException(503, "Falta la credencial administrativa del servidor seleccionado.")
-        self.opener = urllib.request.build_opener(urllib.request.ProxyHandler({}), NoRedirect())
+        import ssl
+        context=ssl.create_default_context(cafile=settings.BELENIOS_CA_FILE or None)
+        self.opener = urllib.request.build_opener(urllib.request.ProxyHandler({}), NoRedirect(), urllib.request.HTTPSHandler(context=context))
 
     def call(self, method, route, payload=None, match=False, raw=False):
         if not re.fullmatch(r"[a-zA-Z0-9/_-]+", route):
@@ -67,6 +67,9 @@ class BeleniosClient:
         config = self.call("GET", "configuration")
         if config.get("belenios_version") != "3.3.0" or config.get("api_version") != 6:
             raise ProviderError("Versión Belenios/API no admitida")
+        if settings.BELENIOS_MODE == 'pilot':
+            confirm_manifest(self.policy,self.base)
+            return
         # API 6 does not expose deny-revote. Inspect the fixed laboratory runtime.
         container = "theogen-belenios33-poc-" + ("revote" if self.policy == "R1" else "single") + "-1"
         try:

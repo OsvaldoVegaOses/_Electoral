@@ -46,6 +46,17 @@ class Settings(BaseSettings):
     BELENIOS_R1_ADMIN_TOKEN: SecretStr = SecretStr("")
     BELENIOS_R2_ADMIN_TOKEN: SecretStr = SecretStr("")
     BELENIOS_VERIFIER_IMAGE: str = ""
+    BELENIOS_ALLOWED_HOSTS: str = ""
+    BELENIOS_R1_PUBLIC_URL: str = ""
+    BELENIOS_R2_PUBLIC_URL: str = ""
+    BELENIOS_PILOT_APPROVAL: str = ""
+    BELENIOS_APPROVED_SCHOOLS: str = ""
+    BELENIOS_ALIAS_DOMAIN: str = ""
+    BELENIOS_CA_FILE: str = ""
+    BELENIOS_RUNTIME_MANIFEST: str = ""
+    BELENIOS_RUNTIME_MANIFEST_SHA256: str = ""
+    BELENIOS_VERIFIER_URL: str = ""
+    BELENIOS_VERIFIER_TOKEN: SecretStr = SecretStr("")
 
     # Base de datos: Usa PostgreSQL si está configurado en env, o SQLite por defecto para desarrollo local
     DATABASE_URL: str = os.getenv("DATABASE_URL", "sqlite:///./theogen_electoral.db")
@@ -57,6 +68,13 @@ class Settings(BaseSettings):
 
     # HMAC key para hashes de integridad de votos — MED-02
     VOTE_HMAC_KEY: str = os.getenv("VOTE_HMAC_KEY", "")
+    # Clave independiente para seudonimizar unidades de sufragio.
+    ENTITLEMENT_HMAC_KEY: str = os.getenv("ENTITLEMENT_HMAC_KEY", "")
+    BREVO_API_KEY: SecretStr = SecretStr("")
+    BREVO_SENDER_EMAIL: str = ""
+    BREVO_SENDER_NAME: str = "TheoGen Electoral"
+    BREVO_DELIVERY_ENABLED: bool = False
+    PUBLIC_VOTING_URL: str = ""
 
     # CORS — CRIT-03 & P6: Configurable desde variable de entorno BACKEND_CORS_ORIGINS
     BACKEND_CORS_ORIGINS: list[str] = _parse_cors_origins(os.getenv("BACKEND_CORS_ORIGINS"))
@@ -107,11 +125,26 @@ if not settings.VOTE_HMAC_KEY:
         settings.VOTE_HMAC_KEY = secrets.token_hex(32)
         logger.warning("VOTE_HMAC_KEY no configurada. Usando clave aleatoria temporal.")
 
+if not settings.ENTITLEMENT_HMAC_KEY:
+    if settings.ENVIRONMENT == "production":
+        raise RuntimeError(
+            "ENTITLEMENT_HMAC_KEY no configurada. Configure un secreto persistente "
+            "independiente de SECRET_KEY y VOTE_HMAC_KEY."
+        )
+    logger.warning(
+        "ENTITLEMENT_HMAC_KEY no configurada. Apertura y voto bloqueados hasta "
+        "configurar la clave persistente independiente; no se genera una clave temporal."
+    )
+elif len(settings.ENTITLEMENT_HMAC_KEY.encode("utf-8")) < 32:
+    raise RuntimeError("ENTITLEMENT_HMAC_KEY debe contener al menos 32 bytes.")
+elif (settings.ENTITLEMENT_HMAC_KEY in (settings.SECRET_KEY, settings.VOTE_HMAC_KEY)
+      or settings.ENTITLEMENT_HMAC_KEY.startswith(("CHANGE_ME", "CAMBIAR"))):
+    raise RuntimeError("ENTITLEMENT_HMAC_KEY debe ser independiente y no un valor de ejemplo.")
+
 if settings.ENVIRONMENT == "production":
     if any("localhost" in o or "127.0.0.1" in o for o in settings.BACKEND_CORS_ORIGINS):
         logger.warning(
             "⚠️ Producción configurada con orígenes CORS locales (localhost). "
             "Configure la variable BACKEND_CORS_ORIGINS con los dominios oficiales de producción."
         )
-
 

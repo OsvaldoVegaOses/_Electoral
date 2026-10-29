@@ -233,6 +233,23 @@ class TestP2HttpOnlyCookiesAndCSRF(unittest.TestCase):
         )
         self.assertNotEqual(res.status_code, 403)
 
+    def test_09_authorization_header_does_not_bypass_csrf_for_cookie_session(self):
+        login_res = self.client.post(
+            "/api/auth/login",
+            json={"email": "admin_p2@theogen.cl", "password": "AdminP2Password123"}
+        )
+        self.assertEqual(login_res.status_code, 200)
+        access_token = login_res.cookies.get("access_token")
+
+        create_res = self.client.post(
+            "/api/schools",
+            json={"nombre": "Colegio CSRF Bypass", "rbd": "88888-8"},
+            headers={"Authorization": f"Bearer {access_token}"}
+        )
+
+        self.assertEqual(create_res.status_code, 403)
+        self.assertIn("Token CSRF", create_res.json()["detail"])
+
 
 if __name__ == "__main__":
     unittest.main()

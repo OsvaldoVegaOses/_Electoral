@@ -21,6 +21,7 @@ pytestmark = pytest.mark.skipif(not URL, reason='Disposable PostgreSQL URL not s
 def pg():
     target = urlsplit(URL)
     allowed = target.hostname == '127.0.0.1' and ((target.port == 55441 and target.path == '/adr001_tests') or
+              (os.getenv('REQUIRE_S2_SERVICES') == '1' and target.path.startswith('/s3_') and target.path.endswith('_adr')) or
               (bool(os.getenv('CI')) and target.port == 5432 and target.path == '/theogen_test'))
     assert allowed, 'Only the dedicated local or ephemeral CI test database is allowed'
     engine = create_engine(URL)

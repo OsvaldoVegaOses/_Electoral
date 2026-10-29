@@ -10,6 +10,7 @@ from fastapi import HTTPException
 from sqlalchemy.exc import IntegrityError
 from app.models import BeleniosBinding, BeleniosOperation, BeleniosUnit, Candidate, Election, Vote, Voter, VotingEntitlement
 from app.belenios.client import BeleniosClient, ProviderError, require_enabled
+from app.belenios.deployment import alias_domain
 
 
 def canonical(value):
@@ -85,7 +86,7 @@ def unknown(db, binding, key):
 
 
 def prepare(db, election, operator, body, client_factory=BeleniosClient):
-    require_enabled()
+    require_enabled(election)
     election = db.query(Election).filter_by(id=election.id).populate_existing().with_for_update().one()
     if election.estado != "Borrador" or db.query(Vote.id).filter_by(election_id=election.id).first() or db.query(VotingEntitlement.id).filter_by(election_id=election.id).first():
         raise HTTPException(409, "Solo puede vincularse un borrador sin votos ni derechos MVP provisionados.")
@@ -120,8 +121,10 @@ def prepare(db, election, operator, body, client_factory=BeleniosClient):
         account = client.call("GET", "account")
     except ProviderError:
         raise HTTPException(503, "Proveedor no disponible o incompatible; no se creó una elección.") from None
+    alias_domain()  # Validate identity channel before reserving or mutating anything.
+    election.motor = "belenios"
     reference = secrets.token_hex(16)
-    draft = {"version": 1, "owners": [account["id"]], "booth": 2, "group": "Ed25519", "languages": ["en"],
+    draft = {"version": 1, "owners": [account["id"]], "booth": 2, "group": "Ed25519", "languages": ["es"],
              "authentication": ["Configured", "email"], "questions": {
                  "name": election.nombre, "description": "Laboratorio TheoGen ref " + reference,
                  "administrator": "Comision electoral", "credential_authority": "Autoridad externa",
@@ -132,7 +135,7 @@ def prepare(db, election, operator, body, client_factory=BeleniosClient):
     try:
         db.flush()
         for voter_id in representatives:
-            db.add(BeleniosUnit(binding_id=binding.id, representative_id=voter_id, alias="unit-" + secrets.token_hex(16) + "@ejemplo.test"))
+            db.add(BeleniosUnit(binding_id=binding.id, representative_id=voter_id, alias="unit-" + secrets.token_hex(16) + "@" + alias_domain()))
         election.total_padron_congelado, election.total_habilitados_congelado = len(voters), len(groups)
         election.config_snapshot = canonical(draft["questions"])
         election.config_hash = hashlib.sha256(election.config_snapshot.encode()).hexdigest()
@@ -162,7 +165,7 @@ TRANSITIONS = {"ValidateElection": ("Draft", "Closed", "/draft"), "Open": ("Clos
 
 
 def transition(db, election, binding, operator, body, client_factory=BeleniosClient):
-    require_enabled()
+    require_enabled(election)
     if binding.inflight or binding.phase == "UNKNOWN":
         raise HTTPException(409, "Hay una operación no reconciliada.")
     before, after, suffix = TRANSITIONS[body.action]
@@ -200,7 +203,8 @@ def transition(db, election, binding, operator, body, client_factory=BeleniosCli
 
 
 def reconcile(db, binding, candidate_uuid, operation_id, client_factory=BeleniosClient):
-    require_enabled()
+    election = db.get(Election, binding.election_id)
+    require_enabled(election)
     if not binding.inflight or binding.inflight != operation_id:
         raise HTTPException(409, "Identifique la operación pendiente exacta.")
     client = client_factory(binding.policy)
