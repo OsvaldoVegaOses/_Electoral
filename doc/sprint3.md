@@ -4,7 +4,7 @@
 
 **Fecha:** 2026-10-28, Chile.
 
-**Estado:** EN IMPLEMENTACIÓN LOCAL desde 2026-10-29; [avance y evidencia](Sprint_3/estado-implementacion.md). M1 y M2 pendientes de aceptación.
+**Estado:** CÓDIGO INTEGRADO Y PROBADO EN MAIN el 2026-10-29; [cierre técnico y evidencia](remediacion/08-informe-sprint3-cierre.md). CI externa bloqueada por facturación; aceptación completa M1 y M2 pendiente.
 
 **Origen:** solicitud del titular de preparar el Sprint 3 para cerrar los pendientes y determinar los requisitos de funcionamiento con Belenios activo.
 

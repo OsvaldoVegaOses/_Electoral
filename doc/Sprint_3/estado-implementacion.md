@@ -1,6 +1,8 @@
-# Sprint 3 — Estado de implementación local
+# Sprint 3 — Estado de integración
 
-**Fecha:** 2026-10-29, Chile. **Estado:** EN CURSO; M1 y M2 pendientes de aceptación.
+**Fecha:** 2026-10-29, Chile. **Estado:** INTEGRADO A MAIN Y PROBADO LOCALMENTE. Cierre técnico: [informe](../remediacion/08-informe-sprint3-cierre.md). CI externa bloqueada por facturación; aceptación M1/M2 pendiente.
+
+La integración se realizó por PR #10 en `f2f87dc918f4c25aff28165a3876519f03aa35f3`: 213 backend, 9 E2E reales y 5 contratos UI aprobados. Los PR 1–9 quedaron cerrados como sustituidos. La [evidencia de main](evidencias/main-validacion.json) conserva el SHA probado. El contenido siguiente se retiene como registro del candidato previo a publicación, no como estado de trabajo pendiente de fusión.
 
 > Continuación autorizada: el titular solicitó integrar a `main`, probar y cerrar. El [procedimiento y alcance vigentes](integracion-main.md) distingue el cierre técnico de integración de la aceptación operacional. La suite conjunta ampliada pasó 213 casos sin fallos ni omisiones, incluidas actualizaciones desde S2-B/ADR aplicados y arranque sin DDL. Las referencias de publicación y ejecución de `main` se comprueban aparte de este corte previo.
 

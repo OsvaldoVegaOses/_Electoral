@@ -1,0 +1,52 @@
+{
+  "scope": "main merged and tested locally; synthetic services only",
+  "recorded_at_utc": "2026-10-29T15:00:48.666146+00:00",
+  "head": "f2f87dc918f4c25aff28165a3876519f03aa35f3",
+  "working_tree": false,
+  "test_cases": 213,
+  "failures": 0,
+  "skipped": 0,
+  "junit_sha256": "94af272da67a8cac47ea7b3ab50902de4b778a280e0c2e12c6337b832597faa5",
+  "restored_exactly": true,
+  "backup_sha256": "9bb79e634512ea9ae5704b1c9804b004b1267b5d3c545577849ed373e29f867c",
+  "duration_seconds": 205.64,
+  "restore_nonempty_management_tables": true,
+  "independent_custody": false,
+  "external_delivery_proven": false,
+  "merge_pr": "https://github.com/OsvaldoVegaOses/_Electoral/pull/10",
+  "ci": {
+    "run_url": "https://github.com/OsvaldoVegaOses/_Electoral/actions/runs/40896304217",
+    "status": "blocked_before_steps",
+    "reason": "The job was not started because your account is locked due to a billing issue."
+  },
+  "closed_superseded_prs": [
+    1,
+    2,
+    3,
+    4,
+    5,
+    6,
+    7,
+    8,
+    9
+  ],
+  "source_trees": {
+    "backend": "1f6ab6ce21d36de833ed4ca0883213be7942851e",
+    "frontend": "c445ac2b2ee9eba83a3c51c138c4bb03af583ad4",
+    "scripts": "354cd6bb11aa9b6b34bb1657f4826cdc8ac759e5",
+    "verifier": "664668e8f46480ec003f6f0bab4e4c815a591497"
+  },
+  "e2e": {
+    "tests": 9,
+    "failures": 0,
+    "junit_sha256": "2abe47bc5378467eedd7f0eabb59ee4e46eea791dbe60c4e1967bc47e10ce4a8"
+  },
+  "belenios_ui": {
+    "tests": 5,
+    "provider": "API doubles"
+  },
+  "frontend": {
+    "lint": "passed with warnings",
+    "build": "passed with bundle size warning"
+  }
+}
