@@ -1,0 +1,95 @@
+{
+  "source_sha": "9905708cb466f46fc141e53b75ecb370d4dd3063",
+  "run_id": "ch1b",
+  "recorded_at_utc": "2026-10-29T19:06:43.800234+00:00",
+  "provider": "Azure Container Registry Tasks",
+  "result": "passed",
+  "stages": [
+    {
+      "name": "synthetic-services",
+      "result": "passed",
+      "seconds": 10.51
+    },
+    {
+      "name": "backend-migrations-concurrency-restore",
+      "result": "passed",
+      "seconds": 83.58
+    },
+    {
+      "name": "frontend-lint",
+      "result": "passed",
+      "seconds": 0.27
+    },
+    {
+      "name": "frontend-build",
+      "result": "passed",
+      "seconds": 1.62
+    },
+    {
+      "name": "e2e-real-http-postgresql",
+      "result": "passed",
+      "seconds": 24.85
+    },
+    {
+      "name": "belenios-ui-api-doubles",
+      "result": "passed",
+      "seconds": 18.17
+    },
+    {
+      "name": "python-dependency-audit",
+      "result": "passed",
+      "seconds": 2.63
+    },
+    {
+      "name": "npm-dependency-audit",
+      "result": "passed",
+      "seconds": 0.54
+    },
+    {
+      "name": "secrets-current-and-history",
+      "result": "passed",
+      "seconds": 4.26
+    },
+    {
+      "name": "compose-nginx",
+      "result": "passed",
+      "seconds": 2.69
+    }
+  ],
+  "backend": {
+    "scope": "synthetic PostgreSQL16/Redis7; no operational data or email sent",
+    "recorded_at_utc": "2026-10-29T19:05:48.715644+00:00",
+    "head": "9905708cb466f46fc141e53b75ecb370d4dd3063",
+    "working_tree": false,
+    "test_cases": 213,
+    "failures": 0,
+    "skipped": 0,
+    "junit_sha256": "b8235b6cf32913baf61753f1d032abfe7362a7683dfa4212a32dd2e815160205",
+    "restored_exactly": true,
+    "backup_sha256": "0bab3f578651601479011860c6f392b1fe3d3c795ca16cbc90701c47362ab90b",
+    "duration_seconds": 79.66,
+    "restore_nonempty_management_tables": true,
+    "independent_custody": false,
+    "external_delivery_proven": false
+  },
+  "e2e_tests": 9,
+  "belenios_ui_tests": 5,
+  "belenios_provider": "API doubles",
+  "versions": {
+    "python": "3.11.14",
+    "node": "v22.16.0",
+    "docker_server": "23.0.7+azure-1"
+  },
+  "production_services_modified": false,
+  "email_sent": false,
+  "pilot_activated": false,
+  "evidence_image": "theogenongtcacr.azurecr.io/electoral-ci/evidence:ch1b",
+  "azure_verification": {
+    "registry": "theogenongtcacr",
+    "resource_group": "new",
+    "status": "Succeeded",
+    "started_at_utc": "2026-10-29T19:01:50.728727+00:00",
+    "finished_at_utc": "2026-10-29T19:06:50.609410+00:00",
+    "evidence_digest": "sha256:579eeac7e4b999a6ea89064f61b71bd67f6e8147ece507070f1250dbaf07f758"
+  }
+}
