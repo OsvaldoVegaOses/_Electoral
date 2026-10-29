@@ -18,6 +18,9 @@ engine = create_engine(
 SessionLocal = sessionmaker(autocommit=False, autoflush=False, bind=engine)
 Base = declarative_base()
 
+from app.azure_database import configure_azure_identity
+configure_azure_identity(engine)
+
 def get_db():
     """Generador de sesiones para inyección de dependencias en endpoints FastAPI"""
     db = SessionLocal()

@@ -59,6 +59,9 @@ def run_migrations_online() -> None:
         connect_args=connect_args,
     )
 
+    from app.azure_database import configure_azure_identity
+    configure_azure_identity(connectable)
+
     with connectable.connect() as connection:
         context.configure(
             connection=connection, target_metadata=target_metadata
