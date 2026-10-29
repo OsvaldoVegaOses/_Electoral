@@ -1,0 +1,19 @@
+version: v1.1.0
+stepTimeout: 3600
+steps:
+  - id: build-ci
+    build: >-
+      --build-arg EXPECTED_SHA={{.Values.expected_sha}}
+      -t $Registry/electoral-ci/runner:$ID -f Dockerfile .
+  - id: test-ci
+    cmd: >-
+      docker run --rm --network host
+      --volume /var/run/docker.sock:/var/run/docker.sock
+      --env AZURE_CI_RUN_ID=$ID
+      --env EXPECTED_SHA={{.Values.expected_sha}}
+      --env EVIDENCE_IMAGE=$Registry/electoral-ci/evidence:$ID
+      $Registry/electoral-ci/runner:$ID
+    when: [build-ci]
+  - id: retain-evidence
+    push: ['$Registry/electoral-ci/evidence:$ID']
+    when: [test-ci]
