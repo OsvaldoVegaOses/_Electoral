@@ -31,7 +31,7 @@ El rol migrador posee el esquema; el rol de aplicación recibe solo permisos de 
 
 ## Qué se cierra y qué sigue pendiente
 
-El cierre técnico comprende integración y comprobaciones locales del código en `main`. La aceptación completa M1 conserva CI del SHA final, revisión independiente, custodia externa, entrega real y decisiones de retención que correspondan al mandato. Si alguna falta, se mantiene identificada y abierta.
+El cierre técnico comprende integración, comprobaciones locales y la [CI alternativa Azure](ci-azure.md). Su candidato pasó en el run `ch1b`; cada integración posterior requiere una nueva ejecución sobre su SHA exacto y evidencia vinculada desde el estado del commit. La aceptación completa M1 conserva revisión independiente, custodia externa, entrega real y decisiones de retención que correspondan al mandato. Si alguna falta, se mantiene identificada y abierta.
 
 M2 y G3 permanecen pendientes: despliegue/verificador del piloto, DNS/TLS, identidad y entrega, autoridad/custodios/auditor y ceremonia independientes, reglas institucionales y ensayo del destino. No se envían correos ni se usan participantes reales por esta integración. G4 requiere su propia aceptación.
 

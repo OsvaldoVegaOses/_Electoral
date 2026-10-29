@@ -1,6 +1,8 @@
 # Sprint 3 — Estado de integración
 
-**Fecha:** 2026-10-29, Chile. **Estado:** INTEGRADO A MAIN Y PROBADO LOCALMENTE. Cierre técnico: [informe](../remediacion/08-informe-sprint3-cierre.md). CI externa bloqueada por facturación; aceptación M1/M2 pendiente.
+**Fecha:** 2026-10-29, Chile. **Estado:** INTEGRADO A MAIN Y PROBADO LOCALMENTE; CI AZURE DEL CANDIDATO APROBADA. Cierre técnico: [informe](../remediacion/08-informe-sprint3-cierre.md). GitHub Actions sigue bloqueado por facturación; aceptación M1/M2 pendiente de sus demás criterios externos.
+
+La alternativa autorizada por Azure CLI ejecutó diez controles obligatorios en ACR Tasks: run `ch1b`, estado `Succeeded`, SHA `9905708cb466f46fc141e53b75ecb370d4dd3063`. Pasaron 213 backend sin omisiones, 9 E2E reales, 5 contratos UI, lint/build, auditorías Python/npm, secretos del contenido/historial y Compose/Nginx. La [evidencia Azure](evidencias/azure-candidato.json) identifica el commit y el digest de los informes retenidos. El [procedimiento](ci-azure.md) exige repetir sobre el SHA resultante de main y publicar su estado Azure separado. No atribuir esta ejecución a un commit posterior.
 
 La integración se realizó por PR #10 en `f2f87dc918f4c25aff28165a3876519f03aa35f3`: 213 backend, 9 E2E reales y 5 contratos UI aprobados. Los PR 1–9 quedaron cerrados como sustituidos. La [evidencia de main](evidencias/main-validacion.json) conserva el SHA probado. El contenido siguiente se retiene como registro del candidato previo a publicación, no como estado de trabajo pendiente de fusión.
 

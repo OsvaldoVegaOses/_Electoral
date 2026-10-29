@@ -1,6 +1,6 @@
 # Sprint 3 — Cierre técnico de integración a main
 
-**Fecha:** 2026-10-29, Chile. **Resultado:** código integrado y probado localmente en `main`. **CI remota:** bloqueada por facturación de GitHub, sin pasos ejecutados. **Aceptación operacional M1/M2:** pendiente de sus criterios externos.
+**Fecha:** 2026-10-29, Chile. **Resultado:** código integrado y probado localmente en `main`; candidato de CI alternativa aprobado en Azure. **GitHub Actions:** bloqueado por facturación, sin pasos ejecutados. **Aceptación operacional M1/M2:** pendiente de sus demás criterios externos.
 
 ## Integración realizada
 
@@ -28,15 +28,19 @@ Ejecución en un checkout limpio, con bases nuevas y contenedores sintéticos et
 | Secretos | Contenido publicable e historial del candidato aprobados | 30 commits escaneados; excepciones por ruta y valores públicos/ficticios exactos; control negativo detectado |
 | Compose/Nginx | Configuración aprobada | No acredita TLS/DNS ni despliegue del destino |
 
-## CI externa: bloqueo comprobado
+## CI externa: Azure aprobado y bloqueo GitHub comprobado
 
 El [run del PR](https://github.com/OsvaldoVegaOses/_Electoral/actions/runs/40895742039) y el [run de main](https://github.com/OsvaldoVegaOses/_Electoral/actions/runs/40896304217) finalizaron antes de ejecutar pasos. La anotación de GitHub dice: “The job was not started because your account is locked due to a billing issue.”
 
-No se modificó facturación, se contrataron runners ni se falsearon checks exitosos. La integración fue autorizada por el titular con este límite informado. Para obtener CI verde, el administrador debe resolver el bloqueo y ejecutar el workflow sobre el `main` final. Ese requisito y la revisión independiente siguen abiertos; el cierre técnico local no los sustituye.
+El titular autorizó usar Azure CLI como alternativa. ACR Tasks ejecutó el candidato `9905708cb466f46fc141e53b75ecb370d4dd3063` en `ch1b`, finalizado `Succeeded` el 2026-10-29 a las 19:06:50 UTC. Los diez controles pasaron: 213 backend sin fallos/omisiones, 9 E2E reales, 5 contratos UI con dobles, lint/build, auditorías Python/npm, secretos del contenido e historial y Compose/Nginx. La [evidencia sanitizada Azure](../Sprint_3/evidencias/azure-candidato.json) registra SHA, resultados y el digest OCI de los informes retenidos.
+
+Se corrigió `wheel 0.45.1` de la imagen base, actualizándolo a `0.48.0`; el escaneo completo posterior quedó sin vulnerabilidades conocidas. Se conservan obligatorios todos los controles. El [procedimiento reproducible](../Sprint_3/ci-azure.md) usa un host temporal y servicios sintéticos propios, sin desplegar el producto ni modificar aplicaciones existentes.
+
+Cada merge requiere repetir Azure sobre el SHA exacto resultante y publicar un estado separado del commit con su evidencia. El run `ch1b` acredita únicamente su candidato; el estado Azure del SHA de main identifica la validación posterior. GitHub Actions conserva su bloqueo real hasta que su administrador resuelva facturación; un resultado Azure no cambia ni falsifica ese estado. La revisión independiente permanece abierta.
 
 ## Pendientes separados del cierre técnico
 
-- Aceptación completa M1: CI del SHA final, revisión independiente, custodia externa de checkpoints y controles de entrega/retención que corresponden al mandato. Las operaciones peligrosas siguen bloqueadas; no se reduce tácitamente el alcance de Sprint 2.
+- Aceptación completa M1: comprobar el estado Azure del SHA final, revisión independiente, custodia externa de checkpoints y controles de entrega/retención que corresponden al mandato. Las operaciones peligrosas siguen bloqueadas; no se reduce tácitamente el alcance de Sprint 2.
 - M2/G3: servidor seleccionado, despliegue/verificador validado, identidad y entrega, autoridad/custodios/auditor independientes, reglas institucionales y ensayo/restore del destino. El verificador externo permanece como prototipo pendiente de validación operacional.
 - G4: aceptación propia de la primera elección vinculante. La correlación histórica `Vote.voter_id`/`candidate_id` permanece y no se afirma secreto del voto MVP.
 
