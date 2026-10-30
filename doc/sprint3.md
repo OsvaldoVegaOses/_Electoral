@@ -4,7 +4,7 @@
 
 **Fecha:** 2026-10-28, Chile.
 
-**Estado:** CÓDIGO INTEGRADO Y PROBADO EN MAIN el 2026-10-29; [cierre técnico y evidencia](remediacion/08-informe-sprint3-cierre.md). CI externa bloqueada por facturación; aceptación completa M1 y M2 pendiente.
+**Estado vigente, 2026-10-30:** integración y despliegue de prueba disponibles; CI Azure aprobada para el código desplegado. Continuación autónoma autorizada con CPA IAC como caso de referencia. Consultar la [matriz de aceptación](Sprint_3/matriz-aceptacion.md), el [contexto CPA IAC](Sprint_3/caso-cpa-iac.md) y la [automatización](Sprint_3/automatizacion.md). M1/M2/G4 conservan sus requisitos externos. La planificación siguiente conserva su corte histórico.
 
 **Origen:** solicitud del titular de preparar el Sprint 3 para cerrar los pendientes y determinar los requisitos de funcionamiento con Belenios activo.
 

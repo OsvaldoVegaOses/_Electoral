@@ -42,6 +42,13 @@ def stage(name,fn):
     print('AZURE_CI_STAGE '+name+' passed',flush=True)
 
 
+def junit_cases(path, minimum):
+    cases=list(ET.parse(path).getroot().iter('testcase'))
+    if len(cases)<minimum or any(case.find(tag) is not None for case in cases for tag in ('failure','error','skipped')):
+        raise RuntimeError('Required browser coverage is missing, failed or omitted')
+    return cases
+
+
 def archive_files(files):
     output=io.BytesIO()
     with tarfile.open(fileobj=output,mode='w') as tar:
@@ -130,18 +137,19 @@ def main():
         if backend['head']!=sha or backend['working_tree'] or backend['skipped'] or backend['failures']:
             raise RuntimeError('Backend evidence does not match the clean source SHA')
         junit=ROOT/'frontend/test-results/junit.xml'
-        cases=list(ET.parse(junit).getroot().iter('testcase'))
-        if not cases or any(case.find(tag) is not None for case in cases for tag in ('failure','error','skipped')):
-            raise RuntimeError('E2E cannot pass with failures or omissions')
+        cases=junit_cases(junit,9)
+        ui_junit=ROOT/'.runtime/belenios-ui-junit.xml'
+        ui_cases=junit_cases(ui_junit,5)
         summary={'source_sha':sha,'run_id':run_id,'recorded_at_utc':datetime.now(timezone.utc).isoformat(),
             'provider':'Azure Container Registry Tasks','result':'passed','stages':STAGES,
-            'backend':backend,'e2e_tests':len(cases),'belenios_ui_tests':5,'belenios_provider':'API doubles',
+            'backend':backend,'e2e_tests':len(cases),'belenios_ui_tests':len(ui_cases),'belenios_provider':'API doubles',
             'versions':{'python':platform.python_version(),'node':command(['node','--version'],capture=True).decode().strip(),
                         'docker_server':command(['docker','version','--format','{{.Server.Version}}'],capture=True).decode().strip()},
             'production_services_modified':False,'email_sent':False,'pilot_activated':False,
             'evidence_image':os.environ['EVIDENCE_IMAGE']}
         exports={'summary.json':json.dumps(summary,indent=2).encode(),
             'backend-junit.xml':(ROOT/'.runtime/s3-integration.xml').read_bytes(),'e2e-junit.xml':junit.read_bytes(),
+            'belenios-ui-junit.xml':ui_junit.read_bytes(),
             'pip-audit.json':(OUTPUT/'pip-audit.json').read_bytes(),'npm-audit.json':(OUTPUT/'npm-audit.json').read_bytes()}
         exports['checksums.json']=json.dumps({name:hashlib.sha256(data).hexdigest() for name,data in exports.items()},indent=2).encode()
         exports['Dockerfile']=(f'FROM scratch\nLABEL org.opencontainers.image.revision="{sha}"\nCOPY . /evidence/\n').encode()

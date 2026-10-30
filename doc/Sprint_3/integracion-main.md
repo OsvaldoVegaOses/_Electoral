@@ -27,7 +27,7 @@ docker compose -f docker-compose.prod.yml --profile release run --rm migrate
 docker compose -f docker-compose.prod.yml up -d backend frontend
 ```
 
-El rol migrador posee el esquema; el rol de aplicación recibe solo permisos de uso, DML y secuencias necesarios, sin propiedad, superusuario, creación de roles o de bases. La provisión de esas identidades en el destino sigue pendiente de elegir servidor; los ejemplos no crean usuarios ni compran infraestructura.
+El rol migrador posee el esquema; el rol de aplicación recibe solo permisos de uso, DML y secuencias necesarios, sin propiedad, superusuario, creación de roles o de bases. La [instancia Azure de prueba](despliegue-prueba-azure.md) ya dispone de esa separación y conexión Entra. El destino electoral Belenios y su aceptación operacional conservan su procedimiento propio.
 
 ## Qué se cierra y qué sigue pendiente
 

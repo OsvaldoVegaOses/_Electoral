@@ -1,0 +1,171 @@
+{
+  "schema": "theogen-sprint3-autonomy/v1",
+  "max_daily_agent_runs": 4,
+  "max_attempts_per_task": 2,
+  "agent_timeout_minutes": 45,
+  "ci_timeout_minutes": 40,
+  "tasks": [
+    {
+      "id": "S3-A06",
+      "title": "Modelar reglas del primer caso sin autoaprobarlas",
+      "depends_on": [],
+      "paths": [
+        "backend/app/belenios/electoral_policy.py",
+        "backend/tests/test_s3_electoral_policy*.py",
+        "doc/Sprint_3/avances/S3-A06.md"
+      ],
+      "acceptance": "Contrato versionado que explicite unidad, representante, papeleta, R1/R2, calendario/zona, blancos/nulos, quorum y empates. Distinguir borrador de politica institucional aprobada. Rechazar modalidades no soportadas y referencias de aprobacion vacias; no atribuir legalidad ni aceptar aprobaciones escritas por el agente. Usar el perfil CPA IAC: candidaturas individuales, una credencial por familia, Comite pendiente de ratificacion y quorum de Asamblea distinto de participacion electoral. No inventar mayorias, otros cargos, blancos/nulos o R1/R2."
+    },
+    {
+      "id": "S3-A01",
+      "title": "Endurecer el colector y verificador aislado",
+      "depends_on": [],
+      "paths": [
+        "verifier/**",
+        "deploy/verifier/**",
+        "backend/tests/test_s3_verifier_worker*.py",
+        "doc/Sprint_3/avances/S3-A01.md"
+      ],
+      "acceptance": "Limitar trabajos concurrentes, bytes y tiempo de recoleccion; reclamar cada trabajo atomicamente entre workers; rechazar symlinks y rutas ajenas; separar entradas publicas de resultados; pruebas negativas y concurrencia. No montar Docker en el API ni usar urnas previas."
+    },
+    {
+      "id": "S3-A02",
+      "title": "Producir y validar evidencia del runtime Belenios",
+      "depends_on": [],
+      "paths": [
+        "backend/app/belenios/deployment.py",
+        "scripts/collect_belenios_runtime.py",
+        "backend/tests/test_s3_runtime_attestation*.py",
+        "doc/Sprint_3/avances/S3-A02.md"
+      ],
+      "acceptance": "Recolector explicito de imagen inmutable, commit fijado, politica efectiva R1/R2, endpoints y fechas. Rechazar evidencia vencida, ambigua o modificada. La referencia de aprobacion procede del operador; nunca inventar G2/G3 ni afirmar independencia."
+    },
+    {
+      "id": "S3-A03",
+      "title": "Preparar custodia externa verificable de checkpoints",
+      "depends_on": [],
+      "paths": [
+        "backend/app/audit_custody.py",
+        "scripts/verify_custody_receipt.py",
+        "backend/tests/test_s3_custody_receipt*.py",
+        "doc/Sprint_3/avances/S3-A03.md"
+      ],
+      "acceptance": "Formato de checkpoint y recibo externo con cadena, secuencia, conteo, fecha y digest. Validar firmas contra confianza configurada, procedencia y correspondencia exacta. Pruebas de alteracion y truncamiento. Un recibo propio o una firma sin autoridad configurada nunca acredita custodia independiente."
+    },
+    {
+      "id": "S3-A04",
+      "title": "Verificar recuperacion de HMAC sin duplicar derechos",
+      "depends_on": [],
+      "paths": [
+        "backend/app/entitlements.py",
+        "backend/app/credentials.py",
+        "backend/app/models.py",
+        "backend/app/routers/voting.py",
+        "backend/app/routers/elections.py",
+        "backend/alembic/versions/s3*_entitlement*.py",
+        "scripts/verify_entitlement_recovery.py",
+        "backend/tests/test_s3_entitlement_recovery*.py",
+        "doc/Sprint_3/avances/S3-A04.md"
+      ],
+      "acceptance": "Ensayo solo sintetico: misma clave recupera las unidades, clave ausente/incorrecta rechaza emision y voto sin crear otro derecho. No imprimir/exportar claves, identificadores personales ni afirmar anonimizacion. No modificar claves Azure desplegadas."
+    },
+    {
+      "id": "S3-A05",
+      "title": "Completar diagnostico operacional de dependencias",
+      "depends_on": [],
+      "paths": [
+        "backend/app/azure_database.py",
+        "backend/app/database.py",
+        "backend/app/rate_limiter.py",
+        "backend/main.py",
+        "backend/tests/test_s3_dependency_health*.py",
+        "doc/Sprint_3/avances/S3-A05.md"
+      ],
+      "acceptance": "Timeout acotado PostgreSQL, salud que distinga BD y Redis requeridos, errores publicos sanitizados y pruebas de indisponibilidad sin fallback inseguro en produccion. No cambiar credenciales, firewall ni servicios compartidos."
+    },
+    {
+      "id": "S3-A07",
+      "title": "Preparar ensayo integral reproducible de destino",
+      "depends_on": [
+        "S3-A01",
+        "S3-A02"
+      ],
+      "paths": [
+        "scripts/rehearse_belenios_pilot.py",
+        "backend/tests/test_s3_rehearsal_contract*.py",
+        "deploy/pilot/**",
+        "doc/Sprint_3/avances/S3-A07.md"
+      ],
+      "acceptance": "Runner sobre urnas sinteticas nuevas y servicios etiquetados propios. Registrar SHA, versiones, endpoints, entrega simulada, estados confirmados, verificacion y limites. Rechazar urnas anteriores, datos reales y operaciones UNKNOWN sin cotejo. No confundir dobles con proveedor real."
+    },
+    {
+      "id": "S3-A08",
+      "title": "Preparar restauracion coordinada aplicacion y urna",
+      "depends_on": [
+        "S3-A07"
+      ],
+      "paths": [
+        "scripts/verify_pilot_restore.py",
+        "backend/tests/test_s3_pilot_restore*.py",
+        "deploy/pilot/**",
+        "doc/Sprint_3/avances/S3-A08.md"
+      ],
+      "acceptance": "Manifiesto de backup/restore enlazado a head y archivo electoral, destinos nuevos aislados, controles contra perdida de boletas reconocidas y duplicacion. Nunca restaurar sobre la instancia de prueba ni sobre urnas previas; registrar como pendiente lo que necesite claves o custodios externos."
+    },
+    {
+      "id": "S3-A09",
+      "title": "Completar cotejo UI de operaciones UNKNOWN",
+      "depends_on": [],
+      "paths": [
+        "frontend/src/components/BeleniosPanel.jsx",
+        "frontend/src/services/api.js",
+        "frontend/e2e-belenios/reconciliation.spec.js",
+        "backend/tests/test_s3_reconciliation_contract*.py",
+        "doc/Sprint_3/avances/S3-A09.md"
+      ],
+      "acceptance": "Lectura de soporte y cotejo explicito por rol, motivo y evidencia; ningun reintento ciego, nueva urna ni duplicacion al recuperar una respuesta. Probar permisos y fallo del proveedor. No debilitar CSRF ni controles de ambito."
+    },
+    {
+      "id": "S3-A10",
+      "title": "Preparar carga representativa y expediente tecnico final",
+      "depends_on": [
+        "S3-A07",
+        "S3-A08",
+        "S3-A09"
+      ],
+      "paths": [
+        "scripts/measure_pilot_capacity.py",
+        "backend/tests/test_s3_capacity_contract*.py",
+        "doc/Sprint_3/avances/S3-A10.md"
+      ],
+      "acceptance": "Carga sintetica hasta el limite soportado, sin ampliar el contrato de cien unidades sin evidencia. Informar latencias, errores, entorno y diferencias entre dobles y proveedor real; reunir expediente sin declarar M1/M2/G4 aceptados automaticamente."
+    }
+  ],
+  "external_gates": [
+    {
+      "id": "G2",
+      "owner": "Institucion y responsable juridico",
+      "required": "Institucion, personalidad juridica, estatutos y politica electoral aprobada para el caso concreto"
+    },
+    {
+      "id": "M1-REVIEW",
+      "owner": "Revisor independiente",
+      "required": "Revision de seguridad, privacidad y evidencias del candidato final"
+    },
+    {
+      "id": "CUSTODY",
+      "owner": "Autoridad de credenciales, custodios y auditor externos",
+      "required": "Identidades, claves bajo control separado, recibos y ceremonia verificables"
+    },
+    {
+      "id": "G3",
+      "owner": "Institucion y responsables del piloto",
+      "required": "Ensayo de destino, entrega controlada, incidentes y restore aceptados; autorizacion de participantes reales"
+    },
+    {
+      "id": "G4",
+      "owner": "Organizacion y autoridad electoral",
+      "required": "Aceptacion formal de eleccion vinculante; no cubierta por la automatizacion"
+    }
+  ]
+}

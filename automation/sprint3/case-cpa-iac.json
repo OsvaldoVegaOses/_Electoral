@@ -1,0 +1,13 @@
+{
+  "schema":"theogen-institutional-context/v1",
+  "institution":{"reference":"CPA-IAC","name":"Centro de Padres y Apoderados del Instituto Abdon Cifuentes"},
+  "provenance":{"kind":"user_supplied_document_review","received_on":"2026-10-30","original_files_inspected_by_agent":false,"original_file_hashes":null,"audio_transcribed":false,"untranscribed_audio_count":15,"contains_original_archive":false},
+  "reported_documents":[{"reference":"estatutos-2022","date":"2022-03","status":"reported_original_in_private_archive"},{"reference":"modificacion-2026","date":"2026-10","status":"reported_notarial_modification_in_private_archive"}],
+  "voting":{"unit":"family","accredited_representatives_per_unit":1,"private_credentials_per_unit":1,"mvp_tokens_are_belenios_credentials":false,"revote_policy":null,"electronic_voting_approved":false,"dues_based_voter_exclusion_approved":false,"eligible_roster_requires_institutional_validation":true},
+  "candidatures":{"mode":"individual","registration_current":true,"minimum_active_membership_years":2,"dues_current_reported_requirement":true,"additional_requirements_need_original_review":true,"admissibility_before_final_publication":true,"president_selection":"majority_reported","remaining_offices_assignment":null,"ties":null,"blank_ballots":null,"invalid_ballots":null,"lists_2024_must_not_be_reused":true},
+  "committee":{"proposed_member_count":5,"required_member_count":5,"minimum_membership_years":1,"current_director_incompatible":true,"candidate_incompatible":true,"dues_requirement_confirmed":false,"formally_constituted":false,"member_names_required_for_development":false,"committee_members_are_automatic_crypto_authorities":false},
+  "assembly":{"first_call_quorum":{"percentage":25,"denominator":"members","purpose":"assembly_constitution","source_article":18},"second_call_rule":null,"quorum_is_automatically_election_turnout_threshold":false,"proposed_meeting":{"local_datetime":"2026-11-03T18:00:00","timezone":"America/Santiago","status":"proposal_supported_by_internal_poll","formal_notice_confirmed":false}},
+  "independence":{"credential_authority_designated":false,"decryption_trustees_designated":false,"independent_reviewer_designated":false,"developer_or_operator_cannot_be_the_only_verifier":true},
+  "acceptance":{"institutional_rules_approved":false,"G2":false,"G3":false,"G4":false,"real_participants_authorized":false,"binding_election_authorized":false},
+  "privacy":{"real_person_names_included":false,"personal_identifiers_included":false,"children_data_included":false,"payment_records_included":false,"fixtures":"fictional_families_and_members_only"}
+}

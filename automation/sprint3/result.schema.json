@@ -1,0 +1,11 @@
+{
+  "type":"object","additionalProperties":false,
+  "properties":{
+    "task_id":{"type":"string"},
+    "outcome":{"type":"string","enum":["implemented","blocked","no_change"]},
+    "summary":{"type":"string"},
+    "tests":{"type":"array","items":{"type":"string"}},
+    "remaining":{"type":"array","items":{"type":"string"}}
+  },
+  "required":["task_id","outcome","summary","tests","remaining"]
+}
