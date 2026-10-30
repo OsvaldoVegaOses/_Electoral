@@ -486,8 +486,14 @@ def main():
             write_json(RUNTIME / 'latest.json', {'recorded_at': timestamp(), **result})
             print(json.dumps(result, ensure_ascii=False))
     except (BlockingIOError, PermissionError):
-        print(json.dumps({'result': 'locked_or_access_denied', 'mutation_started': False}))
+        print(json.dumps({'result': 'locked_or_access_denied', 'details': 'Inspect persisted phase before retrying'}))
         raise SystemExit(2)
+    except Exception as error:
+        result = {'recorded_at': timestamp(), 'result': 'preflight_or_controller_failed',
+                  'details': type(error).__name__ + ': ' + str(error)}
+        write_json(RUNTIME / 'latest.json', result)
+        print(json.dumps(result, ensure_ascii=False))
+        raise SystemExit(1)
 
 
 if __name__ == '__main__':
