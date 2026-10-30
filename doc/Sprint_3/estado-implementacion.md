@@ -1,5 +1,7 @@
 # Sprint 3 — Estado de integración
 
+**Actualización 2026-10-30:** el avance vigente se controla en la [matriz de aceptación](matriz-aceptacion.md), la [cola autónoma](automatizacion.md) y el [caso CPA IAC](caso-cpa-iac.md). La instancia de prueba Azure está documentada en [despliegue](despliegue-prueba-azure.md), con CI del código desplegado y login HTTPS comprobados. Las secciones siguientes conservan cortes anteriores de la integración; las decisiones externas M1/M2/G4 siguen identificadas por separado.
+
 **Fecha:** 2026-10-29, Chile. **Estado:** INTEGRADO A MAIN Y PROBADO LOCALMENTE; CI AZURE DEL CANDIDATO APROBADA. Cierre técnico: [informe](../remediacion/08-informe-sprint3-cierre.md). GitHub Actions sigue bloqueado por facturación; aceptación M1/M2 pendiente de sus demás criterios externos.
 
 La alternativa autorizada por Azure CLI ejecutó diez controles obligatorios en ACR Tasks: run `ch1b`, estado `Succeeded`, SHA `9905708cb466f46fc141e53b75ecb370d4dd3063`. Pasaron 213 backend sin omisiones, 9 E2E reales, 5 contratos UI, lint/build, auditorías Python/npm, secretos del contenido/historial y Compose/Nginx. La [evidencia Azure](evidencias/azure-candidato.json) identifica el commit y el digest de los informes retenidos. El [procedimiento](ci-azure.md) exige repetir sobre el SHA resultante de main y publicar su estado Azure separado. No atribuir esta ejecución a un commit posterior.
