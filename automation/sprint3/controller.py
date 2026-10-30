@@ -268,20 +268,22 @@ def prepare_candidate(task, item, directory, queue):
     item.update(candidate_sha=git('rev-parse', 'HEAD', cwd=worktree), status='candidate')
 
 
-def queue_ci(item, directory):
+def queue_ci(item, directory, queue):
     worktree = Path(item['worktree'])
     context = directory / 'ci-context'
     execute([sys.executable, worktree / 'scripts/prepare_azure_ci.py', '--output', context], cwd=worktree)
     # Persist the caller's 'submitting_ci' phase BEFORE this potentially ambiguous mutation.
     try:
-        response = az('acr', 'run', '--registry', REGISTRY, '--resource-group', 'new',
-            '--file', 'acr-task.yaml', '--set', 'expected_sha=' + item['candidate_sha'],
-            '--timeout', '3600', '--no-logs', str(context), timeout=180)
+        runtime = Path(shutil.which('az.cmd')).parents[1] / 'python.exe'
+        if not runtime.is_file():
+            raise RuntimeError('Azure CLI Python runtime unavailable')
+        response = json.loads(execute([runtime, '-IB', CONFIG / 'azure_ci_submit.py', '--context', context,
+            '--sha', item['candidate_sha'], '--timeout', queue['ci_timeout_minutes'] * 60], timeout=180))
     except Exception as error:
         raise NeedsReconciliation('CI submission outcome unknown; inspect Azure without resubmitting') from error
-    if not isinstance(response, dict) or not re.fullmatch(r'[a-zA-Z0-9_-]+', response.get('runId', '')):
+    if not isinstance(response, dict) or response.get('source_sha') != item['candidate_sha'] or not re.fullmatch(r'[a-zA-Z0-9_-]+', response.get('run_id', '')):
         raise NeedsReconciliation('CI submission returned no run ID; inspect Azure without resubmitting')
-    item.update(ci_run_id=response['runId'], status='ci_running', evidence_directory=str(directory))
+    item.update(ci_run_id=response['run_id'], status='ci_running', evidence_directory=str(directory))
 
 
 def verify_ci(item, queue):
@@ -385,6 +387,12 @@ def preflight():
     account = az('account', 'show')
     if account['id'] != SUBSCRIPTION or account['state'] != 'Enabled':
         raise RuntimeError('Authorized Azure subscription is not enabled')
+    runtime = Path(shutil.which('az.cmd')).parents[1] / 'python.exe'
+    if not runtime.is_file():
+        raise RuntimeError('Azure CLI Python runtime unavailable')
+    sdk = json.loads(execute([runtime, '-IB', CONFIG / 'azure_ci_submit.py', '--preflight']))
+    if sdk.get('sdk') != 'ready' or sdk.get('subscription') != SUBSCRIPTION:
+        raise RuntimeError('Azure submission SDK or active subscription unavailable')
     validate_queue(read_json(CONFIG / 'queue.json'))
     return {'codex_authenticated': True, 'github_authenticated': True, 'azure_subscription': 'Enabled', 'queue_valid': True}
 
@@ -431,7 +439,7 @@ def cycle():
         if item['status'] == 'candidate':
             item['status'] = 'submitting_ci'
             save()
-            queue_ci(item, directory)
+            queue_ci(item, directory, queue)
             save()
         if not verify_ci(item, queue):
             save()

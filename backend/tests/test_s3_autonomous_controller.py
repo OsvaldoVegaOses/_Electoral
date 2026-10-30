@@ -159,3 +159,34 @@ def test_interrupted_mutation_blocks_repetition_and_preserves_candidate(monkeypa
     assert saved['candidate_sha']=='a'*40
     assert saved['attempts']==1
     assert controller.cycle()['result']=='needs_reconciliation'
+
+
+@pytest.mark.parametrize('change',['extra','sha','digest','private'])
+def test_cloud_source_rejects_private_or_mismatched_context_before_network(tmp_path,change):
+    specification=importlib.util.spec_from_file_location('azure_submit',SOURCE.parent/'azure_ci_submit.py')
+    module=importlib.util.module_from_spec(specification)
+    specification.loader.exec_module(module)
+    import hashlib,json
+    for name in ('Dockerfile','acr-task.yaml','source.bundle'):(tmp_path/name).write_bytes(b'public fixture')
+    manifest={'source_sha':'a'*40,'private_runtime_included':False,
+      'bundle_sha256':hashlib.sha256((tmp_path/'source.bundle').read_bytes()).hexdigest()}
+    if change=='extra':(tmp_path/'.env').write_text('synthetic-only')
+    elif change=='sha':manifest['source_sha']='b'*40
+    elif change=='digest':manifest['bundle_sha256']='b'*64
+    else:manifest['private_runtime_included']=True
+    (tmp_path/'source-manifest.json').write_text(json.dumps(manifest))
+    with pytest.raises(ValueError):module.public_archive(tmp_path,'a'*40)
+
+
+def test_cloud_source_contains_only_public_context_files(tmp_path):
+    specification=importlib.util.spec_from_file_location('azure_submit',SOURCE.parent/'azure_ci_submit.py')
+    module=importlib.util.module_from_spec(specification)
+    specification.loader.exec_module(module)
+    import hashlib,json,io,tarfile
+    for name in ('Dockerfile','acr-task.yaml','source.bundle'):(tmp_path/name).write_bytes(b'public fixture')
+    (tmp_path/'source-manifest.json').write_text(json.dumps({'source_sha':'a'*40,'private_runtime_included':False,
+      'bundle_sha256':hashlib.sha256((tmp_path/'source.bundle').read_bytes()).hexdigest()}))
+    payload=module.public_archive(tmp_path,'a'*40)
+    with tarfile.open(fileobj=io.BytesIO(payload),mode='r:gz') as archive:
+        assert set(archive.getnames())==module.FILES
+        assert archive.extractfile('source.bundle').read()==b'public fixture'
