@@ -1,0 +1,197 @@
+{
+  "observed_at": "2026-11-03T10:14:24.185053+00:00",
+  "scope": "synthetic_native_crypto_exercise_with_simulated_custodians",
+  "source_head": "808eb0351f46a5dd18b57ce00665e9d56106e3c7",
+  "candidate_committed": false,
+  "full_candidate_ci": false,
+  "focused_local_tests": {
+    "passed": 67,
+    "failed": 0,
+    "skipped": 0
+  },
+  "build_run": "ch1s",
+  "build_status": "Succeeded",
+  "verifier_dockerfile_sha256": "21217b50398a1806f7ae0a79d32c20b7a5368b3c3ceceb03c7b37e2dd2baf409",
+  "exercise": {
+    "status": "PASSED",
+    "uuid": "JbQwmUdAiYP6L6",
+    "synthetic_units": 5,
+    "recorded_ballots": 5,
+    "result": [
+      [
+        3,
+        2
+      ]
+    ],
+    "trustees": 3,
+    "external_threshold": 2,
+    "contributing_trustees": [
+      2,
+      3
+    ],
+    "threshold_cases": [
+      {
+        "contributing_trustees": [],
+        "server_component": true,
+        "result_permitted": false,
+        "exit_code": 124
+      },
+      {
+        "contributing_trustees": [
+          1
+        ],
+        "server_component": true,
+        "result_permitted": false,
+        "exit_code": 124
+      },
+      {
+        "contributing_trustees": [
+          2
+        ],
+        "server_component": true,
+        "result_permitted": false,
+        "exit_code": 124
+      },
+      {
+        "contributing_trustees": [
+          3
+        ],
+        "server_component": true,
+        "result_permitted": false,
+        "exit_code": 124
+      },
+      {
+        "contributing_trustees": [
+          1,
+          2
+        ],
+        "server_component": false,
+        "result_permitted": false,
+        "exit_code": 124
+      },
+      {
+        "contributing_trustees": [
+          1,
+          2
+        ],
+        "server_component": true,
+        "result_permitted": true,
+        "exit_code": 0,
+        "final_native_verification": true
+      },
+      {
+        "contributing_trustees": [
+          1,
+          3
+        ],
+        "server_component": true,
+        "result_permitted": true,
+        "exit_code": 0,
+        "final_native_verification": true
+      },
+      {
+        "contributing_trustees": [
+          2,
+          3
+        ],
+        "server_component": true,
+        "result_permitted": true,
+        "exit_code": 0,
+        "final_native_verification": true
+      }
+    ],
+    "server_component_required": true,
+    "one_share_with_server_rejected": true,
+    "one_share_result_exit": 124,
+    "final_native_verification": true,
+    "worker_accepted_valid": true,
+    "worker_rejected_altered": true,
+    "archive_sha256": "53b5a9be4703cd4404590a1e0eba06f406018c5e292c2922ee561e2096aaad3f",
+    "archive_bytes": 45568,
+    "custodians": "simulated_under_one_operator",
+    "independent_human_audit": false,
+    "server_voting_flow_tested": false,
+    "revote_policy_tested": false,
+    "private_keys_exported": false,
+    "email_sent": false,
+    "upstream_script_sha256": "2bbcb3510e7aad1c76a7bcabfd4ce912d2aa0dff1dc0bc19289646ad0f9f0f5e",
+    "archive_url": "https://theogen-belenios-pilot-261102.eastus2.cloudapp.azure.com/_pilot/evidence/JbQwmUdAiYP6L6.bel",
+    "verifier_image": "theogenongtcacr.azurecr.io/electoral-belenios/verifier@sha256:a8a34da5893706e161db4cb3c6cffdba3009cf85e7e2c2232f68ee90acb99ce6",
+    "worker_network": "none",
+    "worker_read_only": true
+  },
+  "public_archive_https_readback": true,
+  "public_report_matches": true,
+  "verifier_health_http": 200,
+  "unauthenticated_verification_http": 401,
+  "provider_configuration_http": 200,
+  "brevo_account_http": 200,
+  "repair": {
+    "status": "DEPLOYED",
+    "observed_at": "2026-11-03T10:12:01.089938+00:00",
+    "image": "theogenongtcacr.azurecr.io/electoral-belenios/verifier@sha256:a8a34da5893706e161db4cb3c6cffdba3009cf85e7e2c2232f68ee90acb99ce6",
+    "image_id": "sha256:a8a34da5893706e161db4cb3c6cffdba3009cf85e7e2c2232f68ee90acb99ce6",
+    "source_run": "ch1s",
+    "native_tool_version": "3.3.0 (3.3.0)",
+    "runtime_user": "10001:10001",
+    "worker_network": "none",
+    "worker_read_only": true,
+    "worker_private_mounts": false,
+    "collector_health_http": 200,
+    "previous_containers_preserved": true,
+    "provider_changed": false,
+    "email_sent": false,
+    "independent_human_audit": false
+  },
+  "services": [
+    {
+      "name": "theogen-belenios-verifier-worker",
+      "running": true,
+      "image_id": "sha256:a8a34da5893706e161db4cb3c6cffdba3009cf85e7e2c2232f68ee90acb99ce6",
+      "runtime_user": "10001:10001",
+      "network": "none",
+      "read_only": true,
+      "bind_destinations": [
+        "/spool/inbox",
+        "/spool/outbox"
+      ]
+    },
+    {
+      "name": "theogen-belenios-verifier-collector",
+      "running": true,
+      "image_id": "sha256:a8a34da5893706e161db4cb3c6cffdba3009cf85e7e2c2232f68ee90acb99ce6",
+      "runtime_user": "10001:10001",
+      "network": "host",
+      "read_only": true,
+      "bind_destinations": [
+        "/spool/inbox",
+        "/spool/outbox",
+        "/run/secrets/api_token"
+      ]
+    },
+    {
+      "name": "theogen-belenios-provider",
+      "running": true,
+      "image_id": "sha256:d52bc2007431615c5e6034df701f5cc559f54f928b04da2b6a8c9c5b9b4fad86",
+      "runtime_user": "belenios",
+      "network": "bridge",
+      "read_only": true,
+      "bind_destinations": [
+        "/opt/provider/brevo_sendmail.py",
+        "/var/lib/belenios",
+        "/run/secrets/belenios_config",
+        "/run/secrets/brevo_api_key"
+      ]
+    }
+  ],
+  "disposable_container_present": false,
+  "custody": {
+    "proposed_threshold": "2/3",
+    "roles_confirmed": false,
+    "invitations_sent": false,
+    "independence_verified": false,
+    "independent_reviewer_assigned": false
+  },
+  "electoral_activation": false,
+  "email_sent": false
+}

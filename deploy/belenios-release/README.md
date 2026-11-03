@@ -1,0 +1,15 @@
+# Receta de proveedor Belenios 3.3.0 en modo release
+
+Actualización 2026-11-03: la receta se construyó en ACR `ch1q`, imagen `theogenongtcacr.azurecr.io/electoral-belenios/provider@sha256:d52bc2007431615c5e6034df701f5cc559f54f928b04da2b6a8c9c5b9b4fad86`, y el proveedor se desplegó en una VM de ensayo separada. El [ejercicio criptográfico](../../doc/Sprint_3/ejercicio-belenios-03nov.md) conserva evidencia y límites; no acredita el recorrido de votación por la cabina ni custodia independiente. La aplicación Electoral Azure conserva Belenios deshabilitado; no se convierten ni migran votos existentes.
+
+`scripts/prepare_belenios_release.py --source <clon-limpio> --output <directorio-nuevo>` comprueba el tag anotado 3.3.0 y su commit `337887bd1862c7cd057080b530fd80941bfc3c69`, y genera un contexto exclusivamente público mediante `git archive`. No empaqueta `.git`, spool, credenciales ni configuración del operador.
+
+Construir ese contexto pasando `SOURCE_DATE_EPOCH` con el valor del archivo homónimo. El Dockerfile usa una base fijada por digest y el objetivo oficial `make build-release-server`, que compila sin `BELENIOS_DEBUG` y comprueba las traducciones. La versión nativa debe ser exactamente 3.3.0. La construcción comprobada no sustituye los demás criterios de validación y aceptación del runtime para piloto.
+
+El arranque exige un archivo XML suministrado por el operador, referencia de aprobación, URL pública HTTPS, política R1/R2 explícita, modo restricted, autenticación real con allowlist privada, directorio persistente `/var/lib/belenios` y transporte de correo ejecutable aprobado. Rechaza autenticación dummy, alta pública, publicación estática del spool y archivos `.preload` ejecutables. El guard comprueba condiciones mínimas; no sustituye la revisión integral del XML, proxy, autenticación y permisos del host.
+
+Variables requeridas: `BELENIOS_CONFIG`, `BELENIOS_DEPLOY_APPROVAL`, `BELENIOS_PUBLIC_URL`, `BELENIOS_POLICY`, `BELENIOS_SENDMAIL`, `BELENIOS_VARDIR=/var/lib/belenios`, `BELENIOS_RUNDIR=/tmp/belenios`. Los paths privados del XML usan los placeholders nativos `_VARDIR_`, `_RUNDIR_` y `_SHAREDIR_`. Los mapeos de allowlist deben apuntar a `_VARDIR_/private/<nombre-seguro>` y existir antes del arranque. El transporte y su secreto se provisionan fuera de esta imagen.
+
+No se entrega una configuración con identidades o cuentas inventadas. Antes del piloto faltan dominio/TLS, persistencia y restauración comprobadas, autenticación de operadores, elección de política, autoridad externa de credenciales, custodios y verificador separado. Las credenciales privadas de votación no deben pasar por TheoGen ni compartirse con su clave Brevo. La URL pública, manifest del runtime y digests deben comprobarse antes de habilitar el modo pilot en el backend.
+
+Una nueva elección sintética debe probar cabina nativa, credencial externa, voto cifrado, apertura/cierre, escrutinio con custodios y archivo público verificado. Las pruebas sobre archivos antiguos no reemplazan este recorrido. La aprobación electoral y la auditoría independiente permanecen pendientes.

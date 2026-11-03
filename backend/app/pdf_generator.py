@@ -1,5 +1,6 @@
 import io
-from datetime import datetime
+from datetime import datetime, timezone
+from html import escape
 from reportlab.lib.pagesizes import letter
 from reportlab.lib import colors
 from reportlab.platypus import SimpleDocTemplate, Paragraph, Spacer, Table, TableStyle, KeepTogether, HRFlowable
@@ -17,7 +18,13 @@ def build_pdf_buffer(story):
         topMargin=40,
         bottomMargin=40
     )
-    doc.build(story)
+    def footer(canvas, document):
+        canvas.saveState()
+        canvas.setFont('Helvetica', 7)
+        canvas.setFillColor(colors.HexColor('#64748b'))
+        canvas.drawString(40, 22, f'Registro técnico MVP - Página {document.page}')
+        canvas.restoreState()
+    doc.build(story, onFirstPage=footer, onLaterPages=footer)
     buffer.seek(0)
     return buffer
 
@@ -129,245 +136,109 @@ def get_theogen_styles():
         "c_secondary": c_secondary
     }
 
-def generate_acta_apertura_pdf(election, school, committee_members, total_voters: int):
-    """Genera el PDF oficial del Acta de Apertura de la Elección"""
-    st = get_theogen_styles()
-    story = []
-    
-    # Encabezado TheoGen
-    story.append(Paragraph("THEOGEN ELECTORAL", st["title"]))
-    story.append(Paragraph("Participación transparente y verificable • Plataforma de Gestión Electoral", st["subtitle"]))
-    story.append(Spacer(1, 10))
-    story.append(HRFlowable(width="100%", thickness=2, color=st["c_secondary"], spaceBefore=5, spaceAfter=15))
-    
-    # Título del Acta
-    story.append(Paragraph("ACTA OFICIAL DE APERTURA DE MESA Y PROCESO ELECTORAL", st["doc_type"]))
-    
-    # Párrafo introductorio
-    fecha_str = election.fecha_inicio.strftime("%d de %B de %Y a las %H:%M hrs") if election.fecha_inicio else datetime.utcnow().strftime("%d/%m/%Y %H:%M hrs")
-    intro_text = (
-        f"En la comuna de <b>{school.comuna or 'Santiago'}</b>, con fecha <b>{fecha_str}</b>, se reúne la Comisión Electoral "
-        f"designada en dependencias de <b>{school.nombre}</b> (RBD: {school.rbd or 'S/N'}), para formalizar y certificar "
-        f"la apertura oficial del proceso de votación electrónica denominado: <b>\"{election.nombre}\"</b>."
-    )
-    story.append(Paragraph(intro_text, st["body"]))
-    story.append(Spacer(1, 12))
-    
-    # Datos del Proceso
-    story.append(Paragraph("1. INFORMACIÓN GENERAL DEL PROCESO", st["section"]))
-    info_data = [
-        [Paragraph("<b>Entidad Organizadora:</b>", st["cell"]), Paragraph(school.nombre, st["cell"])],
-        [Paragraph("<b>RBD / Identificador:</b>", st["cell"]), Paragraph(school.rbd or "No especificado", st["cell"])],
-        [Paragraph("<b>Tipo de Elección:</b>", st["cell"]), Paragraph(election.tipo_votacion, st["cell"])],
-        [Paragraph("<b>Regla de Votación:</b>", st["cell"]), Paragraph(f"<b>{election.regla_votacion}</b>", st["cell"])],
-        [Paragraph("<b>Padrón Habilitado Total:</b>", st["cell"]), Paragraph(f"<b>{total_voters} electores</b> registrados con credenciales generadas", st["cell"])],
-        [Paragraph("<b>Fecha y Hora Apertura:</b>", st["cell"]), Paragraph(fecha_str, st["cell"])],
-        [Paragraph("<b>Estado del Proceso:</b>", st["cell"]), Paragraph(f"<font color='#047857'><b>{election.estado.upper()}</b></font>", st["cell"])]
-    ]
-    info_table = Table(info_data, colWidths=[160, 370])
-    info_table.setStyle(TableStyle([
-        ('BACKGROUND', (0, 0), (-1, -1), colors.HexColor("#f8fafc")),
+
+def _text(value, default="-"):
+    return escape(str(default if value is None or value == "" else value))
+
+
+def _date(value):
+    if value is None:
+        return "No registrada"
+    if value.tzinfo is None:
+        value = value.replace(tzinfo=timezone.utc)
+    return value.astimezone(timezone.utc).strftime("%d/%m/%Y %H:%M UTC")
+
+
+def _header(st, title):
+    return [Paragraph("THEOGEN ELECTORAL", st["title"]),
+            Paragraph("Registro de participación - Plataforma de gestión electoral", st["subtitle"]),
+            HRFlowable(width="100%", thickness=2, color=st["c_secondary"], spaceBefore=8, spaceAfter=12),
+            Paragraph(title, st["doc_type"]),
+            Paragraph("<b>Registro técnico del MVP.</b> No acredita secreto criptográfico del voto, "
+                      "auditoría independiente, proclamación de cargos ni validez institucional. "
+                      "La revisión y aprobación corresponden a las autoridades competentes.", st["body"]),
+            Spacer(1, 10)]
+
+
+def _table(rows, widths, st, header=False):
+    table = Table(rows, colWidths=widths, repeatRows=1 if header else 0, hAlign="LEFT")
+    table.setStyle(TableStyle([
+        ('BACKGROUND', (0, 0), (-1, 0), st["c_primary"] if header else colors.HexColor("#f8fafc")),
         ('GRID', (0, 0), (-1, -1), 0.5, colors.HexColor("#cbd5e1")),
+        ('VALIGN', (0, 0), (-1, -1), 'TOP'),
         ('TOPPADDING', (0, 0), (-1, -1), 5),
         ('BOTTOMPADDING', (0, 0), (-1, -1), 5),
     ]))
-    story.append(info_table)
-    story.append(Spacer(1, 14))
-    
-    # Declaración de Integridad de la Urna
-    story.append(Paragraph("2. CONSTATACIÓN DE URNA ELECTRÓNICA Y CREDENCIALES", st["section"]))
-    constata_text = (
-        "La Comisión Electoral certifica que la urna digital se encuentra en estado inicial con <b>cero (0) votos emitidos</b>. "
-        "Las credenciales únicas criptográficas (Tokens UUID) han sido emitidas bajo estándares de aleatoriedad garantizando "
-        "un voto único e intransferible conforme a la regla electoral vigente."
-    )
-    story.append(Paragraph(constata_text, st["body"]))
-    story.append(Spacer(1, 14))
-    
-    # Miembros de la Comisión Electoral
-    story.append(Paragraph("3. MIEMBROS DE LA COMISIÓN ELECTORAL SUPERVISORA", st["section"]))
-    com_headers = [
-        Paragraph("<b>Nombre Completo</b>", st["header"]),
-        Paragraph("<b>RUT</b>", st["header"]),
-        Paragraph("<b>Cargo</b>", st["header"]),
-        Paragraph("<b>Correo Contacto</b>", st["header"])
-    ]
-    com_rows = [com_headers]
-    for m in committee_members:
-        com_rows.append([
-            Paragraph(m.nombre, st["cell"]),
-            Paragraph(m.rut, st["cell"]),
-            Paragraph(f"<b>{m.cargo}</b>", st["cell"]),
-            Paragraph(m.correo or "-", st["cell"])
-        ])
-    if not committee_members:
-        com_rows.append([Paragraph("No se registraron miembros de comisión", st["cell"]), Paragraph("-", st["cell"]), Paragraph("-", st["cell"]), Paragraph("-", st["cell"])])
-        
-    com_table = Table(com_rows, colWidths=[170, 90, 110, 160])
-    com_table.setStyle(TableStyle([
-        ('BACKGROUND', (0, 0), (-1, 0), st["c_primary"]),
-        ('GRID', (0, 0), (-1, -1), 0.5, colors.HexColor("#cbd5e1")),
-        ('ROWBACKGROUNDS', (0, 1), (-1, -1), [colors.white, colors.HexColor("#f8fafc")]),
-        ('TOPPADDING', (0, 0), (-1, -1), 5),
-        ('BOTTOMPADDING', (0, 0), (-1, -1), 5),
-    ]))
-    story.append(com_table)
-    story.append(Spacer(1, 24))
-    
-    # Firmas
-    story.append(Paragraph("4. CONSTANCIA Y FIRMAS DE APERTURA", st["section"]))
-    story.append(Spacer(1, 15))
-    
-    sig_data = []
-    # Generar hasta 3 columnas de firmas
+    return table
+
+
+def _reviewers(committee_members, st, number):
+    content = [Paragraph(f"{number}. REVISIÓN DEL REGISTRO", st["section"])]
     if committee_members:
-        row_lines = []
-        row_names = []
-        for m in committee_members[:3]:
-            row_lines.append(Paragraph("____________________________", st["sig"]))
-            row_names.append(Paragraph(f"<b>{m.nombre}</b><br/>{m.cargo}<br/>RUT: {m.rut}", st["sig"]))
-        sig_data = [row_lines, row_names]
+        content.append(Paragraph("Personas registradas para revisión; su inclusión no acredita firma, "
+                                 "ratificación de cargos ni auditoría independiente.", st["body"]))
+        rows = [[Paragraph(_text(m.nombre), st["cell"]), Paragraph(_text(m.cargo), st["cell"])]
+                for m in committee_members]
+        content.append(_table(rows, [300, 230], st))
     else:
-        sig_data = [
-            [Paragraph("____________________________", st["sig"]), Paragraph("____________________________", st["sig"])],
-            [Paragraph("<b>Presidente(a) Comisión</b>", st["sig"]), Paragraph("<b>Secretario(a) Comisión</b>", st["sig"])]
-        ]
-        
-    sig_table = Table(sig_data, colWidths=[530 / len(sig_data[0])] * len(sig_data[0]))
-    sig_table.setStyle(TableStyle([
-        ('ALIGN', (0, 0), (-1, -1), 'CENTER'),
-        ('BOTTOMPADDING', (0, 0), (-1, -1), 4),
-    ]))
-    story.append(KeepTogether(sig_table))
-    
+        content.append(Paragraph("No hay revisores registrados. Este documento no contiene firmas "
+                                 "ni designa autoridades.", st["body"]))
+    return KeepTogether(content)
+
+
+def generate_acta_apertura_pdf(election, school, committee_members, total_voters: int):
+    """MVP operational record; does not certify electoral or institutional validity."""
+    st = get_theogen_styles()
+    story = _header(st, "REGISTRO TÉCNICO DE APERTURA - MVP")
+    story.append(Paragraph(f"Proceso: <b>{_text(election.nombre)}</b><br/>"
+                           f"Institución: {_text(school.nombre)}", st["body"]))
+    story.append(Paragraph("1. CONFIGURACIÓN REGISTRADA", st["section"]))
+    fields = [("Tipo", election.tipo_votacion), ("Regla", election.regla_votacion),
+              ("Personas en el padrón", total_voters), ("Inicio registrado", _date(election.fecha_inicio)),
+              ("Estado actual", election.estado)]
+    rows = [[Paragraph(_text(label), st["cell_bold"]), Paragraph(_text(value), st["cell"])]
+            for label, value in fields]
+    story.append(_table(rows, [180, 350], st))
+    story.append(Spacer(1, 12))
+    story.append(_reviewers(committee_members, st, 2))
     return build_pdf_buffer(story)
 
+
 def generate_acta_cierre_pdf(election, school, committee_members, results: dict, total_voters: int):
-    """Genera el PDF oficial del Acta de Cierre y Escrutinio de la Elección"""
+    """Aggregate closing record; no oath, legal proclamation or inferred signature."""
     st = get_theogen_styles()
-    story = []
-    
-    # Encabezado TheoGen
-    story.append(Paragraph("THEOGEN ELECTORAL", st["title"]))
-    story.append(Paragraph("Participación transparente y verificable • Plataforma de Gestión Electoral", st["subtitle"]))
-    story.append(Spacer(1, 10))
-    story.append(HRFlowable(width="100%", thickness=2, color=st["c_secondary"], spaceBefore=5, spaceAfter=15))
-    
-    # Título del Acta
-    story.append(Paragraph("ACTA DEFINITIVA DE CIERRE Y ESCRUTINIO ELECTORAL", st["doc_type"]))
-    
-    fecha_cierre_str = election.fecha_fin.strftime("%d de %B de %Y a las %H:%M hrs") if election.fecha_fin else datetime.utcnow().strftime("%d/%m/%Y %H:%M hrs")
-    intro_text = (
-        f"En la comuna de <b>{school.comuna or 'Santiago'}</b>, siendo las <b>{fecha_cierre_str}</b>, se declara formalmente "
-        f"<b>CERRADO</b> el proceso de votación electrónica correspondiente a: <b>\"{election.nombre}\"</b> de la institución "
-        f"<b>{school.nombre}</b>. A continuación se certifica el escrutinio general y sus resultados vinculantes."
-    )
-    story.append(Paragraph(intro_text, st["body"]))
-    story.append(Spacer(1, 12))
-    
-    # Resumen de Participación
-    story.append(Paragraph("1. RESUMEN GENERAL DE PARTICIPACIÓN", st["section"]))
-    part_rate = results.get("participacion_porcentaje", 0.0)
-    total_votos = results.get("total_votos", 0)
-    
-    summary_data = [
-        [Paragraph("<b>Padrón Electoral Total:</b>", st["cell"]), Paragraph(f"{total_voters} electores habilitados", st["cell"])],
-        [Paragraph("<b>Total Sufragios Emitidos:</b>", st["cell"]), Paragraph(f"<b>{total_votos} votos</b>", st["cell"])],
-        [Paragraph("<b>Porcentaje de Participación:</b>", st["cell"]), Paragraph(f"<b><font color='#1e40af'>{part_rate:.1f}%</font></b>", st["cell"])],
-        [Paragraph("<b>Votos No Emitidos (Abstención):</b>", st["cell"]), Paragraph(f"{total_voters - total_votos} electores", st["cell"])],
-        [Paragraph("<b>Regla Aplicada:</b>", st["cell"]), Paragraph(election.regla_votacion, st["cell"])]
-    ]
-    summary_table = Table(summary_data, colWidths=[170, 360])
-    summary_table.setStyle(TableStyle([
-        ('BACKGROUND', (0, 0), (-1, -1), colors.HexColor("#f8fafc")),
-        ('GRID', (0, 0), (-1, -1), 0.5, colors.HexColor("#cbd5e1")),
-        ('TOPPADDING', (0, 0), (-1, -1), 4),
-        ('BOTTOMPADDING', (0, 0), (-1, -1), 4),
-    ]))
-    story.append(summary_table)
-    story.append(Spacer(1, 14))
-    
-    # Tabla de Resultados y Escrutinio
-    story.append(Paragraph("2. ESCRUTINIO DETALLADO POR CANDIDATO / LISTA", st["section"]))
-    res_headers = [
-        Paragraph("<b>Candidato / Lista</b>", st["header"]),
-        Paragraph("<b>Cargo Postulado</b>", st["header"]),
-        Paragraph("<b>Votos Obtenidos</b>", st["header"]),
-        Paragraph("<b>% Válidos</b>", st["header"])
-    ]
-    res_rows = [res_headers]
-    for c in results.get("candidatos", []):
-        highlight = "<b>" if c.get("votos", 0) > 0 else ""
-        end_highlight = "</b>" if highlight else ""
-        res_rows.append([
-            Paragraph(f"{highlight}{c.get('nombre')}{end_highlight}", st["cell"]),
-            Paragraph(c.get("cargo") or "-", st["cell"]),
-            Paragraph(f"<para align='center'>{highlight}{c.get('votos', 0)}{end_highlight}</para>", st["cell"]),
-            Paragraph(f"<para align='center'>{highlight}{c.get('porcentaje', 0.0):.1f}%{end_highlight}</para>", st["cell"])
-        ])
-        
-    res_table = Table(res_rows, colWidths=[200, 150, 90, 90])
-    res_table.setStyle(TableStyle([
-        ('BACKGROUND', (0, 0), (-1, 0), st["c_primary"]),
-        ('GRID', (0, 0), (-1, -1), 0.5, colors.HexColor("#cbd5e1")),
-        ('ROWBACKGROUNDS', (0, 1), (-1, -1), [colors.white, colors.HexColor("#f8fafc")]),
-        ('TOPPADDING', (0, 0), (-1, -1), 5),
-        ('BOTTOMPADDING', (0, 0), (-1, -1), 5),
-    ]))
-    story.append(res_table)
-    story.append(Spacer(1, 14))
-    
-    # Proclamación del Ganador
-    ganador = results.get("ganador")
-    if ganador and ganador.get("votos", 0) > 0:
-        story.append(Paragraph("3. PROCLAMACIÓN OFICIAL", st["section"]))
-        proclama_box = [
-            [Paragraph(
-                f"<font size='11'><b>OPCIÓN GANADORA DECLARADA ELECTA:</b></font><br/>"
-                f"<font size='13' color='#0d233a'><b>{ganador.get('nombre')}</b></font><br/>"
-                f"Cargo: <b>{ganador.get('cargo') or 'Directiva Electa'}</b> • Con un total de <b>{ganador.get('votos')} votos ({ganador.get('porcentaje', 0.0):.1f}%)</b>",
-                st["body"]
-            )]
-        ]
-        p_table = Table(proclama_box, colWidths=[530])
-        p_table.setStyle(TableStyle([
-            ('BACKGROUND', (0, 0), (-1, -1), colors.HexColor("#ecfdf5")),
-            ('BOX', (0, 0), (-1, -1), 1.5, colors.HexColor("#059669")),
-            ('TOPPADDING', (0, 0), (-1, -1), 10),
-            ('BOTTOMPADDING', (0, 0), (-1, -1), 10),
-            ('LEFTPADDING', (0, 0), (-1, -1), 14),
-            ('RIGHTPADDING', (0, 0), (-1, -1), 14),
-        ]))
-        story.append(p_table)
-        story.append(Spacer(1, 16))
-        
-    # Firmas de Cierre
-    story.append(Paragraph("4. CERTIFICACIÓN Y FIRMAS DE LA COMISIÓN ELECTORAL", st["section"]))
-    story.append(Paragraph(
-        "Los abajo firmantes, en su calidad de miembros acreditados de la Comisión Electoral, declaran bajo juramento "
-        "la total conformidad del proceso, la inexistencia de reclamos no resueltos y la plena validez de los resultados expuestos.",
-        st["body"]
-    ))
-    story.append(Spacer(1, 20))
-    
-    if committee_members:
-        row_lines = []
-        row_names = []
-        for m in committee_members[:3]:
-            row_lines.append(Paragraph("____________________________", st["sig"]))
-            row_names.append(Paragraph(f"<b>{m.nombre}</b><br/>{m.cargo}<br/>RUT: {m.rut}", st["sig"]))
-        sig_data = [row_lines, row_names]
-    else:
-        sig_data = [
-            [Paragraph("____________________________", st["sig"]), Paragraph("____________________________", st["sig"])],
-            [Paragraph("<b>Presidente(a) Comisión</b>", st["sig"]), Paragraph("<b>Secretario(a) Comisión</b>", st["sig"])]
-        ]
-        
-    sig_table = Table(sig_data, colWidths=[530 / len(sig_data[0])] * len(sig_data[0]))
-    sig_table.setStyle(TableStyle([
-        ('ALIGN', (0, 0), (-1, -1), 'CENTER'),
-        ('BOTTOMPADDING', (0, 0), (-1, -1), 4),
-    ]))
-    story.append(KeepTogether(sig_table))
-    
+    story = _header(st, "REGISTRO TÉCNICO DE CIERRE Y RESULTADOS - MVP")
+    closed_at = getattr(election, "fecha_cierre_efectiva", None)
+    story.append(Paragraph(f"Proceso: <b>{_text(election.nombre)}</b><br/>"
+                           f"Institución: {_text(school.nombre)}<br/>"
+                           f"Cierre efectivo registrado: {_date(closed_at)}", st["body"]))
+    story.append(Paragraph("1. PARTICIPACIÓN REGISTRADA", st["section"]))
+    total_votes = results.get("total_votos", 0)
+    fields = [("Unidades habilitadas", total_voters), ("Sufragios registrados", total_votes),
+              ("Participación", f"{results.get('participacion_porcentaje', 0):.1f}%"),
+              ("Unidades sin voto", total_voters - total_votes), ("Regla aplicada", election.regla_votacion)]
+    rows = [[Paragraph(_text(label), st["cell_bold"]), Paragraph(_text(value), st["cell"])]
+            for label, value in fields]
+    story.append(_table(rows, [180, 350], st))
+    story.append(Paragraph("2. CÓMPUTO POR OPCIÓN", st["section"]))
+    headers = ["Opción", "Descripción de cargo", "Votos", "% del total"]
+    rows = [[Paragraph(_text(label), st["header"]) for label in headers]]
+    candidates = results.get("candidatos", [])
+    for candidate in candidates:
+        rows.append([Paragraph(_text(candidate.get("nombre")), st["cell"]),
+                     Paragraph(_text(candidate.get("cargo")), st["cell"]),
+                     Paragraph(_text(candidate.get("votos", 0)), st["cell"]),
+                     Paragraph(f"{candidate.get('porcentaje', 0):.1f}%", st["cell"])])
+    story.append(_table(rows, [205, 160, 65, 100], st, header=True))
+    regular = [c for c in candidates if not c.get("es_blanco") and not c.get("es_nulo")]
+    maximum = max((c.get("votos", 0) for c in regular), default=0)
+    leaders = [c for c in regular if c.get("votos", 0) == maximum] if maximum else []
+    if leaders:
+        label = "Mayor conteo registrado" if len(leaders) == 1 else "Empate en el mayor conteo"
+        names = "; ".join(_text(c.get("nombre")) for c in leaders)
+        story.append(Paragraph("3. RESUMEN DEL CÓMPUTO", st["section"]))
+        story.append(Paragraph(f"{label}: <b>{names}</b>. Este registro no asigna cargos "
+                               "ni resuelve reglas de desempate.", st["body"]))
+    story.append(Spacer(1, 8))
+    story.append(_reviewers(committee_members, st, 4))
     return build_pdf_buffer(story)

@@ -22,7 +22,8 @@ def public_archive(policy, uuid):
         from app.belenios.deployment import https_destination
         base = https_destination(settings.BELENIOS_VERIFIER_URL)
         token = settings.BELENIOS_VERIFIER_TOKEN.get_secret_value()
-        if not token:
+        image = settings.BELENIOS_VERIFIER_IMAGE
+        if not token or not re.fullmatch(r"sha256:[0-9a-f]{64}", image):
             raise ProviderError("Verificador sin configurar")
         try:
             with httpx.Client(verify=settings.BELENIOS_CA_FILE or True, timeout=60, follow_redirects=False, trust_env=False) as client:
@@ -30,6 +31,12 @@ def public_archive(policy, uuid):
                                    headers={"Authorization": "Bearer " + token}) as response:
                     if response.status_code != 200:
                         raise ProviderError("Verificación no confirmada")
+                    digest = response.headers.get("X-Belenios-Archive-SHA256", "")
+                    if (response.headers.get("X-Belenios-Upstream-Commit") != COMMIT
+                            or response.headers.get("X-Belenios-Tool-Image") != image
+                            or response.headers.get("X-Belenios-Final-Result") != "verified"
+                            or not re.fullmatch(r"[0-9a-f]{64}", digest)):
+                        raise ProviderError("Contrato de verificación incompleto o incompatible")
                     chunks, size = [], 0
                     for chunk in response.iter_bytes():
                         size += len(chunk)
@@ -37,8 +44,8 @@ def public_archive(policy, uuid):
                             raise ProviderError("Archivo demasiado grande")
                         chunks.append(chunk)
                     archive = b"".join(chunks)
-            if not archive:
-                raise ProviderError("Archivo vacío")
+            if not archive or hashlib.sha256(archive).hexdigest() != digest:
+                raise ProviderError("Archivo verificado vacío o incompatible")
             return archive
         except httpx.HTTPError:
             raise ProviderError("Verificación externa no disponible") from None

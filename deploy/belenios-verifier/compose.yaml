@@ -1,0 +1,52 @@
+name: theogen-independent-verifier
+services:
+  collector:
+    image: ${VERIFIER_SERVICE_IMAGE:?Set the built verifier service image by digest}
+    user: "10001:10001"
+    read_only: true
+    cap_drop: [ALL]
+    security_opt: [no-new-privileges:true]
+    pids_limit: 32
+    mem_limit: 512m
+    cpus: 0.5
+    ports: ["127.0.0.1:${VERIFIER_PORT:-8443}:8443"]
+    tmpfs: [/tmp:size=128m,mode=1777]
+    volumes:
+      - ${VERIFIER_SPOOL_DIR:?Set private spool directory}/inbox:/spool/inbox
+      - ${VERIFIER_SPOOL_DIR:?Set private spool directory}/outbox:/spool/outbox:ro
+    secrets: [api_token, tls_certificate, tls_key]
+    environment:
+      VERIFIER_INBOX: /spool/inbox
+      VERIFIER_OUTBOX: /spool/outbox
+      VERIFIER_TOKEN_FILE: /run/secrets/api_token
+      VERIFIER_TLS_CERT_FILE: /run/secrets/tls_certificate
+      VERIFIER_TLS_KEY_FILE: /run/secrets/tls_key
+      VERIFIER_BIND: 0.0.0.0
+      VERIFIER_PROVIDERS: ${VERIFIER_PROVIDERS:?Set approved HTTPS R1/R2 endpoints as JSON}
+      VERIFIER_TOOL_IMAGE: ${VERIFIER_TOOL_DIGEST:?Set immutable native tool image digest}
+  verifier:
+    image: ${VERIFIER_SERVICE_IMAGE:?Set the built verifier service image by digest}
+    entrypoint: [python3, -m, services.belenios_verifier.worker]
+    network_mode: none
+    user: "10001:10001"
+    read_only: true
+    cap_drop: [ALL]
+    security_opt: [no-new-privileges:true]
+    pids_limit: 32
+    mem_limit: 512m
+    cpus: 1.0
+    tmpfs: [/tmp:size=128m,mode=1777]
+    volumes:
+      - ${VERIFIER_SPOOL_DIR:?Set private spool directory}/inbox:/spool/inbox:ro
+      - ${VERIFIER_SPOOL_DIR:?Set private spool directory}/outbox:/spool/outbox
+    environment:
+      VERIFIER_INBOX: /spool/inbox
+      VERIFIER_OUTBOX: /spool/outbox
+      VERIFIER_TOOL_IMAGE: ${VERIFIER_TOOL_DIGEST:?Set immutable native tool image digest}
+secrets:
+  api_token:
+    file: ${VERIFIER_API_TOKEN_FILE:?Set token file outside Git}
+  tls_certificate:
+    file: ${VERIFIER_CERTIFICATE_FILE:?Set TLS certificate file}
+  tls_key:
+    file: ${VERIFIER_KEY_FILE:?Set TLS key file outside Git}
