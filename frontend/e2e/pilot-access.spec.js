@@ -3,7 +3,7 @@ import { spawn } from 'node:child_process';
 import { once } from 'node:events';
 import { fileURLToPath } from 'node:url';
 
-const origin='https://pilot.example.invalid';
+let origin;
 let fixture;
 let port;
 test.beforeAll(async () => {
@@ -21,6 +21,7 @@ test.beforeAll(async () => {
     fixture.once('error',reject);
     fixture.once('exit',code=>reject(new Error(`Synthetic portal exited: ${code}`)));
   });
+  origin=`http://127.0.0.1:${port}`;
 });
 test.afterAll(async () => {
   if(fixture && fixture.exitCode===null) {
@@ -30,12 +31,7 @@ test.afterAll(async () => {
 
 test('Browser form retains its origin and completes mandatory first change',async({page,context})=>{
   let observedOrigin;
-  await context.route(origin+'/**',async route=>{
-    const request=route.request();
-    if(request.url().endsWith('/acceso/entrar'))observedOrigin=request.headers().origin;
-    const upstream=await route.fetch({url:`http://127.0.0.1:${port}${new URL(request.url()).pathname}`,maxRedirects:0});
-    await route.fulfill({response:upstream});
-  });
+  page.on('request',request=>{if(request.url().endsWith('/acceso/entrar'))observedOrigin=request.headers().origin;});
   await page.goto(origin+'/acceso/');
   await expect(page.getByText('Votación Centro de Padres IAC',{exact:true})).toBeVisible();
   await page.getByLabel('Correo',{exact:true}).fill('member@example.invalid');
