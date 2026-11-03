@@ -1,5 +1,9 @@
 # Sprint 3 — Estado de integración
 
+## Candidato de verificador y runtime: 2026-11-03
+
+El [alcance de integración](integracion-verificador-03nov.md) reúne el verificador, la receta release, el transporte nativo de autenticación y los registros PDF MVP. El [ejercicio de cinco votos](ejercicio-belenios-03nov.md) pasó con custodias simuladas. La integración requiere CI completa del commit candidato y del SHA resultante en `main`; los cortes históricos siguientes no acreditan esos commits nuevos. Belenios permanece apagado en la aplicación Electoral y las aceptaciones externas mantienen sus requisitos.
+
 **Actualización 2026-10-30:** el avance vigente se controla en la [matriz de aceptación](matriz-aceptacion.md), la [cola autónoma](automatizacion.md) y el [caso CPA IAC](caso-cpa-iac.md). La instancia de prueba Azure está documentada en [despliegue](despliegue-prueba-azure.md), con CI del código desplegado y login HTTPS comprobados. Las secciones siguientes conservan cortes anteriores de la integración; las decisiones externas M1/M2/G4 siguen identificadas por separado.
 
 **Fecha:** 2026-10-29, Chile. **Estado:** INTEGRADO A MAIN Y PROBADO LOCALMENTE; CI AZURE DEL CANDIDATO APROBADA. Cierre técnico: [informe](../remediacion/08-informe-sprint3-cierre.md). GitHub Actions sigue bloqueado por facturación; aceptación M1/M2 pendiente de sus demás criterios externos.
