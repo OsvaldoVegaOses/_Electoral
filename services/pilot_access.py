@@ -307,7 +307,7 @@ def server(address, portal, bridge=None):
             data=body.encode('utf-8');self.send_response(status)
             headers={'Content-Type':content_type,'Content-Length':str(len(data)),
                 'Cache-Control':'no-store','Pragma':'no-cache','Connection':'close',
-                'Referrer-Policy':'no-referrer','X-Content-Type-Options':'nosniff','X-Frame-Options':'DENY',
+                'Referrer-Policy':'same-origin','X-Content-Type-Options':'nosniff','X-Frame-Options':'DENY',
                 'Content-Security-Policy':"default-src 'none'; style-src 'unsafe-inline'; form-action 'self'; base-uri 'none'; frame-ancestors 'none'"}
             if location:headers['Location']=location
             if token:headers['Set-Cookie']=f'{COOKIE}={token}; Secure; HttpOnly; SameSite=Strict; Path=/'
@@ -322,8 +322,8 @@ def server(address, portal, bridge=None):
             value=cookie.get(COOKIE);return value.value if value else ''
 
         def page(self,title,body):
-            return '<!doctype html><html lang="es"><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><title>'+escape(title)+'''</title>
-<style>body{font:18px/1.5 system-ui;margin:3rem auto;max-width:42rem;padding:0 1rem;color:#152638}label,input,button{display:block;margin:.7rem 0}input,button{font:inherit;padding:.5rem;width:95%;box-sizing:border-box}a{color:#0645ad}</style><main><h1>'''+escape(title)+'</h1>'+body+'</main></html>'
+            return '<!doctype html><html lang="es"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><title>'+escape(title)+''' · Votación CPA IAC</title>
+<style>body{font:17px/1.6 system-ui;margin:0;background:#f0f5f8;color:#173047}header{background:#12344b;color:white;padding:1.6rem max(1rem,calc((100vw - 44rem)/2))}header p{margin:.2rem 0}.institution{font-size:1.3rem;font-weight:700}.demo{display:inline-block;background:#d9f2eb;color:#164a3b;border-radius:1rem;padding:.15rem .8rem;font-size:.85rem;margin-top:.6rem}main{box-sizing:border-box;background:white;max-width:44rem;margin:2rem auto;padding:2rem;border:1px solid #dce5eb;border-radius:.8rem}h1{font-size:1.6rem;line-height:1.3}label{display:block;margin:1rem 0}input,button{font:inherit;padding:.65rem;width:100%;box-sizing:border-box;border:1px solid #92a8b8;border-radius:.3rem}input[type=checkbox]{width:auto}button{background:#165f68;color:white;border:0;cursor:pointer;margin:1rem 0;font-weight:600}a{color:#155d81}input:focus-visible,button:focus-visible,a:focus-visible{outline:3px solid #d18b22;outline-offset:3px}@media(max-width:48rem){main{margin:1rem;padding:1.25rem}}</style></head><body><header><p class="institution">Votación Centro de Padres IAC</p><p>Instituto Abdón Cifuentes</p><span class="demo">Demostración no vinculante</span></header><main><h1>'''+escape(title)+'</h1>'+body+'</main></body></html>'
 
         def do_GET(self):
             if self.path=='/api-token':
@@ -339,7 +339,7 @@ def server(address, portal, bridge=None):
             try:user=portal.user(token)
             except AccessDenied:user=None
             if user is None:
-                return self.reply(200,self.page('Acceso al ensayo Belenios',
+                return self.reply(200,self.page('Acceso a la votación',
                     '<p>Ingresa con el correo y la contraseña de acceso recibida. La primera vez debes elegir una contraseña nueva.</p>'
                     '<form method="post" action="/acceso/entrar"><label>Correo<input name="email" type="email" autocomplete="username" required></label>'
                     '<label>Contraseña<input name="password" type="password" autocomplete="current-password" maxlength="128" required></label><button>Ingresar</button></form>'
@@ -353,16 +353,16 @@ def server(address, portal, bridge=None):
                     '<label>Confirmación<input name="confirmation" type="password" autocomplete="new-password" minlength="12" maxlength="128" required></label>'
                     '<button>Guardar y continuar</button></form>'))
             roles={'administrator':'Administración','trustee':'Custodia','credential_authority':'Autoridad externa de credenciales'}
-            detail=('<p>Tu sesión habilita la administración de Belenios. Carga y revisa el padrón CSV antes de generar las credenciales de votación.</p>' if user['role']=='administrator' else
+            detail=('<p>Tu sesión habilita la administración de la votación del Centro de Padres IAC. Carga y revisa el padrón CSV antes de generar las credenciales de votación.</p>' if user['role']=='administrator' else
                     '<p>Abre únicamente tu función desde tu equipo. Genera y conserva allí tu material privado.</p>')
-            role_link='<p><a rel="noreferrer" href="'+escape(user['target'],quote=True)+'">Abrir mi función en Belenios</a></p>'
+            role_link='<p><a rel="noreferrer" href="'+escape(user['target'],quote=True)+'">Abrir mi función</a></p>'
             if user['role']=='credential_authority':
                 try:ready=bridge is not None and bridge.roster_confirmed()
                 except (NativeUnavailable,OSError,ValueError,AccessDenied):ready=False
                 if not ready:role_link='<p>El padrón definitivo está pendiente. Espera la confirmación del administrador antes de generar credenciales.</p>'
             if user['role']=='administrator':
                 detail+='<p>En la pestaña Votantes, sube el CSV UTF-8 sin encabezado: correo,identificador. Un voto por persona. Revisa la cantidad y confirma aquí el padrón antes de avisar a la autoridad de credenciales.</p>'
-                detail+='<form method="post" action="/acceso/confirmar-padron"><input type="hidden" name="csrf" value="'+portal.csrf(token)+'"><label><input name="reviewed" type="checkbox" value="yes" required>Revisé el CSV definitivo y la cantidad de votantes en Belenios.</label><button>Confirmar padrón definitivo</button></form>'
+                detail+='<form method="post" action="/acceso/confirmar-padron"><input type="hidden" name="csrf" value="'+portal.csrf(token)+'"><label><input name="reviewed" type="checkbox" value="yes" required>Revisé el CSV definitivo y la cantidad de votantes.</label><button>Confirmar padrón definitivo</button></form>'
             return self.reply(200,self.page('Tu acceso al ensayo',
                 '<p>'+escape(user['name'])+' · '+roles[user['role']]+'</p>'+detail+
                 role_link+

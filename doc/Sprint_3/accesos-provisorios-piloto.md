@@ -19,3 +19,11 @@ El padrón debe revisarse antes de generar credenciales. El cambio obligatorio d
 El proceso escucha únicamente en loopback y se publica mediante el proxy HTTPS existente. Solo se añaden rutas de acceso, sesión nativa y salida; no se modifica la cabina, la criptografía, los votos, el verificador ni las partes de los custodios. El proceso no recibe claves Brevo, socket Docker ni privadas electorales. La configuración privada de la identidad nativa permite renovar su sesión y debe protegerse como secreto de servicio.
 
 Variables: `ACCESS_STATE_DIR`, `ACCESS_PUBLIC_BASE`, `ACCESS_NATIVE_BRIDGE` y `ACCESS_MAIL_CONFIG`. El aprovisionamiento no forma parte del arranque público: no existe endpoint de alta libre. Las pruebas utilizan identidades y secretos sintéticos.
+
+## Formulario de navegador e identidad IAC
+
+La política `Referrer-Policy: no-referrer` provocaba `Origin: null` en el POST real del formulario, aunque una prueba HTTP con la cabecera Origin fijada manualmente pasara. El portal y su proxy usan ahora `same-origin`, con una sola cabecera efectiva en HTTPS. Se conserva el rechazo de orígenes ausentes, nulos o ajenos y los controles CSRF. Una regresión Chromium recorre la entrada, el cambio inicial y la revocación de la contraseña provisoria con una cuenta ficticia.
+
+La presentación visible usa “Votación Centro de Padres IAC”, Instituto Abdón Cifuentes y el indicador de demostración no vinculante. El portal incluye esa identidad; las páginas nativas reciben únicamente una hoja de estilo y un script de presentación servido por el mismo origen. No se reescriben JavaScript criptográfico, JSON, enlaces, entradas de formulario ni archivos públicos de elección. La marca técnica y las fuentes originales permanecen en la página de información técnica y licencias. No se presenta el monograma tipográfico como un logotipo oficial del instituto.
+
+El proxy requiere el módulo HTTP sub para añadir los recursos solamente a HTML. Los fragmentos `nginx-identity-locations.conf` y `nginx-identity-proxy.conf` se insertan respectivamente en el servidor HTTPS y en la ubicación de la interfaz nativa; probar siempre `nginx -t` antes de recargar. El directorio de código necesita permiso de recorrido por el usuario del servicio; el directorio de estado permanece privado.

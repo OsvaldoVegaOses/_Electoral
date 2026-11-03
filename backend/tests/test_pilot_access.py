@@ -137,6 +137,8 @@ def test_http_requires_origin_secure_session_and_change_before_role_link(live):
     pending=client.get('/acceso/panel',headers={'Cookie':COOKIE+'='+token})
     assert 'synthetic-role-reference' not in pending.text and 'contraseña nueva' in pending.text
     assert pending.headers['cache-control']=='no-store' and "frame-ancestors 'none'" in pending.headers['content-security-policy']
+    assert pending.headers['referrer-policy']=='same-origin'
+    assert 'Votación Centro de Padres IAC' in pending.text and 'Belenios' not in pending.text
     changed=client.post('/acceso/cambiar-clave',headers={'Origin':ORIGIN,'Cookie':COOKIE+'='+token},
                         data={'csrf':portal.csrf(token),'password':NEW,'confirmation':NEW})
     assert changed.status_code==303
