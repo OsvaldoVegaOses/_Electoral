@@ -17,6 +17,8 @@ function download(value, filename) {
 export default function BeleniosPanel({ election, voters, engine, onRefresh }) {
   const [policy, setPolicy] = useState('');
   const [approval, setApproval] = useState('');
+  const [trusteeCount, setTrusteeCount] = useState('');
+  const [trusteeThreshold, setTrusteeThreshold] = useState('');
   const [selected, setSelected] = useState({});
   const [confirmed, setConfirmed] = useState(false);
   const [busy, setBusy] = useState(false);
@@ -44,6 +46,9 @@ export default function BeleniosPanel({ election, voters, engine, onRefresh }) {
     }
   }
   const representatives = groups.map(([key]) => Number(selected[key])).filter(Boolean);
+  const validCustody = Number.isInteger(Number(trusteeCount)) && Number.isInteger(Number(trusteeThreshold))
+    && Number(trusteeCount) >= 3 && Number(trusteeCount) <= 9
+    && Number(trusteeThreshold) >= 2 && Number(trusteeThreshold) < Number(trusteeCount);
   return <Card sx={{ my: 3 }} data-testid="belenios-panel"><CardContent>
     <Typography variant="h5" component="h2">Motor Belenios</Typography>
     <Alert severity="info" sx={{ my: 2 }}>{engine.mode === 'pilot' ? 'Piloto no vinculante autorizado por institución.' : 'Integración de laboratorio con datos ficticios.'} El voto se realiza directamente en Belenios; TheoGen no recibe la selección ni las claves privadas.</Alert>
@@ -54,12 +59,16 @@ export default function BeleniosPanel({ election, voters, engine, onRefresh }) {
         <MenuItem value="R1">R1: cuenta el último voto válido</MenuItem><MenuItem value="R2">R2: se rechaza un segundo voto</MenuItem>
       </TextField>
       <TextField label="Referencia de aprobación de la comisión" value={approval} onChange={e => setApproval(e.target.value)} helperText="Use una referencia, sin RUT, nombres o secretos." />
+      <Typography>Registre la política de custodia acordada en esa aprobación. Cada custodio conserva su propia clave privada.</Typography>
+      <TextField type="number" label="Número de custodios" value={trusteeCount} onChange={e => setTrusteeCount(e.target.value)} />
+      <TextField type="number" label="Aportes necesarios para descifrar" value={trusteeThreshold} onChange={e => setTrusteeThreshold(e.target.value)} helperText="Por ejemplo, 3 aportes entre 5 custodios. La configuración nativa debe coincidir." />
       {groups.map(([key, people], index) => <TextField key={key} select label={`Representante de unidad ${index + 1}`} value={selected[key] || ''} onChange={e => setSelected({ ...selected, [key]: e.target.value })}>
         {people.map(person => <MenuItem key={person.id} value={person.id}>{person.nombre}</MenuItem>)}
       </TextField>)}
       <FormControlLabel control={<Checkbox checked={confirmed} onChange={e => setConfirmed(e.target.checked)} />} label={engine.mode === 'pilot' ? 'Confirmo el alcance del piloto: una selección obligatoria; blanco y nulo no modelados.' : 'Ensayo ficticio con una selección obligatoria por boleta; blanco y nulo no se modelan.'} />
-      <Button variant="contained" disabled={busy || !engine.enabled || !confirmed || !policy || !approval || representatives.length !== groups.length || !groups.length || groups.length > (engine.max_units || 100)} onClick={() => act(() => beleniosService.prepare(election.id, {
+      <Button variant="contained" disabled={busy || !engine.enabled || !confirmed || !policy || !approval || !validCustody || representatives.length !== groups.length || !groups.length || groups.length > (engine.max_units || 100)} onClick={() => act(() => beleniosService.prepare(election.id, {
         request_id: crypto.randomUUID(), policy, representative_ids: representatives, approval_ref: approval,
+        trustee_policy: { count: Number(trusteeCount), threshold: Number(trusteeThreshold) },
         ballot_mode: 'mandatory_single_choice_no_blank_no_null', synthetic_laboratory: engine.mode !== 'pilot',
       }))}>Preparar elección en Belenios</Button>
     </Stack> : <Stack spacing={2}>
@@ -71,14 +80,14 @@ export default function BeleniosPanel({ election, voters, engine, onRefresh }) {
         {binding.admin_url && <Button href={binding.admin_url} target="_blank" rel="noopener noreferrer">Administración y autoridades</Button>}
         <Button disabled={busy} onClick={() => act(async () => download(await beleniosService.units(election.id), 'correspondencia-privada-unidades.json'))}>Exportar correspondencia privada</Button>
       </Stack>
-      <Alert severity="warning">La correspondencia es privada. Entregue credenciales por una autoridad separada; no las cargue en TheoGen. Complete la ceremonia de trustees 2 de 3 en Belenios.</Alert>
+      <Alert severity="warning">La correspondencia es privada. Entregue credenciales por una autoridad separada; no las cargue en TheoGen. {binding.trustee_policy ? `Complete la ceremonia aprobada: ${binding.trustee_policy.threshold} de ${binding.trustee_policy.count} custodios. Referencia: ${binding.approval_ref}.` : 'Esta vinculación no tiene política de custodia registrada; su validación o apertura están bloqueadas.'}</Alert>
       {binding.inflight || binding.phase === 'UNKNOWN' ? <Box>
         <Alert severity="error">Operación pendiente o desconocida. No la repita. Coteje el proveedor antes de reconciliar.</Alert>
         <TextField fullWidth sx={{ my: 2 }} label="UUID remoto cotejado (si falta)" value={remoteUuid} onChange={e => setRemoteUuid(e.target.value)} />
         <Button disabled={busy || !engine.enabled} onClick={() => {
           if (window.confirm('¿Cotejó manualmente la operación y el estado de Belenios? Esta acción solo adopta un estado remoto coincidente.')) act(() => beleniosService.reconcile(election.id, { operation_id: binding.inflight, candidate_uuid: binding.uuid || remoteUuid, manually_reviewed: true }));
         }}>Reconciliar estado cotejado</Button>
-      </Box> : <Stack direction="row" spacing={2} sx={{ flexWrap: 'wrap' }}>{(actions[binding.phase] || []).filter(([action]) => !binding.available_actions || binding.available_actions.includes(action)).map(([action, label]) => <Button key={action} disabled={busy || !engine.enabled} onClick={() => {
+      </Box> : <Stack direction="row" spacing={2} sx={{ flexWrap: 'wrap' }}>{(actions[binding.phase] || []).filter(([action]) => !binding.available_actions || binding.available_actions.includes(action)).map(([action, label]) => <Button key={action} disabled={busy || !engine.enabled || (['ValidateElection', 'Open'].includes(action) && !binding.trustee_policy)} onClick={() => {
         if (window.confirm(`¿Confirma la operación «${label}» para esta elección?`)) act(() => beleniosService.transition(election.id, action));
       }}>{label}</Button>)}</Stack>}
       {binding.phase === 'Tallied' && <Stack spacing={2}>

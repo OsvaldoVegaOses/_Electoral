@@ -101,7 +101,8 @@ def main(phase):
         db.add_all(voters); db.add_all([Candidate(election_id=election.id, nombre=label, es_blanco=False, es_nulo=False) for label in ('Lista A', 'Lista B')]); db.commit()
         app.dependency_overrides[get_current_user] = lambda: user
         response = client.post(f'/api/elections/{election.id}/belenios/prepare', json={'request_id': str(uuid4()), 'policy': 'R2', 'representative_ids': [voters[0].id, voters[2].id],
-                                  'approval_ref': 'poc-adr-live', 'ballot_mode': 'mandatory_single_choice_no_blank_no_null', 'synthetic_laboratory': True})
+                                  'approval_ref': 'poc-adr-live', 'ballot_mode': 'mandatory_single_choice_no_blank_no_null', 'synthetic_laboratory': True,
+                                  'trustee_policy': {'count': 3, 'threshold': 2}})
         binding = db.query(BeleniosBinding).filter_by(election_id=election.id).one()
         state = {'phase': 'prepared' if response.status_code == 201 else 'reconciliation_required', 'election_id': election.id, 'user_id': user.id, 'uuid': binding.remote_uuid}
         STATE.write_text(json.dumps(state))

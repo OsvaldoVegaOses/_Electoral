@@ -2,7 +2,7 @@ import { test, expect } from '@playwright/test';
 
 const election = { id: 1, nombre: 'Ensayo familiar Belenios', estado: 'Borrador', regla_votacion: 'Un voto por familia', tipo_votacion: 'Centro de Padres', school_id: 1, school: { nombre: 'Institución ficticia', rbd: 'SYNTHETIC' }, committee_members: [], candidates: [], total_voters: 3, voted_count: 0 };
 const voters = [0, 1, 2].map(i => ({ id: i + 1, nombre: `Persona ficticia ${i}`, rut: `SYNTHETIC-${i}`, familia_id: i < 2 ? 'ficticia-1' : 'ficticia-2', estado: 'Pendiente' }));
-const binding = { policy: 'R2', uuid: 'Abc123Def456Gh', phase: 'Draft', inflight: null, total_people: 3, total_units: 2, result: null, public_url: 'http://127.0.0.1:18002/election#Abc123Def456Gh', admin_url: 'http://127.0.0.1:18002/admin#elections/Abc123Def456Gh' };
+const binding = { policy: 'R2', trustee_policy: { count: 5, threshold: 3 }, approval_ref: 'poc-review-1', uuid: 'Abc123Def456Gh', phase: 'Draft', inflight: null, total_people: 3, total_units: 2, result: null, public_url: 'http://127.0.0.1:18002/election#Abc123Def456Gh', admin_url: 'http://127.0.0.1:18002/admin#elections/Abc123Def456Gh' };
 
 async function setup(page, state, onPrepare) {
   await page.route('**/*', route => {
@@ -27,6 +27,8 @@ async function fill(page) {
   await page.getByRole('combobox', { name: 'Política de voto' }).click();
   await page.getByRole('option', { name: 'R2: se rechaza un segundo voto' }).click();
   await page.getByLabel('Referencia de aprobación de la comisión').fill('poc-review-1');
+  await page.getByLabel('Número de custodios').fill('5');
+  await page.getByLabel('Aportes necesarios para descifrar').fill('3');
   for (const [unit, person] of [[1, 0], [2, 2]]) {
     await page.getByRole('combobox', { name: `Representante de unidad ${unit}` }).click();
     await page.getByRole('option', { name: `Persona ficticia ${person}` }).click();
@@ -39,6 +41,7 @@ test('explicit policy and representatives prepare one external unit per family',
   await setup(page, state, async (body, respond) => {
     posted++;
     expect(body.policy).toBe('R2'); expect(body.representative_ids).toEqual([1, 3]);
+    expect(body.trustee_policy).toEqual({ count: 5, threshold: 3 });
     expect(JSON.stringify(body)).not.toContain('SYNTHETIC'); expect(body.ballot_mode).toBe('mandatory_single_choice_no_blank_no_null');
     state.binding = { ...binding }; return respond(state.binding, 201);
   });
@@ -46,6 +49,7 @@ test('explicit policy and representatives prepare one external unit per family',
   await fill(page);
   await page.getByRole('button', { name: 'Preparar elección en Belenios' }).click();
   await expect(page.getByText('3 personas · 2 unidades habilitadas')).toBeVisible();
+  await expect(page.getByText('Complete la ceremonia aprobada: 3 de 5 custodios.', { exact: false })).toBeVisible();
   await expect(page.getByRole('tab')).toHaveCount(0);
   expect(posted).toBe(1);
   await page.screenshot({ path: '../.runtime/belenios-bound.png', fullPage: true });
@@ -83,4 +87,25 @@ test('disabled integration preserves the existing election screen', async ({ pag
   await setup(page, { enabled: false, binding: null });
   await expect(page.getByTestId('belenios-panel')).toHaveCount(0);
   await expect(page.getByRole('tab').first()).toBeVisible();
+});
+
+test('custody is explicit and invalid thresholds cannot prepare an election', async ({ page }) => {
+  let posted = 0;
+  await setup(page, { enabled: true, binding: null }, () => { posted++; });
+  await expect(page.getByLabel('Número de custodios')).toHaveValue('');
+  await expect(page.getByLabel('Aportes necesarios para descifrar')).toHaveValue('');
+  await fill(page);
+  const prepare = page.getByRole('button', { name: 'Preparar elección en Belenios' });
+  await expect(prepare).toBeEnabled();
+  for (const threshold of ['5', '1', '2.5', '']) {
+    await page.getByLabel('Aportes necesarios para descifrar').fill(threshold);
+    await expect(prepare).toBeDisabled();
+  }
+  expect(posted).toBe(0);
+});
+
+test('a legacy binding cannot validate with an inferred custody policy', async ({ page }) => {
+  await setup(page, { enabled: true, binding: { ...binding, trustee_policy: null } });
+  await expect(page.getByText('Esta vinculación no tiene política de custodia registrada', { exact: false })).toBeVisible();
+  await expect(page.getByRole('button', { name: 'Validar preparación externa' })).toBeDisabled();
 });
