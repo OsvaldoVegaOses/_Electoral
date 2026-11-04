@@ -1,6 +1,7 @@
 /* Display identity only. Never modify inputs, links, API data or cryptographic code. */
 (() => {
   const title = 'Votación Centro de Padres IAC';
+  const technicalReference = /\b[a-z][a-z0-9+.-]*:\/\/|\b(?:mailto|tel|urn|data|blob):|(?:^|[\s("'=])\.{0,2}\/\S+|\b[a-z0-9-]+(?:\.[a-z0-9-]+)+\b/i;
   let queued = false;
   const observer = new MutationObserver(() => {
     if (queued) return;
@@ -20,6 +21,8 @@
       const walker = document.createTreeWalker(document.body, NodeFilter.SHOW_TEXT, {
         acceptNode(node) {
           if (node.parentElement?.closest('script,style,textarea,input,pre,code,label,button,option,select,.question,.answer,[role="radio"],[data-iac-preserve]')) return NodeFilter.FILTER_REJECT;
+          // Native URLs can be plain text, including inside a sentence. Preserve the whole node.
+          if (technicalReference.test(node.nodeValue)) return NodeFilter.FILTER_REJECT;
           return /\bBelenios\b/i.test(node.nodeValue) ? NodeFilter.FILTER_ACCEPT : NodeFilter.FILTER_SKIP;
         },
       });
