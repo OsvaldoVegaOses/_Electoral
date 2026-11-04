@@ -200,7 +200,7 @@ async def upload_voters_file(
 
     try:
         if filename.endswith(".csv"):
-            df = pd.read_csv(buffer, dtype=str)
+            df = pd.read_csv(buffer, dtype=str, sep=None, engine="python", encoding="utf-8-sig")
         elif filename.endswith(".xlsx"):
             df = pd.read_excel(buffer, dtype=str)
         else:
@@ -226,6 +226,10 @@ async def upload_voters_file(
             detail="El archivo debe contener al menos las columnas 'RUT' y 'Nombre'. Columnas opcionales: 'Curso', 'Correo', 'Familia ID'."
         )
 
+    family_vote = election.regla_votacion == "Un voto por familia"
+    if family_vote and not col_familia:
+        raise HTTPException(400, "Para un voto por familia, el archivo debe incluir la columna 'Familia ID'.")
+
     # Cargar RUTs existentes en la base de datos para esta elección
     existing_ruts_db = {clean_rut(r[0]) for r in db.query(Voter.rut).filter(Voter.election_id == election_id).all()}
 
@@ -247,6 +251,10 @@ async def upload_voters_file(
 
         if not raw_nombre or raw_nombre.lower() == 'nan':
             errores.append({"fila": fila_num, "rut": raw_rut, "motivo": "Falta el nombre del elector"})
+            continue
+
+        if family_vote and (not raw_familia or raw_familia.lower() == 'nan'):
+            errores.append({"fila": fila_num, "rut": raw_rut, "motivo": "Falta Familia ID para identificar la unidad electoral"})
             continue
 
         # 1. Validar RUT chileno
