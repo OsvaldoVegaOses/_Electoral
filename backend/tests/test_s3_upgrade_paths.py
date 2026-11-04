@@ -123,7 +123,7 @@ def test_trustee_policy_upgrade_keeps_legacy_unknown_and_blocks_destructive_down
         alembic('upgrade','s3002_delivery')
         with engine.begin() as db:
             db.execute(text("INSERT INTO schools(id,nombre) VALUES(1,'Synthetic custody upgrade')"))
-            db.execute(text("INSERT INTO elections(id,nombre,school_id,motor,estado) VALUES(1,'Synthetic',1,'belenios','Borrador')"))
+            db.execute(text("INSERT INTO elections(id,nombre,school_id,motor,estado,tipo_votacion,regla_votacion) VALUES(1,'Synthetic',1,'belenios','Borrador','Synthetic','Un voto por familia')"))
             db.execute(text("INSERT INTO belenios_bindings(id,election_id,reference,policy,remote_uuid,phase,draft_json,approval_ref,total_people,total_units,created_at) "
                 "VALUES(1,1,:reference,'R2','Abc123Def456Gh','Draft','{}','synthetic',2,2,CURRENT_TIMESTAMP)"), {'reference':uuid4().hex})
             before=rows(db,'belenios_bindings')
