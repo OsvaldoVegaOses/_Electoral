@@ -1,0 +1,4 @@
+#iac-identity{box-sizing:border-box;width:100%;padding:16px 24px;background:#12344b;color:#fff;display:flex;align-items:center;gap:16px;font:16px/1.4 system-ui,sans-serif;border-bottom:4px solid #287a75;flex-shrink:0}
+#iac-identity .iac-mark{border:1px solid #80b9ba;border-radius:8px;padding:10px;font-weight:800;letter-spacing:.08em}
+#iac-identity strong{display:block;font-size:20px}#iac-identity small{display:block;color:#d3e4ed}#iac-identity .iac-demo{margin-left:auto;background:#d9f2eb;color:#164a3b;border-radius:20px;padding:6px 12px;font-size:13px}#iac-identity a{color:white;font-size:13px}
+@media(max-width:640px){#iac-identity{padding:12px;gap:10px;flex-wrap:wrap}#iac-identity strong{font-size:17px}#iac-identity .iac-demo{margin-left:0}}
