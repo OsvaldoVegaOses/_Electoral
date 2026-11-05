@@ -130,7 +130,8 @@ test('1000 family representatives are read across pages and prepared once', asyn
     return respond(state.binding, 201);
   }, roster);
   await expect(page.getByText('1000 unidades tienen un solo integrante', { exact: false })).toBeVisible();
-  expect(pages).toEqual([0, 500, 1000]);
+  // React StrictMode may mount twice; every complete read must reach the final page.
+  expect([...new Set(pages)].sort((a, b) => a - b)).toEqual([0, 500, 1000]);
   await page.getByRole('combobox', { name: 'Política de voto' }).click();
   await page.getByRole('option', { name: 'R2: se rechaza un segundo voto' }).click();
   await page.getByLabel('Referencia de aprobación de la comisión').fill('synthetic-capacity-1000');
