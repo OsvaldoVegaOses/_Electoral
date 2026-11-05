@@ -128,6 +128,27 @@ def test_one_explicit_representative_per_unit(lab):
     assert lab.provider.posts == 0
 
 
+def test_one_thousand_units_prepare_without_personal_data_at_the_provider(lab):
+    lab.voters[1].familia_id = 'family-separate'
+    for index in range(3, 1000):
+        lab.db.add(Voter(election_id=lab.election.id, rut=f'SYNTHETIC-CAP-{index}', rut_normalizado=f'SYNTHETIC-CAP-{index}',
+            nombre=f'Persona ficticia de capacidad {index}', familia_id=f'family-cap-{index}', estado='Pendiente'))
+    lab.db.commit()
+    ids=[row[0] for row in lab.db.query(Voter.id).filter_by(election_id=lab.election.id).order_by(Voter.id)]
+    lab.body.update(representative_ids=ids, trustee_policy={'count':5,'threshold':3})
+    result=prepare(lab)
+    assert result['total_units']==result['total_people']==1000
+    assert len(lab.provider.roster)==len(set(lab.provider.roster))==1000
+    assert lab.db.query(BeleniosUnit).count()==1000
+    assert 'SYNTHETIC-CAP' not in json.dumps(lab.provider.roster)
+    assert lab.client.get(lab.base).json()['max_units']==1000
+
+
+def test_more_than_one_thousand_representatives_rejected_before_provider_call(lab):
+    response=lab.client.post(lab.base+'/prepare',json=dict(lab.body,representative_ids=list(range(1,1002))))
+    assert response.status_code==422 and lab.provider.posts==0
+
+
 def test_scope_no_cross_institution_or_unassigned_commission(lab):
     for school_id, election_id in ((lab.other.id, lab.election.id), (lab.election.school_id, None)):
         intruder = User(id=999, nombre="Ficticio", email="test@ejemplo.test", password_hash="x", rol=ROLE_COMISION, school_id=school_id, election_id=election_id)

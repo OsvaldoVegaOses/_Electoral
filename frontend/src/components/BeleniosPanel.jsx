@@ -45,7 +45,8 @@ export default function BeleniosPanel({ election, voters, engine, onRefresh }) {
       setBusy(false);
     }
   }
-  const representatives = groups.map(([key]) => Number(selected[key])).filter(Boolean);
+  const singleUnits = groups.filter(([, people]) => people.length === 1).length;
+  const representatives = groups.map(([key, people]) => people.length === 1 ? people[0].id : Number(selected[key])).filter(Boolean);
   const validCustody = Number.isInteger(Number(trusteeCount)) && Number.isInteger(Number(trusteeThreshold))
     && Number(trusteeCount) >= 3 && Number(trusteeCount) <= 9
     && Number(trusteeThreshold) >= 2 && Number(trusteeThreshold) < Number(trusteeCount);
@@ -62,7 +63,8 @@ export default function BeleniosPanel({ election, voters, engine, onRefresh }) {
       <Typography>Registre la política de custodia acordada en esa aprobación. Cada custodio conserva su propia clave privada.</Typography>
       <TextField type="number" label="Número de custodios" value={trusteeCount} onChange={e => setTrusteeCount(e.target.value)} />
       <TextField type="number" label="Aportes necesarios para descifrar" value={trusteeThreshold} onChange={e => setTrusteeThreshold(e.target.value)} helperText="Por ejemplo, 3 aportes entre 5 custodios. La configuración nativa debe coincidir." />
-      {groups.map(([key, people], index) => <TextField key={key} select label={`Representante de unidad ${index + 1}`} value={selected[key] || ''} onChange={e => setSelected({ ...selected, [key]: e.target.value })}>
+      {singleUnits > 0 && <Typography>{singleUnits} unidades tienen un solo integrante: se usará esa persona como representante. Revise el padrón antes de confirmar.</Typography>}
+      {groups.map(([key, people], index) => people.length === 1 ? null : <TextField key={key} select label={`Representante de unidad ${index + 1}`} value={selected[key] || ''} onChange={e => setSelected({ ...selected, [key]: e.target.value })}>
         {people.map(person => <MenuItem key={person.id} value={person.id}>{person.nombre}</MenuItem>)}
       </TextField>)}
       <FormControlLabel control={<Checkbox checked={confirmed} onChange={e => setConfirmed(e.target.checked)} />} label={engine.mode === 'pilot' ? 'Confirmo el alcance del piloto: una selección obligatoria; blanco y nulo no modelados.' : 'Ensayo ficticio con una selección obligatoria por boleta; blanco y nulo no se modelan.'} />

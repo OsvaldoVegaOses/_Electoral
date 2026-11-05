@@ -55,7 +55,8 @@ class NativeBridge:
                         data=None if payload is None else json.dumps(payload).encode())
         try:
             with build_opener(ProxyHandler({}),NoRedirect()).open(request,timeout=10) as response:
-                raw=response.read(65536)
+                raw=response.read(4*1024*1024+1)
+                if len(raw)>4*1024*1024:raise NativeUnavailable()
                 return response.status,json.loads(raw) if raw else None
         except HTTPError as error:return error.code,None
         except (OSError,ValueError):raise NativeUnavailable() from None
@@ -103,7 +104,7 @@ class NativeBridge:
             entry,readiness,voters,digest=self.roster(email)
             if readiness['credentials_ready'] or readiness.get('credentials_left'):
                 raise AccessDenied('credentials_already_started')
-            if not 2<=len(voters)<=100 or self.mail_path is None:raise AccessDenied('invalid_roster')
+            if not 2<=len(voters)<=1000 or self.mail_path is None:raise AccessDenied('invalid_roster')
             mail=json.loads(self.mail_path.read_text());recipients=[]
             for voter in voters:
                 if isinstance(voter,str):
@@ -361,7 +362,7 @@ def server(address, portal, bridge=None):
                 except (NativeUnavailable,OSError,ValueError,AccessDenied):ready=False
                 if not ready:role_link='<p>El padrón definitivo está pendiente. Espera la confirmación del administrador antes de generar credenciales.</p>'
             if user['role']=='administrator':
-                detail+='<p>En la pestaña Votantes, sube el CSV UTF-8 sin encabezado: correo,identificador. Un voto por persona. Revisa la cantidad y confirma aquí el padrón antes de avisar a la autoridad de credenciales.</p>'
+                detail+='<p>En la pestaña Votantes, sube el CSV UTF-8 sin encabezado: correo,identificador. Cada fila representa una unidad familiar, con un representante habilitado y peso uno. Capacidad: hasta 1.000 unidades. Revisa la cantidad y confirma aquí el padrón antes de avisar a la autoridad de credenciales.</p>'
                 detail+='<form method="post" action="/acceso/confirmar-padron"><input type="hidden" name="csrf" value="'+portal.csrf(token)+'"><label><input name="reviewed" type="checkbox" value="yes" required>Revisé el CSV definitivo y la cantidad de votantes.</label><button>Confirmar padrón definitivo</button></form>'
             return self.reply(200,self.page('Tu acceso al ensayo',
                 '<p>'+escape(user['name'])+' · '+roles[user['role']]+'</p>'+detail+

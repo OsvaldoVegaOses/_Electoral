@@ -12,6 +12,7 @@ from app.models import BeleniosBinding, BeleniosOperation, BeleniosUnit, Candida
 from app.belenios.client import BeleniosClient, ProviderError, require_enabled
 from app.belenios.deployment import alias_domain
 from app.belenios.custody import approved_policy, ceremony_matches
+from app.belenios.capacity import MAX_UNITS
 
 
 def canonical(value):
@@ -110,6 +111,8 @@ def prepare(db, election, operator, body, client_factory=BeleniosClient):
         else:
             raise HTTPException(422, "Regla electoral no soportada.")
         groups.setdefault(group, []).append(voter.id)
+    if len(groups) > MAX_UNITS:
+        raise HTTPException(422, f"La preparación admite hasta {MAX_UNITS} unidades electorales.")
     representatives = body.representative_ids
     selected = set(representatives)
     if len(selected) != len(representatives) or len(selected) != len(groups) or not selected.issubset({v.id for v in voters}) or any(len(selected.intersection(group)) != 1 for group in groups.values()):

@@ -4,6 +4,8 @@ from pathlib import Path
 import sys
 import threading
 import time
+import io
+from types import SimpleNamespace
 
 import httpx
 import pytest
@@ -113,3 +115,27 @@ def test_http_native_token_is_withheld_until_change_and_for_all_non_admins(tmp_p
             assert logout.status_code==200 and logout.json() is None
             assert client.get('/api-token',headers=headers).status_code==403
     finally:http.shutdown();http.server_close();thread.join(timeout=2)
+
+
+@pytest.mark.parametrize('count', [1000, 1001])
+def test_native_roster_capacity_is_bounded_and_preserves_unit_weight(bridge,count):
+    original=bridge.transport
+    def transport(method,route,**kwargs):
+        if route.endswith('/voters'):return 200,[f'unit-{index}@example.invalid,F-{index},1' for index in range(count)]
+        return original(method,route,**kwargs)
+    bridge.transport=transport
+    before=bridge.mail_path.read_bytes()
+    if count==1001:
+        with pytest.raises(AccessDenied,match='invalid_roster'):bridge.confirm_roster('admin@example.invalid')
+        assert bridge.mail_path.read_bytes()==before
+    else:
+        assert bridge.confirm_roster('admin@example.invalid')==1000
+        assert len(json.loads(bridge.mail_path.read_text())['allowed_recipients'])==1001
+
+
+def test_native_transport_reads_a_large_roster_without_truncation(monkeypatch):
+    rows=[{'address':f'unit-{index}@example.invalid','name':'Synthetic '+('x'*90)} for index in range(1000)]
+    raw=json.dumps(rows).encode();assert len(raw)>65536
+    response=io.BytesIO(raw);response.status=200
+    monkeypatch.setattr('services.pilot_access.build_opener',lambda *args:SimpleNamespace(open=lambda *args,**kwargs:response))
+    assert NativeBridge.request('GET','elections/Synthetic00001/draft/voters')==(200,rows)

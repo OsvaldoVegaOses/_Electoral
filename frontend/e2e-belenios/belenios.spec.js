@@ -4,7 +4,7 @@ const election = { id: 1, nombre: 'Ensayo familiar Belenios', estado: 'Borrador'
 const voters = [0, 1, 2].map(i => ({ id: i + 1, nombre: `Persona ficticia ${i}`, rut: `SYNTHETIC-${i}`, familia_id: i < 2 ? 'ficticia-1' : 'ficticia-2', estado: 'Pendiente' }));
 const binding = { policy: 'R2', trustee_policy: { count: 5, threshold: 3 }, approval_ref: 'poc-review-1', uuid: 'Abc123Def456Gh', phase: 'Draft', inflight: null, total_people: 3, total_units: 2, result: null, public_url: 'http://127.0.0.1:18002/election#Abc123Def456Gh', admin_url: 'http://127.0.0.1:18002/admin#elections/Abc123Def456Gh' };
 
-async function setup(page, state, onPrepare) {
+async function setup(page, state, onPrepare, roster = voters) {
   await page.route('**/*', route => {
     const url = route.request().url();
     return url.startsWith('http://127.0.0.1:5174/') || url.startsWith('data:') || url.startsWith('blob:') ? route.continue() : route.abort();
@@ -14,7 +14,11 @@ async function setup(page, state, onPrepare) {
     const respond = (body, status = 200) => route.fulfill({ status, contentType: 'application/json', body: JSON.stringify(body) });
     if (path === '/api/auth/me') return respond({ id: 1, nombre: 'Operador ficticio', rol: 'Administrador General', email: 'operador@ejemplo.test' });
     if (path === '/api/elections/1') return respond(election);
-    if (path === '/api/elections/1/voters') return respond(voters);
+    if (path === '/api/elections/1/voters') {
+      const query = new URL(req.url()).searchParams;
+      const skip = Number(query.get('skip') || 0), limit = Number(query.get('limit') || 100);
+      return respond(roster.slice(skip, skip + limit));
+    }
     if (path === '/api/elections/1/candidates') return respond([{ id: 1, nombre: 'Lista A' }, { id: 2, nombre: 'Lista B' }]);
     if (path === '/api/elections/1/belenios') return respond(state);
     if (path === '/api/elections/1/belenios/prepare') return onPrepare(req.postDataJSON(), respond);
@@ -29,7 +33,7 @@ async function fill(page) {
   await page.getByLabel('Referencia de aprobación de la comisión').fill('poc-review-1');
   await page.getByLabel('Número de custodios').fill('5');
   await page.getByLabel('Aportes necesarios para descifrar').fill('3');
-  for (const [unit, person] of [[1, 0], [2, 2]]) {
+  for (const [unit, person] of [[1, 0]]) {
     await page.getByRole('combobox', { name: `Representante de unidad ${unit}` }).click();
     await page.getByRole('option', { name: `Persona ficticia ${person}` }).click();
   }
@@ -108,4 +112,32 @@ test('a legacy binding cannot validate with an inferred custody policy', async (
   await setup(page, { enabled: true, binding: { ...binding, trustee_policy: null } });
   await expect(page.getByText('Esta vinculación no tiene política de custodia registrada', { exact: false })).toBeVisible();
   await expect(page.getByRole('button', { name: 'Validar preparación externa' })).toBeDisabled();
+});
+
+test('1000 family representatives are read across pages and prepared once', async ({ page }) => {
+  const roster = Array.from({ length: 1000 }, (_, i) => ({ id: i + 1, nombre: `Persona ficticia ${i}`, familia_id: `F-${i}`, estado: 'Pendiente' }));
+  const state = { enabled: true, max_units: 1000, binding: null };
+  const pages = []; let posted = 0;
+  page.on('request', request => {
+    const url = new URL(request.url());
+    if (url.pathname === '/api/elections/1/voters') pages.push(Number(url.searchParams.get('skip') || 0));
+  });
+  await setup(page, state, async (body, respond) => {
+    posted++;
+    expect(body.representative_ids).toEqual(Array.from({ length: 1000 }, (_, i) => i + 1));
+    expect(body.trustee_policy).toEqual({ count: 5, threshold: 3 });
+    state.binding = { ...binding, total_people: 1000, total_units: 1000 };
+    return respond(state.binding, 201);
+  }, roster);
+  await expect(page.getByText('1000 unidades tienen un solo integrante', { exact: false })).toBeVisible();
+  expect(pages).toEqual([0, 500, 1000]);
+  await page.getByRole('combobox', { name: 'Política de voto' }).click();
+  await page.getByRole('option', { name: 'R2: se rechaza un segundo voto' }).click();
+  await page.getByLabel('Referencia de aprobación de la comisión').fill('synthetic-capacity-1000');
+  await page.getByLabel('Número de custodios').fill('5');
+  await page.getByLabel('Aportes necesarios para descifrar').fill('3');
+  await page.getByRole('checkbox').check();
+  await page.getByRole('button', { name: 'Preparar elección en Belenios' }).click();
+  await expect(page.getByText('1000 personas · 1000 unidades habilitadas')).toBeVisible();
+  expect(posted).toBe(1);
 });

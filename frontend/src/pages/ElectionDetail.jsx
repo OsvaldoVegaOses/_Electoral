@@ -104,7 +104,7 @@ const ElectionDetail = () => {
       setLoading(true);
       const [elData, vData, cData, engineData] = await Promise.all([
         electionService.getById(id),
-        voterService.getByElection(id),
+        voterService.getAllByElection(id),
         candidateService.getByElection(id),
         beleniosService.status(id),
       ]);
@@ -194,7 +194,7 @@ const ElectionDetail = () => {
       const res = await voterService.uploadExcel(id, uploadFile);
       setUploadResult(res);
       setActionSuccess(`Padrón procesado: ${res.insertados} electores incorporados con éxito.`);
-      const vData = await voterService.getByElection(id);
+      const vData = await voterService.getAllByElection(id);
       setVoters(vData);
       const scData = await reportService.getScrutiny(id);
       setScrutiny(scData);
