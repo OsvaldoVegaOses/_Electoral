@@ -204,6 +204,7 @@ class BeleniosBinding(Base):
     inflight = Column(String(36), nullable=True)
     draft_json = Column(Text, nullable=False)
     approval_ref = Column(String(100), nullable=False)
+    trustee_policy_json = Column(Text, nullable=True)
     total_people = Column(Integer, nullable=False)
     total_units = Column(Integer, nullable=False)
     verified_result = Column(Text, nullable=True)

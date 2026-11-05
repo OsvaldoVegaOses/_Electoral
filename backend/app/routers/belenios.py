@@ -12,6 +12,7 @@ from app.belenios import service
 from app.belenios.client import BeleniosClient, ProviderError, require_enabled
 from app.belenios.verification import verify_result
 from app.belenios.deployment import enabled, public_url
+from app.belenios.custody import TrusteePolicy
 
 def private_response(response: Response):
     response.headers["Cache-Control"] = "no-store"
@@ -32,6 +33,7 @@ class PrepareInput(StrictInput):
     approval_ref: str = Field(pattern=r"^[A-Za-z0-9_.-]{1,100}$")
     ballot_mode: Literal["mandatory_single_choice_no_blank_no_null"]
     synthetic_laboratory: bool
+    trustee_policy: TrusteePolicy
 
 
 class TransitionInput(StrictInput):
