@@ -115,6 +115,8 @@ def verify_result(db, binding, body, client, archive_runner=public_archive):
         raise HTTPException(409, "El archivo verificado y el API difieren.") from None
     evidence = {"schema": "theogen-belenios-result/v1", "experimental": True, "uuid": binding.remote_uuid,
                 "policy": binding.policy, "total_people": binding.total_people, "enabled_units": binding.total_units,
+                "trustee_policy": json.loads(binding.trustee_policy_json) if binding.trustee_policy_json else None,
+                "approval_ref": binding.approval_ref,
                 "counted_ballots": len(active), "participation": len(active) / binding.total_units,
                 "options": [{"label": label, "votes": count} for label, count in zip(expected["questions"][0]["answers"], counts)],
                 "blank": None, "null": None, "ballot_mode": "mandatory_single_choice_no_blank_no_null",

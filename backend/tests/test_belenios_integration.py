@@ -95,7 +95,8 @@ def lab(monkeypatch):
     client = TestClient(app, raise_server_exceptions=True)
     try:
         body = {"request_id": str(uuid4()), "policy": "R2", "representative_ids": [voters[0].id, voters[2].id],
-                "approval_ref": "poc-review-1", "ballot_mode": "mandatory_single_choice_no_blank_no_null", "synthetic_laboratory": True}
+                "approval_ref": "poc-review-1", "ballot_mode": "mandatory_single_choice_no_blank_no_null", "synthetic_laboratory": True,
+                "trustee_policy": {"count": 3, "threshold": 2}}
         yield SimpleNamespace(db=db, Session=Session, client=client, user=user, election=election, voters=voters, provider=provider,
                               body=body, base=f"/api/elections/{election.id}/belenios", other=other)
     finally:
@@ -113,7 +114,7 @@ def test_off_and_production_fail_closed(lab, monkeypatch):
 
 
 def test_policy_and_ballot_semantics_are_explicit(lab):
-    for key in ("policy", "ballot_mode", "synthetic_laboratory"):
+    for key in ("policy", "ballot_mode", "synthetic_laboratory", "trustee_policy"):
         payload = dict(lab.body); payload.pop(key)
         assert lab.client.post(lab.base + "/prepare", json=payload).status_code == 422
     payload = dict(lab.body, private_credential="must-never-be-accepted")
@@ -125,6 +126,27 @@ def test_one_explicit_representative_per_unit(lab):
     for selection in ([v.id for v in lab.voters], [lab.voters[0].id], [lab.voters[0].id, 999999]):
         assert lab.client.post(lab.base + "/prepare", json=dict(lab.body, representative_ids=selection)).status_code == 422
     assert lab.provider.posts == 0
+
+
+def test_one_thousand_units_prepare_without_personal_data_at_the_provider(lab):
+    lab.voters[1].familia_id = 'family-separate'
+    for index in range(3, 1000):
+        lab.db.add(Voter(election_id=lab.election.id, rut=f'SYNTHETIC-CAP-{index}', rut_normalizado=f'SYNTHETIC-CAP-{index}',
+            nombre=f'Persona ficticia de capacidad {index}', familia_id=f'family-cap-{index}', estado='Pendiente'))
+    lab.db.commit()
+    ids=[row[0] for row in lab.db.query(Voter.id).filter_by(election_id=lab.election.id).order_by(Voter.id)]
+    lab.body.update(representative_ids=ids, trustee_policy={'count':5,'threshold':3})
+    result=prepare(lab)
+    assert result['total_units']==result['total_people']==1000
+    assert len(lab.provider.roster)==len(set(lab.provider.roster))==1000
+    assert lab.db.query(BeleniosUnit).count()==1000
+    assert 'SYNTHETIC-CAP' not in json.dumps(lab.provider.roster)
+    assert lab.client.get(lab.base).json()['max_units']==1000
+
+
+def test_more_than_one_thousand_representatives_rejected_before_provider_call(lab):
+    response=lab.client.post(lab.base+'/prepare',json=dict(lab.body,representative_ids=list(range(1,1002))))
+    assert response.status_code==422 and lab.provider.posts==0
 
 
 def test_scope_no_cross_institution_or_unassigned_commission(lab):
@@ -237,6 +259,82 @@ def test_actual_threshold_variant_and_forward_lifecycle(lab):
     for action in ('ComputeEncryptedTally','ReleaseTally'):
         assert transition(action).status_code==200
     assert lab.db.get(Election,lab.election.id).fecha_cierre_efectiva is not None
+
+
+@pytest.mark.parametrize('policy', [
+    None, {}, {'count': 5}, {'count': 5, 'threshold': 5}, {'count': 5, 'threshold': 1},
+    {'count': 2, 'threshold': 2}, {'count': 10, 'threshold': 3},
+    {'count': '5', 'threshold': 3}, {'count': 5, 'threshold': True},
+    {'count': 5.5, 'threshold': 3}, {'count': 5, 'threshold': 3, 'private_key': 'forbidden'},
+])
+def test_unapproved_or_unsupported_custody_never_creates_remote_election(lab, policy):
+    response = lab.client.post(lab.base + '/prepare', json=dict(lab.body, trustee_policy=policy))
+    assert response.status_code == 422
+    assert lab.provider.posts == 0 and lab.db.query(BeleniosBinding).count() == 0
+
+
+def test_five_trustees_three_shares_are_frozen_and_validated(lab):
+    lab.body['trustee_policy'] = {'count': 5, 'threshold': 3}
+    prepare(lab)
+    binding = lab.db.query(BeleniosBinding).one()
+    with lab.Session() as reopened:
+        assert json.loads(reopened.get(BeleniosBinding, binding.id).trustee_policy_json) == lab.body['trustee_policy']
+    assert 'trustee_policy' not in lab.provider.draft
+    original = lab.provider.call
+    def call(method, route, *args, **kwargs):
+        if route.endswith('/draft/status'):
+            return {'credentials_ready': True, 'trustees_ready': True, 'num_voters': 2}
+        if route.endswith('/draft/trustees'):
+            return ['Threshold', {'threshold': 3, 'trustees': [{} for _ in range(5)]}]
+        return original(method, route, *args, **kwargs)
+    lab.provider.call = call
+    response = lab.client.post(lab.base + '/transition', json={'request_id': str(uuid4()), 'action': 'ValidateElection'})
+    assert response.status_code == 200 and response.json()['phase'] == 'Closed'
+    assert response.json()['trustee_policy'] == {'count': 5, 'threshold': 3}
+    assert response.json()['approval_ref'] == lab.body['approval_ref']
+    assert lab.client.post(lab.base + '/transition', json={
+        'request_id': str(uuid4()), 'action': 'Open', 'trustee_policy': {'count': 3, 'threshold': 2}}).status_code == 422
+    assert json.loads(binding.trustee_policy_json) == {'count': 5, 'threshold': 3}
+    assert lab.client.post(lab.base + '/transition', json={'request_id': str(uuid4()), 'action': 'Open'}).status_code == 200
+
+
+@pytest.mark.parametrize('remote', [
+    ['Threshold', {'threshold': 2, 'trustees': [{}, {}, {}]}],
+    ['Threshold', {'threshold': 2, 'trustees': [{} for _ in range(5)]}],
+    ['Threshold', {'threshold': 3, 'trustees': [{} for _ in range(8)]}],
+    ['Threshold', {'threshold': '3', 'trustees': [{} for _ in range(5)]}],
+    ['Single', {}], [], None, ['Threshold', None],
+])
+def test_three_of_five_rejects_mismatched_native_ceremonies_without_mutation(lab, remote):
+    lab.body['trustee_policy'] = {'count': 5, 'threshold': 3}
+    prepare(lab)
+    original = lab.provider.call
+    calls = []
+    def call(method, route, *args, **kwargs):
+        calls.append(method)
+        if route.endswith('/draft/status'):
+            return {'credentials_ready': True, 'trustees_ready': True, 'num_voters': 2}
+        if route.endswith('/draft/trustees'): return remote
+        return original(method, route, *args, **kwargs)
+    lab.provider.call = call
+    response = lab.client.post(lab.base + '/transition', json={'request_id': str(uuid4()), 'action': 'ValidateElection'})
+    assert response.status_code == 409 and '3 de 5' in response.json()['detail']
+    assert 'POST' not in calls
+    assert lab.db.query(BeleniosOperation).count() == 1  # Only the original preparation intent.
+
+
+@pytest.mark.parametrize('action,phase', [('ValidateElection', 'Draft'), ('Open', 'Closed')])
+def test_legacy_policy_is_not_inferred_or_silently_approved(lab, action, phase):
+    prepare(lab)
+    binding = lab.db.query(BeleniosBinding).one()
+    binding.trustee_policy_json = None
+    binding.phase = phase
+    lab.db.commit()
+    def forbidden(*args, **kwargs): raise AssertionError('No provider call before approved policy')
+    lab.provider.call = forbidden
+    response = lab.client.post(lab.base + '/transition', json={'request_id': str(uuid4()), 'action': action})
+    assert response.status_code == 409 and 'no se inferirá' in response.json()['detail']
+    assert binding.trustee_policy_json is None and binding.inflight is None
 
 
 def test_client_rejects_external_destination_without_network(monkeypatch):

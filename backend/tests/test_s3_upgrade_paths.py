@@ -28,6 +28,8 @@ def alembic(action,target,success=True):
 
 
 def rows(connection,table,columns='*'):
+    if table == 'belenios_bindings' and columns == '*':
+        columns='id,election_id,reference,policy,remote_uuid,phase,inflight,draft_json,approval_ref,total_people,total_units,verified_result,created_at'
     return connection.execute(text(f'SELECT {columns} FROM {table} ORDER BY id')).all()
 
 
@@ -89,7 +91,8 @@ def test_applied_schema_upgrades_preserve_votes_snapshots_and_remote_intents(sta
             remote={table:rows(db,table) for table in ('belenios_bindings','belenios_units','belenios_operations')} if binding_id else {}
         alembic('upgrade','head')
         with engine.connect() as db:
-            assert db.execute(text('SELECT version_num FROM alembic_version')).scalars().all()==['s3002_delivery']
+            assert db.execute(text('SELECT version_num FROM alembic_version')).scalars().all()==['s3003_trustees']
+            assert db.execute(text('SELECT COUNT(*) FROM belenios_bindings WHERE trustee_policy_json IS NOT NULL')).scalar_one()==0
             assert before=={table:rows(db,table) for table in before}
             assert rights==rows(db,'voting_entitlements','id,election_id,estado,voter_id_consumidor')
             assert all(key.startswith('h1:') for key in db.execute(text('SELECT unit_key FROM voting_entitlements')).scalars())
@@ -104,8 +107,36 @@ def test_applied_schema_upgrades_preserve_votes_snapshots_and_remote_intents(sta
         result=alembic('downgrade','base',success=False)
         assert 'respaldo' in result.stderr.lower()
         with engine.connect() as db:
-            assert db.execute(text('SELECT version_num FROM alembic_version')).scalars().all()==['s3002_delivery']
+            assert db.execute(text('SELECT version_num FROM alembic_version')).scalars().all()==['s3003_trustees']
             assert before=={table:rows(db,table) for table in before}
             assert remote=={table:rows(db,table) for table in remote}
+    finally:
+        engine.dispose()
+
+
+def test_trustee_policy_upgrade_keeps_legacy_unknown_and_blocks_destructive_downgrade():
+    engine=create_engine(URL)
+    try:
+        with engine.begin() as db:
+            db.execute(text('DROP SCHEMA public CASCADE'))
+            db.execute(text('CREATE SCHEMA public'))
+        alembic('upgrade','s3002_delivery')
+        with engine.begin() as db:
+            db.execute(text("INSERT INTO schools(id,nombre) VALUES(1,'Synthetic custody upgrade')"))
+            db.execute(text("INSERT INTO elections(id,nombre,school_id,motor,estado,tipo_votacion,regla_votacion) VALUES(1,'Synthetic',1,'belenios','Borrador','Synthetic','Un voto por familia')"))
+            db.execute(text("INSERT INTO belenios_bindings(id,election_id,reference,policy,remote_uuid,phase,draft_json,approval_ref,total_people,total_units,created_at) "
+                "VALUES(1,1,:reference,'R2','Abc123Def456Gh','Draft','{}','synthetic',2,2,CURRENT_TIMESTAMP)"), {'reference':uuid4().hex})
+            before=rows(db,'belenios_bindings')
+        alembic('upgrade','head')
+        with engine.begin() as db:
+            assert rows(db,'belenios_bindings')==before
+            assert db.execute(text('SELECT trustee_policy_json FROM belenios_bindings WHERE id=1')).scalar_one() is None
+            db.execute(text('UPDATE belenios_bindings SET trustee_policy_json=:policy WHERE id=1'),
+                {'policy':json.dumps({'count':5,'threshold':3})})
+        result=alembic('downgrade','s3002_delivery',success=False)
+        assert 'respaldo' in result.stderr.lower()
+        with engine.connect() as db:
+            assert db.execute(text('SELECT version_num FROM alembic_version')).scalar_one()=='s3003_trustees'
+            assert json.loads(db.execute(text('SELECT trustee_policy_json FROM belenios_bindings WHERE id=1')).scalar_one())=={'count':5,'threshold':3}
     finally:
         engine.dispose()

@@ -119,6 +119,21 @@ export const beleniosService = {
 };
 
 export const voterService = {
+  getAllByElection: async (electionId, params = {}) => {
+    const result = [], seen = new Set(), pageSize = 500;
+    for (let page = 0; page < 20; page++) {
+      const { data } = await api.get(`/elections/${electionId}/voters`, {
+        params: { ...params, skip: page * pageSize, limit: pageSize },
+      });
+      if (!Array.isArray(data) || data.length > pageSize) throw new Error('Respuesta de padrón inválida.');
+      for (const voter of data) {
+        if (!Number.isInteger(voter.id) || seen.has(voter.id)) throw new Error('El padrón cambió durante la lectura; actualice la elección.');
+        seen.add(voter.id); result.push(voter);
+      }
+      if (data.length < pageSize) return result;
+    }
+    throw new Error('El padrón supera el límite de lectura; no se usará una lista incompleta.');
+  },
   getByElection: async (electionId, params = {}) => {
     const res = await api.get(`/elections/${electionId}/voters`, { params });
     return res.data;

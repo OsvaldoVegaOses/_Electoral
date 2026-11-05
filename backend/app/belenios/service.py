@@ -11,6 +11,8 @@ from sqlalchemy.exc import IntegrityError
 from app.models import BeleniosBinding, BeleniosOperation, BeleniosUnit, Candidate, Election, Vote, Voter, VotingEntitlement
 from app.belenios.client import BeleniosClient, ProviderError, require_enabled
 from app.belenios.deployment import alias_domain
+from app.belenios.custody import approved_policy, ceremony_matches
+from app.belenios.capacity import MAX_UNITS
 
 
 def canonical(value):
@@ -26,7 +28,9 @@ def summary(binding):
         return None
     return {"policy": binding.policy, "uuid": binding.remote_uuid, "phase": binding.phase,
             "inflight": binding.inflight, "total_people": binding.total_people, "total_units": binding.total_units,
-            "result": json.loads(binding.verified_result) if binding.verified_result else None}
+            "result": json.loads(binding.verified_result) if binding.verified_result else None,
+            "trustee_policy": json.loads(binding.trustee_policy_json) if binding.trustee_policy_json else None,
+            "approval_ref": binding.approval_ref}
 
 
 def request_id(value):
@@ -107,6 +111,8 @@ def prepare(db, election, operator, body, client_factory=BeleniosClient):
         else:
             raise HTTPException(422, "Regla electoral no soportada.")
         groups.setdefault(group, []).append(voter.id)
+    if len(groups) > MAX_UNITS:
+        raise HTTPException(422, f"La preparación admite hasta {MAX_UNITS} unidades electorales.")
     representatives = body.representative_ids
     selected = set(representatives)
     if len(selected) != len(representatives) or len(selected) != len(groups) or not selected.issubset({v.id for v in voters}) or any(len(selected.intersection(group)) != 1 for group in groups.values()):
@@ -130,7 +136,8 @@ def prepare(db, election, operator, body, client_factory=BeleniosClient):
                  "administrator": "Comision electoral", "credential_authority": "Autoridad externa",
                  "questions": [{"question": "Elija una lista", "answers": names, "min": 1, "max": 1}]}}
     binding = BeleniosBinding(election_id=election.id, reference=reference, policy=body.policy, draft_json=canonical(draft),
-                             approval_ref=body.approval_ref, total_people=len(voters), total_units=len(groups), phase="PREPARING")
+                             approval_ref=body.approval_ref, trustee_policy_json=canonical(body.trustee_policy.model_dump()),
+                             total_people=len(voters), total_units=len(groups), phase="PREPARING")
     db.add(binding)
     try:
         db.flush()
@@ -174,6 +181,8 @@ def transition(db, election, binding, operator, body, client_factory=BeleniosCli
     closed = db.query(BeleniosOperation.id).filter_by(binding_id=binding.id, kind="Close", phase="CONFIRMED").first() is not None
     if (body.action == "Open" and closed) or (body.action == "ComputeEncryptedTally" and not closed):
         raise HTTPException(409, "No se reabre una elección cerrada ni se escruta antes de su cierre confirmado.")
+    if body.action in ("ValidateElection", "Open"):
+        custody = approved_policy(binding)
     client = client_factory(binding.policy)
     route = "elections/" + binding.remote_uuid
     try:
@@ -181,8 +190,8 @@ def transition(db, election, binding, operator, body, client_factory=BeleniosCli
         if before == "Draft":
             status = client.call("GET", route + "/draft/status")
             trustees = client.call("GET", route + "/draft/trustees")
-            if not status.get("credentials_ready") or not status.get("trustees_ready") or trustees[0] != "Threshold" or trustees[1].get("threshold") != 2 or len(trustees[1].get("trustees", [])) != 3:
-                raise HTTPException(409, "Complete fuera de TheoGen la autoridad de credenciales y la ceremonia de trustees 2/3.")
+            if status.get("credentials_ready") is not True or status.get("trustees_ready") is not True or not ceremony_matches(trustees, custody):
+                raise HTTPException(409, f"Complete la autoridad de credenciales y la ceremonia de custodios aprobada: {custody['threshold']} de {custody['count']}.")
             if client.call("GET", route + "/draft")["questions"] != json.loads(binding.draft_json)["questions"]:
                 raise HTTPException(409, "La configuración remota difiere de la aprobada.")
             if status.get("num_voters") != binding.total_units or client.call("GET", route + "/draft/voters") != [unit.alias for unit in units(db, binding)]:

@@ -1,0 +1,30 @@
+[Unit]
+Description=TheoGen nonbinding pilot first-access gate
+After=network.target
+
+[Service]
+Type=simple
+User=azureuser
+Group=azureuser
+WorkingDirectory=/opt/theogen-pilot-access
+Environment=ACCESS_STATE_DIR=/var/lib/theogen-pilot-access
+Environment=ACCESS_PUBLIC_BASE=https://theogen-belenios-pilot-261102.eastus2.cloudapp.azure.com
+Environment=ACCESS_NATIVE_BRIDGE=/var/lib/theogen-pilot-access/native_admins.json
+Environment=ACCESS_MAIL_CONFIG=/var/lib/theogen-belenios/state/private/mail-config.json
+ExecStart=/usr/bin/python3 /opt/theogen-pilot-access/pilot_access.py --port 18445
+Restart=on-failure
+RestartSec=3
+UMask=0077
+NoNewPrivileges=true
+PrivateTmp=true
+ProtectSystem=strict
+ProtectHome=true
+ReadWritePaths=/var/lib/theogen-pilot-access /var/lib/theogen-belenios/state/private
+ReadOnlyPaths=/var/lib/theogen-belenios/state/private/operator_passwords /var/lib/theogen-belenios/state/private/operators
+InaccessiblePaths=/var/lib/theogen-belenios/secrets /var/lib/theogen-belenios/state/spool -/var/run/docker.sock -/run/docker.sock
+RestrictAddressFamilies=AF_INET AF_UNIX
+IPAddressDeny=any
+IPAddressAllow=localhost
+
+[Install]
+WantedBy=multi-user.target

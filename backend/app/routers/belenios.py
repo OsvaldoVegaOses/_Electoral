@@ -12,6 +12,8 @@ from app.belenios import service
 from app.belenios.client import BeleniosClient, ProviderError, require_enabled
 from app.belenios.verification import verify_result
 from app.belenios.deployment import enabled, public_url
+from app.belenios.custody import TrusteePolicy
+from app.belenios.capacity import MAX_UNITS
 
 def private_response(response: Response):
     response.headers["Cache-Control"] = "no-store"
@@ -28,10 +30,11 @@ class StrictInput(BaseModel):
 class PrepareInput(StrictInput):
     request_id: UUID
     policy: Literal["R1", "R2"]
-    representative_ids: list[int] = Field(min_length=1, max_length=100)
+    representative_ids: list[int] = Field(min_length=1, max_length=MAX_UNITS)
     approval_ref: str = Field(pattern=r"^[A-Za-z0-9_.-]{1,100}$")
     ballot_mode: Literal["mandatory_single_choice_no_blank_no_null"]
     synthetic_laboratory: bool
+    trustee_policy: TrusteePolicy
 
 
 class TransitionInput(StrictInput):
@@ -84,7 +87,7 @@ def status(election_id: int, db: Session = Depends(get_db), user: User = Depends
         closed = db.query(BeleniosOperation.id).filter_by(binding_id=binding.id, kind="Close", phase="CONFIRMED").first() is not None
         data["available_actions"] = [action for action, (before, _, _) in service.TRANSITIONS.items() if before == binding.phase
                                      and not binding.inflight and not (action == "Open" and closed) and not (action == "ComputeEncryptedTally" and not closed)]
-    return {"enabled": enabled(election), "mode": settings.BELENIOS_MODE, "max_units": 100, "binding": data}
+    return {"enabled": enabled(election), "mode": settings.BELENIOS_MODE, "max_units": MAX_UNITS, "binding": data}
 
 
 @router.post("/prepare", status_code=201)

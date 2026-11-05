@@ -104,7 +104,7 @@ const ElectionDetail = () => {
       setLoading(true);
       const [elData, vData, cData, engineData] = await Promise.all([
         electionService.getById(id),
-        voterService.getByElection(id),
+        voterService.getAllByElection(id),
         candidateService.getByElection(id),
         beleniosService.status(id),
       ]);
@@ -194,7 +194,7 @@ const ElectionDetail = () => {
       const res = await voterService.uploadExcel(id, uploadFile);
       setUploadResult(res);
       setActionSuccess(`Padrón procesado: ${res.insertados} electores incorporados con éxito.`);
-      const vData = await voterService.getByElection(id);
+      const vData = await voterService.getAllByElection(id);
       setVoters(vData);
       const scData = await reportService.getScrutiny(id);
       setScrutiny(scData);
@@ -981,11 +981,15 @@ const ElectionDetail = () => {
           <Typography variant="body2" color="text.secondary" sx={{ mb: 2 }}>
             Suba un archivo con columnas: <strong>RUT, Nombre, Curso, Correo, Familia ID</strong>. El sistema validará matemáticamente cada RUT (Módulo 11), verificará correos y evitará duplicados.
           </Typography>
+          {election.regla_votacion === 'Un voto por familia' && <Alert severity="info" sx={{ mb: 2 }}>
+            Familia ID es obligatorio en cada fila. Use el mismo identificador para los integrantes de una familia y uno distinto para cada familia. Después se selecciona un representante por unidad. La carga incorpora personas al padrón; no envía credenciales.
+          </Alert>}
+          <Typography variant="body2" sx={{ mb: 2 }}>Formatos: Excel .xlsx o CSV UTF-8 con coma, punto y coma o tabulación. Las filas válidas se incorporan y las rechazadas aparecen en el informe; corrija solo las pendientes.</Typography>
 
           <Box sx={{ mb: 3 }}>
             <input
               type="file"
-              accept=".xlsx,.xls,.csv"
+              accept=".xlsx,.csv"
               onChange={(e) => setUploadFile(e.target.files[0])}
               style={{ display: 'block', width: '100%', padding: '10px', border: '1px dashed #94a3b8', borderRadius: 8 }}
             />
